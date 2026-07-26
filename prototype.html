@@ -1,0 +1,676 @@
+<!-- Gathering Survey App — reusable event availability + preferences collector -->
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+
+    :root {
+        --cream: #F4EEE2;
+        --cream-2: #EDE4D3;
+        --sage: #6E7F5E;
+        --sage-deep: #4C5A40;
+        --terra: #C8643F;
+        --terra-soft: #E08A63;
+        --ink: #2B271F;
+        --ink-soft: #6A6253;
+        --line: #D8CEBC;
+        --card: #FBF7EE;
+        --shadow: 0 18px 40px -22px rgba(43, 39, 31, .45);
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0
+    }
+
+    body {
+        font-family: 'Hanken Grotesk', sans-serif;
+        color: var(--ink);
+        background: var(--cream);
+        background-image:
+            radial-gradient(120% 90% at 12% -10%, rgba(200, 100, 63, .10), transparent 55%),
+            radial-gradient(100% 80% at 100% 0%, rgba(110, 127, 94, .16), transparent 50%);
+        min-height: 100vh;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 28px 20px 80px
+    }
+
+    header.top {
+        margin-bottom: 22px
+    }
+
+    .eyebrow {
+        font-size: .72rem;
+        letter-spacing: .22em;
+        text-transform: uppercase;
+        color: var(--terra);
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        font-family: 'Fraunces', serif;
+        font-weight: 900;
+        font-size: 2.5rem;
+        line-height: 1.02;
+        letter-spacing: -.01em;
+        color: var(--ink);
+    }
+
+    h1 em {
+        font-style: italic;
+        font-weight: 500;
+        color: var(--sage-deep)
+    }
+
+    .sub {
+        color: var(--ink-soft);
+        margin-top: 10px;
+        max-width: 48ch;
+        font-size: 1rem
+    }
+
+    .tabs {
+        display: flex;
+        gap: 6px;
+        background: var(--cream-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px;
+        margin: 22px 0 26px;
+        width: fit-content
+    }
+
+    .tab {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 600;
+        font-size: .92rem;
+        color: var(--ink-soft);
+        padding: 9px 20px;
+        border-radius: 999px;
+        transition: .2s
+    }
+
+    .tab.active {
+        background: var(--ink);
+        color: var(--cream)
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 24px 22px;
+        box-shadow: var(--shadow);
+        margin-bottom: 18px
+    }
+
+    .q {
+        margin-bottom: 26px
+    }
+
+    .q:last-child {
+        margin-bottom: 0
+    }
+
+    .q-label {
+        font-family: 'Fraunces', serif;
+        font-size: 1.18rem;
+        font-weight: 600;
+        margin-bottom: 4px
+    }
+
+    .q-help {
+        font-size: .85rem;
+        color: var(--ink-soft);
+        margin-bottom: 13px
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px
+    }
+
+    .chip {
+        appearance: none;
+        border: 1.5px solid var(--line);
+        background: var(--cream);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: .92rem;
+        font-weight: 500;
+        padding: 10px 15px;
+        border-radius: 13px;
+        cursor: pointer;
+        transition: .16s;
+        text-align: left
+    }
+
+    .chip:hover {
+        border-color: var(--sage)
+    }
+
+    .chip.on {
+        background: var(--sage);
+        border-color: var(--sage-deep);
+        color: #fff;
+        font-weight: 600
+    }
+
+    .chip.date.on {
+        background: var(--terra);
+        border-color: var(--terra)
+    }
+
+    input[type=text],
+    input[type=email],
+    textarea {
+        width: 100%;
+        font-family: inherit;
+        font-size: 1rem;
+        color: var(--ink);
+        background: var(--cream);
+        border: 1.5px solid var(--line);
+        border-radius: 13px;
+        padding: 12px 14px;
+        transition: .16s
+    }
+
+    input:focus,
+    textarea:focus {
+        outline: 0;
+        border-color: var(--sage)
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 74px
+    }
+
+    .submit {
+        appearance: none;
+        border: 0;
+        cursor: pointer;
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--cream);
+        background: var(--terra);
+        width: 100%;
+        padding: 16px;
+        border-radius: 15px;
+        transition: .18s;
+        box-shadow: 0 10px 22px -12px var(--terra)
+    }
+
+    .submit:hover {
+        background: #b5582f
+    }
+
+    .submit:disabled {
+        opacity: .5;
+        cursor: not-allowed
+    }
+
+    .thanks {
+        text-align: center;
+        padding: 30px 10px
+    }
+
+    .thanks .mark {
+        font-size: 2.6rem
+    }
+
+    .thanks h2 {
+        font-family: 'Fraunces', serif;
+        font-size: 1.7rem;
+        margin: 8px 0 6px
+    }
+
+    .link-btn {
+        background: none;
+        border: 0;
+        color: var(--terra);
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: .95rem;
+        text-decoration: underline;
+        margin-top: 14px
+    }
+
+    /* results */
+    .stat-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 18px
+    }
+
+    .stat {
+        flex: 1;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 14px;
+        text-align: center;
+        box-shadow: var(--shadow)
+    }
+
+    .stat .n {
+        font-family: 'Fraunces', serif;
+        font-weight: 900;
+        font-size: 1.9rem;
+        color: var(--sage-deep);
+        line-height: 1
+    }
+
+    .stat .l {
+        font-size: .74rem;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-top: 6px
+    }
+
+    .res-title {
+        font-family: 'Fraunces', serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0 0 14px
+    }
+
+    .bar-row {
+        margin-bottom: 11px
+    }
+
+    .bar-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: .9rem;
+        margin-bottom: 4px
+    }
+
+    .bar-top b {
+        font-weight: 600
+    }
+
+    .bar-track {
+        background: var(--cream-2);
+        border-radius: 8px;
+        height: 12px;
+        overflow: hidden
+    }
+
+    .bar-fill {
+        height: 100%;
+        background: var(--sage);
+        border-radius: 8px;
+        transition: width .5s
+    }
+
+    .bar-fill.lead {
+        background: var(--terra)
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .88rem
+    }
+
+    th,
+    td {
+        text-align: left;
+        padding: 9px 8px;
+        border-bottom: 1px solid var(--line)
+    }
+
+    th {
+        font-size: .72rem;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        font-weight: 700
+    }
+
+    td.em {
+        color: var(--ink-soft)
+    }
+
+    .row-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 6px
+    }
+
+    .ghost {
+        appearance: none;
+        border: 1.5px solid var(--line);
+        background: var(--card);
+        color: var(--ink);
+        font-family: inherit;
+        font-weight: 600;
+        font-size: .9rem;
+        padding: 11px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: .16s
+    }
+
+    .ghost:hover {
+        border-color: var(--sage)
+    }
+
+    .ghost.danger:hover {
+        border-color: var(--terra);
+        color: var(--terra)
+    }
+
+    .empty {
+        text-align: center;
+        color: var(--ink-soft);
+        padding: 36px 10px;
+        font-size: .96rem
+    }
+
+    .note {
+        font-size: .8rem;
+        color: var(--ink-soft);
+        margin-top: 14px;
+        line-height: 1.45
+    }
+
+    .loading {
+        text-align: center;
+        color: var(--ink-soft);
+        padding: 30px
+    }
+
+    @media(max-width:480px) {
+        h1 {
+            font-size: 2rem
+        }
+
+        .wrap {
+            padding: 22px 15px 70px
+        }
+    }
+</style>
+
+<div class="wrap">
+    <header class="top">
+        <div class="eyebrow">Gather · Chicago</div>
+        <h1>Let's find the <em>right time</em> to gather.</h1>
+        <p class="sub">A rotating community series — yoga, mimosas, and good company. Tell me what activities you'd
+            attend and when you're free. Takes about a minute.</p>
+        <p class="sub" style="margin-top:8px"><strong style="color:var(--sage-deep)">A portion of every ticket</strong>
+            supports the Institute of Cultural Affairs (ICA), a local Chicago nonprofit working on community building
+            and a more sustainable city.</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab active" id="tabRespond" onclick="setView('respond')">Take the survey</button>
+        <button class="tab" id="tabResults" onclick="setView('results')">View results</button>
+    </div>
+
+    <div id="respondView"></div>
+    <div id="resultsView" style="display:none"></div>
+</div>
+
+<script>
+    /* ---------- options ---------- */
+    const GATHERINGS = ["Moms morning", "Couples / date", "Ladies' night", "Singles mixer", "Family-friendly", "Prenatal & new parents", "All ages / community"];
+    const TIMES = ["Mid-morning (9–10)", "Late AM (11)", "Afternoon", "Evening"];
+    const DAYPREF = ["Weekend", "Weekday", "Either works"];
+    const GUESTS = ["Just me", "2", "3", "4+"];
+    const DRINKS = ["Mimosa", "Mocktail", "Both please"];
+
+    /* ---------- DATES SHOWN ON THE SURVEY ----------
+       Edit this list whenever you want to offer a new set of dates.
+       Keep the format exactly: "Day, Mon D"   e.g. "Sat, Sep 12"        */
+    const DATES = [
+        "Sat, Aug 8",
+        "Sun, Aug 9",
+        "Sat, Aug 15",
+        "Sun, Aug 16",
+        "Sat, Aug 22",
+        "Sun, Aug 23",
+        "Sat, Aug 29",
+        "Sun, Aug 30"
+    ];
+
+    /* ---------- state ---------- */
+    const sel = { gatherings: new Set(), dates: new Set(), times: new Set(), dayPref: null, guests: null, drink: null };
+
+    /* ---------- views ---------- */
+    function setView(v) {
+        document.getElementById('tabRespond').classList.toggle('active', v === 'respond');
+        document.getElementById('tabResults').classList.toggle('active', v === 'results');
+        document.getElementById('respondView').style.display = v === 'respond' ? 'block' : 'none';
+        document.getElementById('resultsView').style.display = v === 'results' ? 'block' : 'none';
+        if (v === 'results') renderResults();
+    }
+
+    function chipGroup(setName, opts, cls = '') {
+        return `<div class="chips">` + opts.map(o =>
+            `<button class="chip ${cls}" data-set="${setName}" data-val="${o.replace(/"/g, '&quot;')}" onclick="toggleChip(this)">${o}</button>`
+        ).join('') + `</div>`;
+    }
+    function singleGroup(field, opts) {
+        return `<div class="chips">` + opts.map(o =>
+            `<button class="chip" data-single="${field}" data-val="${o}" onclick="pickSingle(this)">${o}</button>`
+        ).join('') + `</div>`;
+    }
+
+    function renderRespond() {
+        document.getElementById('respondView').innerHTML = `
+  <div class="card">
+    <div class="q">
+      <div class="q-label">Which gatherings would you attend?</div>
+      <div class="q-help">Pick all that appeal — this tells me what to plan next.</div>
+      ${chipGroup('gatherings', GATHERINGS)}
+    </div>
+    <div class="q">
+      <div class="q-label">Which dates could you make?</div>
+      <div class="q-help">Upcoming weekends. Select all that work.</div>
+      ${chipGroup('dates', DATES, 'date')}
+      <input type="text" id="fCustomDate" placeholder="Another date that works for you? Type it here…" style="margin-top:11px" />
+    </div>
+    <div class="q">
+      <div class="q-label">Best time of day?</div>
+      <div class="q-help">Pick any that suit you.</div>
+      ${chipGroup('times', TIMES)}
+      <input type="text" id="fCustomTime" placeholder="Prefer a specific time? Type it here (e.g. 10:30am)…" style="margin-top:11px" />
+    </div>
+    <div class="q">
+      <div class="q-label">Weekday or weekend?</div>
+      ${singleGroup('dayPref', DAYPREF)}
+    </div>
+    <div class="q">
+      <div class="q-label">How many would you bring? <span style="font-weight:400;color:var(--ink-soft)">(incl. you)</span></div>
+      ${singleGroup('guests', GUESTS)}
+    </div>
+    <div class="q">
+      <div class="q-label">Mimosa or mocktail?</div>
+      ${singleGroup('drink', DRINKS)}
+    </div>
+  </div>
+  <div class="card">
+    <div class="q">
+      <div class="q-label">Your name</div>
+      <input type="text" id="fName" placeholder="First name" />
+    </div>
+    <div class="q">
+      <div class="q-label">Email</div>
+      <div class="q-help">So I can send you the invite once a date is set.</div>
+      <input type="email" id="fEmail" placeholder="you@email.com" />
+    </div>
+    <div class="q">
+      <div class="q-label">Anything else you'd love?</div>
+      <textarea id="fNotes" placeholder="Optional — a cause, a vibe, a request…"></textarea>
+    </div>
+    <button class="submit" id="submitBtn" onclick="submit()">Send my answers</button>
+    <p class="note">Your response is shared with the organizer (and counts toward the totals everyone sees on the results tab).</p>
+  </div>`;
+    }
+
+    function toggleChip(el) {
+        const s = el.dataset.set, v = el.dataset.val;
+        if (sel[s].has(v)) sel[s].delete(v); else sel[s].add(v);
+        el.classList.toggle('on');
+    }
+    function pickSingle(el) {
+        const f = el.dataset.single;
+        document.querySelectorAll(`[data-single="${f}"]`).forEach(b => b.classList.remove('on'));
+        el.classList.add('on'); sel[f] = el.dataset.val;
+    }
+
+    async function submit() {
+        const name = (document.getElementById('fName').value || '').trim();
+        const email = (document.getElementById('fEmail').value || '').trim();
+        const notes = (document.getElementById('fNotes').value || '').trim();
+        const customDate = (document.getElementById('fCustomDate').value || '').trim();
+        const customTime = (document.getElementById('fCustomTime').value || '').trim();
+        if (!name) { alert('Please add your name.'); return; }
+        if (sel.dates.size === 0 && !customDate) { alert('Please pick or type at least one date that works.'); return; }
+        const btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+        const obj = {
+            id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            ts: new Date().toISOString(),
+            name, email, notes, customDate, customTime,
+            gatherings: [...sel.gatherings], dates: [...sel.dates], times: [...sel.times],
+            dayPref: sel.dayPref, guests: sel.guests, drink: sel.drink
+        };
+        try {
+            await window.storage.set('resp:' + obj.id, JSON.stringify(obj), true);
+            document.getElementById('respondView').innerHTML = `
+      <div class="card thanks">
+        <div class="mark">🌿</div>
+        <h2>Thank you, ${name.replace(/</g, '')}!</h2>
+        <p class="sub" style="margin:0 auto">Your answers are in. Watch your inbox for the invite once the date's locked.</p>
+        <button class="link-btn" onclick="setView('results')">See what everyone picked →</button>
+      </div>`;
+        } catch (e) {
+            btn.disabled = false; btn.textContent = 'Send my answers';
+            alert('Something went wrong saving that. Please try again.');
+        }
+    }
+
+    /* ---------- results ---------- */
+    async function getAll() {
+        try {
+            const res = await window.storage.list('resp:', true);
+            if (!res || !res.keys || !res.keys.length) return [];
+            const out = [];
+            for (const k of res.keys) {
+                try { const r = await window.storage.get(k, true); if (r && r.value) out.push(JSON.parse(r.value)); } catch (e) { }
+            }
+            return out.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+        } catch (e) { return []; }
+    }
+    function tally(rows, field, order) {
+        const c = {}; order.forEach(o => c[o] = 0);
+        rows.forEach(r => {
+            const v = r[field];
+            if (Array.isArray(v)) v.forEach(x => { if (x in c) c[x]++ });
+            else if (v && (v in c)) c[v]++;
+        });
+        return order.map(o => [o, c[o]]).sort((a, b) => b[1] - a[1]);
+    }
+    function bars(pairs, total) {
+        const max = Math.max(1, ...pairs.map(p => p[1]));
+        return pairs.map((p, i) => `
+    <div class="bar-row">
+      <div class="bar-top"><span>${p[0]}</span><b>${p[1]}</b></div>
+      <div class="bar-track"><div class="bar-fill ${i === 0 && p[1] > 0 ? 'lead' : ''}" style="width:${p[1] / max * 100}%"></div></div>
+    </div>`).join('');
+    }
+
+    async function renderResults() {
+        const v = document.getElementById('resultsView');
+        v.innerHTML = `<div class="loading">Loading responses…</div>`;
+        const rows = await getAll();
+        if (!rows.length) {
+            v.innerHTML = `<div class="card"><div class="empty">No responses yet.<br>Share this app's link — answers will appear here automatically.</div></div>`;
+            return;
+        }
+        const totalGuests = rows.reduce((s, r) => { const g = r.guests === 'Just me' ? 1 : (r.guests === '4+' ? 4 : parseInt(r.guests) || 1); return s + g; }, 0);
+        const dateT = tally(rows, 'dates', DATES);
+        const timeT = tally(rows, 'times', TIMES);
+        const gathT = tally(rows, 'gatherings', GATHERINGS);
+        const dayT = tally(rows, 'dayPref', DAYPREF);
+        const drinkT = tally(rows, 'drink', DRINKS);
+        const writeDates = rows.filter(r => r.customDate).map(r => `${r.customDate} — ${(r.name || '').replace(/</g, '')}`);
+        const writeTimes = rows.filter(r => r.customTime).map(r => `${r.customTime} — ${(r.name || '').replace(/</g, '')}`);
+        const writeIns = (writeDates.length || writeTimes.length) ? `
+    <div class="card">
+      <div class="res-title">✍️ Write-in requests</div>
+      ${writeDates.length ? `<div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:6px">Dates</div><ul style="margin:0 0 10px 18px;font-size:.92rem">${writeDates.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}
+      ${writeTimes.length ? `<div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:6px">Times</div><ul style="margin:0 0 0 18px;font-size:.92rem">${writeTimes.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}
+    </div>` : '';
+
+        v.innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="n">${rows.length}</div><div class="l">Responses</div></div>
+      <div class="stat"><div class="n">${totalGuests}</div><div class="l">Est. guests</div></div>
+      <div class="stat"><div class="n">${dateT[0][1] ? dateT[0][0].split(',')[0] : '—'}</div><div class="l">Top day</div></div>
+    </div>
+    <div class="card"><div class="res-title">📅 Best dates</div>${bars(dateT)}</div>
+    <div class="card"><div class="res-title">⏰ Best times</div>${bars(timeT)}</div>
+    <div class="card"><div class="res-title">✨ What to plan next — gathering demand</div>${bars(gathT)}</div>
+    <div class="card">
+      <div class="res-title">Quick splits</div>
+      <div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:8px">Weekday vs weekend</div>${bars(dayT)}
+      <div style="font-size:.9rem;color:var(--ink-soft);margin:14px 0 8px">Drinks</div>${bars(drinkT)}
+    </div>
+    ${writeIns}
+    <div class="card">
+      <div class="res-title">Contact list (${rows.length})</div>
+      <div style="overflow-x:auto">
+      <table><thead><tr><th>Name</th><th>Email</th><th>Bringing</th><th>Interested in</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${(r.name || '').replace(/</g, '')}</td>
+        <td class="em">${(r.email || '—').replace(/</g, '')}</td>
+        <td class="em">${r.guests || '—'}</td>
+        <td class="em">${(r.gatherings || []).join(', ') || '—'}</td></tr>`).join('')}</tbody></table>
+      </div>
+      <div class="row-actions">
+        <button class="ghost" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="ghost danger" onclick="clearAll()">Clear all responses</button>
+      </div>
+      <p class="note">Tip: open the CSV in Google Sheets or Excel to build your mailing list and lock your date.</p>
+    </div>`;
+    }
+
+    async function exportCSV() {
+        const rows = await getAll();
+        const head = ['Timestamp', 'Name', 'Email', 'Will bring', 'Gatherings', 'Dates that work', 'Write-in date', 'Times', 'Write-in time', 'Day pref', 'Drink', 'Notes'];
+        const esc = s => `"${String(s == null ? '' : s).replace(/"/g, '""')}"`;
+        const lines = [head.map(esc).join(',')];
+        rows.forEach(r => lines.push([r.ts, r.name, r.email, r.guests, (r.gatherings || []).join('; '), (r.dates || []).join('; '), r.customDate, (r.times || []).join('; '), r.customTime, r.dayPref, r.drink, r.notes].map(esc).join(',')));
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'gathering-responses.csv'; a.click();
+    }
+    async function clearAll() {
+        if (!confirm('Delete ALL responses? This cannot be undone.')) return;
+        try {
+            const res = await window.storage.list('resp:', true);
+            if (res && res.keys) for (const k of res.keys) await window.storage.delete(k, true);
+        } catch (e) { }
+        renderResults();
+    }
+
+    renderRespond();
+</script>
