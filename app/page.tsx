@@ -102,6 +102,20 @@ export default function Home() {
         drink: selectedDrink,
       });
       setSubmitted(true);
+
+      // Trigger confirmation email asynchronously (non-blocking)
+      fetch('/api/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          dates: selectedDates,
+          gatherings: selectedGatherings,
+        }),
+      }).catch((err) => {
+        console.error('Confirmation email error:', err);
+      });
     } catch (err: any) {
       console.error("Error submitting response:", err);
       setFormError('Something went wrong saving your response. Please try again.');
