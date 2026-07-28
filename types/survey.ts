@@ -1,6 +1,7 @@
 export interface SurveyResponse {
   id?: string;
   createdAt?: any;
+  city?: string;
   name: string;
   email: string;
   notes?: string;

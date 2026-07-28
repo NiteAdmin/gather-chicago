@@ -4,7 +4,7 @@ import { collection, getDocs } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
-    const { passcode } = await request.json();
+    const { passcode, city } = await request.json().catch(() => ({}));
 
     // Check passcode against environment variable
     if (!passcode || passcode !== process.env.ADMIN_SECRET) {
@@ -13,7 +13,20 @@ export async function POST(request: Request) {
 
     // Fetch responses using client SDK instance on server side
     const snapshot = await getDocs(collection(db, 'responses'));
-    const responses = snapshot.docs.map((doc) => doc.data());
+    let responses = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Filter by city if specified and not 'all'
+    if (city && typeof city === 'string' && city.toLowerCase() !== 'all') {
+      const targetCity = city.toLowerCase();
+      responses = responses.filter((r: any) => {
+        // Fallback unassigned/legacy documents to 'chicago'
+        const docCity = (r.city || 'chicago').toLowerCase();
+        return docCity === targetCity;
+      });
+    }
 
     return NextResponse.json({ responses });
   } catch (error: any) {

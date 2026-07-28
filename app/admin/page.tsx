@@ -7,7 +7,6 @@ const GATHERINGS = [
   "Moms morning",
   "Couples / date",
   "Ladies' night",
-  "Singles mixer",
   "Family-friendly",
   "Prenatal & new parents",
   "All ages / community",
@@ -34,8 +33,17 @@ const DATES = [
   "Sun, Aug 30",
 ];
 
+function formatCityName(slug: string): string {
+  if (!slug) return 'Chicago';
+  return slug
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export default function AdminPage() {
   const [passcode, setPasscode] = useState('');
+  const [selectedCity, setSelectedCity] = useState('all');
   const [authenticated, setAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -51,6 +59,22 @@ export default function AdminPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const fetchResults = async (targetPasscode: string, targetCity: string) => {
+    const res = await fetch('/api/admin/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode: targetPasscode, city: targetCity }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Unauthorized passcode');
+    }
+
+    setResponses(data.responses || []);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -64,25 +88,24 @@ export default function AdminPage() {
     setAuthenticating(true);
 
     try {
-      const res = await fetch('/api/admin/results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode: trimmedPasscode }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Unauthorized passcode');
-      }
-
-      setResponses(data.responses || []);
+      await fetchResults(trimmedPasscode, selectedCity);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
     } catch (err: any) {
       setAuthError(err.message || 'Incorrect admin passcode.');
     } finally {
       setAuthenticating(false);
+    }
+  };
+
+  const handleCityChange = async (newCity: string) => {
+    setSelectedCity(newCity);
+    if (authenticated) {
+      try {
+        await fetchResults(passcode, newCity);
+      } catch (err: any) {
+        console.error('Failed to update city filter:', err);
+      }
     }
   };
 
@@ -124,7 +147,7 @@ export default function AdminPage() {
 
   const handleOpenAdminModal = () => {
     setWinningDate(topDateOption || DATES[0]);
-    setEventDetails('Join us for a relaxing morning of yoga, mimosa toasts, and great conversation with local Chicago neighbors!');
+    setEventDetails('Join us for a relaxing morning of yoga, mimosa toasts, and great conversation with local neighbors!');
     setEventLink('');
     setShowAdminModal(true);
   };
@@ -180,6 +203,7 @@ export default function AdminPage() {
 
   const exportCSV = () => {
     const headers = [
+      'City',
       'Timestamp',
       'Name',
       'Email',
@@ -200,6 +224,7 @@ export default function AdminPage() {
 
     responses.forEach((r) => {
       const line = [
+        r.city || 'chicago',
         r.createdAt ? (r.createdAt.seconds ? new Date(r.createdAt.seconds * 1000).toISOString() : String(r.createdAt)) : '',
         r.name,
         r.email,
@@ -220,7 +245,7 @@ export default function AdminPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'gathering-responses.csv');
+    link.setAttribute('download', `gathering-responses-${selectedCity}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -541,13 +566,6 @@ export default function AdminPage() {
           background: #b5582f;
         }
 
-        .empty {
-          text-align: center;
-          color: var(--ink-soft);
-          padding: 36px 10px;
-          font-size: 0.96rem;
-        }
-
         .form-error {
           background: rgba(200, 100, 63, 0.12);
           border: 1px solid var(--terra);
@@ -639,12 +657,12 @@ export default function AdminPage() {
 
       <div className="wrap">
         <header className="top">
-          <div className="eyebrow">Gather · Chicago</div>
+          <div className="eyebrow">ACTUALLY · MULTI-CITY ADMIN</div>
           <h1>
             Admin <em>Dashboard</em>
           </h1>
           <p className="sub">
-            Protected survey results, guest analytics, and email broadcast controls.
+            Protected survey results, guest analytics, and email broadcast controls per city.
           </p>
         </header>
 
@@ -678,6 +696,34 @@ export default function AdminPage() {
           </div>
         ) : (
           <div>
+            {/* City Filter Selector */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', background: 'var(--card)', padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
+              <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--ink)' }}>
+                📍 Filter by City:
+              </span>
+              <select
+                value={selectedCity}
+                onChange={(e) => handleCityChange(e.target.value)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1.5px solid var(--line)',
+                  background: 'var(--cream)',
+                  fontFamily: 'inherit',
+                  fontSize: '0.92rem',
+                  color: 'var(--ink)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="all">🌍 All Cities</option>
+                <option value="chicago">🏙️ Chicago</option>
+                <option value="san-francisco">🌉 San Francisco</option>
+                <option value="new-york">🗽 New York</option>
+                <option value="austin">🤠 Austin</option>
+              </select>
+            </div>
+
             <div className="stat-row">
               <div className="stat">
                 <div className="n">{responses.length}</div>
@@ -695,7 +741,7 @@ export default function AdminPage() {
 
             <div className="card">
               <div className="res-title">
-                <span>📅 Best dates</span>
+                <span>📅 Best dates ({formatCityName(selectedCity)})</span>
                 <button className="announce-btn" onClick={handleOpenAdminModal}>
                   📧 Announce Winning Date
                 </button>
@@ -761,6 +807,7 @@ export default function AdminPage() {
                 <table>
                   <thead>
                     <tr>
+                      <th>City</th>
                       <th>Name</th>
                       <th>Email</th>
                       <th>Bringing</th>
@@ -770,6 +817,7 @@ export default function AdminPage() {
                   <tbody>
                     {responses.map((r, idx) => (
                       <tr key={r.id || idx}>
+                        <td><strong>{formatCityName(r.city || 'chicago')}</strong></td>
                         <td>{r.name}</td>
                         <td className="em">{r.email || '—'}</td>
                         <td className="em">{r.guests || '—'}</td>
@@ -794,7 +842,7 @@ export default function AdminPage() {
         <div className="modal-overlay" onClick={() => setShowAdminModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">📧 Broadcast Announcement</div>
+              <div className="modal-title">📧 Broadcast Announcement ({formatCityName(selectedCity)})</div>
               <button className="close-btn" onClick={() => setShowAdminModal(false)}>
                 &times;
               </button>
