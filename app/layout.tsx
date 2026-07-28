@@ -13,7 +13,10 @@ const hankenGrotesk = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Gather · Chicago | Event Availability & Survey",
+  title: {
+    default: "Actually | Event Availability",
+    template: "%s",
+  },
   description: "A rotating community series — yoga, mimosas, and good company.",
 };
 
@@ -31,4 +34,3 @@ export default function RootLayout({
     </html>
   );
 }
-
