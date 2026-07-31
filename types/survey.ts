@@ -4,6 +4,8 @@ export interface SurveyResponse {
   city?: string;
   name: string;
   email: string;
+  phoneNumber?: string;
+  smsOptIn?: boolean;
   notes?: string;
   customDate?: string;
   customTime?: string;

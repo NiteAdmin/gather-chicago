@@ -207,6 +207,8 @@ export default function AdminDashboard() {
       'Timestamp',
       'Name',
       'Email',
+      'Phone Number',
+      'SMS Opt-In',
       'Will bring',
       'Gatherings',
       'Dates that work',
@@ -228,6 +230,8 @@ export default function AdminDashboard() {
         r.createdAt ? (r.createdAt.seconds ? new Date(r.createdAt.seconds * 1000).toISOString() : String(r.createdAt)) : '',
         r.name,
         r.email,
+        r.phoneNumber ? `'${r.phoneNumber}` : '',
+        r.smsOptIn ? 'Yes' : 'No',
         r.guests,
         (r.gatherings || []).join('; '),
         (r.dates || []).join('; '),
@@ -810,6 +814,8 @@ export default function AdminDashboard() {
                       <th>City</th>
                       <th>Name</th>
                       <th>Email</th>
+                      <th>Phone</th>
+                      <th>SMS Opt-In</th>
                       <th>Bringing</th>
                       <th>Interested in</th>
                     </tr>
@@ -820,6 +826,8 @@ export default function AdminDashboard() {
                         <td><strong>{formatCityName(r.city || 'chicago')}</strong></td>
                         <td>{r.name}</td>
                         <td className="em">{r.email || '—'}</td>
+                        <td className="em">{r.phoneNumber ? r.phoneNumber : '—'}</td>
+                        <td className="em">{r.smsOptIn ? 'Yes' : 'No'}</td>
                         <td className="em">{r.guests || '—'}</td>
                         <td className="em">{(r.gatherings || []).join(', ') || '—'}</td>
                       </tr>

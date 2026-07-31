@@ -5,9 +5,22 @@ export async function POST(req: Request) {
   console.log('--- CONFIRM EMAIL REQUEST RECEIVED ---');
   try {
     const body = await req.json().catch(() => ({}));
-    const { name, email, dates = [], gatherings = [] } = body;
+    const { name, email, phoneNumber, smsOptIn = false, dates = [], gatherings = [] } = body;
 
-    console.log('Incoming Payload:', { name, email, dates, gatherings });
+    // Sanitize phone number by stripping non-digit characters so only digits remain
+    const sanitizedPhone = typeof phoneNumber === "string" && phoneNumber.trim()
+      ? phoneNumber.replace(/\D/g, "")
+      : undefined;
+    const sanitizedSmsOptIn = Boolean(smsOptIn);
+
+    console.log('Incoming Payload:', {
+      name,
+      email,
+      phoneNumber: sanitizedPhone,
+      smsOptIn: sanitizedSmsOptIn,
+      dates,
+      gatherings,
+    });
 
     const trimmedName = typeof name === "string" ? name.trim() : "";
     const trimmedEmail = typeof email === "string" ? email.trim() : "";

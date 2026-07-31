@@ -2,6 +2,7 @@
 
 import React, { useState, use } from 'react';
 import { saveResponse } from '@/lib/firebase';
+import { formatPhoneNumber } from '@/lib/formatPhone';
 
 const GATHERINGS = [
   "Moms morning",
@@ -64,6 +65,8 @@ export default function SurveyForm({
   const [customTime, setCustomTime] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +88,8 @@ export default function SurveyForm({
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
     const trimmedCustomDate = customDate.trim();
+    const sanitizedPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : undefined;
+    const hasSmsOptIn = Boolean(smsOptIn);
 
     if (!trimmedName) {
       setFormError('Please enter your name.');
@@ -108,6 +113,8 @@ export default function SurveyForm({
         city: rawCity.toLowerCase(),
         name: trimmedName,
         email: trimmedEmail,
+        phoneNumber: sanitizedPhone,
+        smsOptIn: hasSmsOptIn,
         notes: notes.trim(),
         customDate: trimmedCustomDate,
         customTime: customTime.trim(),
@@ -128,6 +135,8 @@ export default function SurveyForm({
           city: cityName,
           name: trimmedName,
           email: trimmedEmail,
+          phoneNumber: sanitizedPhone,
+          smsOptIn: hasSmsOptIn,
           dates: selectedDates,
           gatherings: selectedGatherings,
         }),
@@ -287,6 +296,7 @@ export default function SurveyForm({
 
         input[type='text'],
         input[type='email'],
+        input[type='tel'],
         textarea {
           width: 100%;
           font-family: inherit;
@@ -551,7 +561,47 @@ export default function SurveyForm({
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    marginTop: '12px',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    color: 'var(--ink)',
+                    fontWeight: 500,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={smsOptIn}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      setSmsOptIn(isChecked);
+                      if (!isChecked) {
+                        setPhoneNumber('');
+                      }
+                    }}
+                    style={{ accentColor: 'var(--sage)', width: '16px', height: '16px' }}
+                  />
+                  Get a text notification for event updates & blurbs
+                </label>
               </div>
+
+              {smsOptIn && (
+                <div className="q">
+                  <div className="q-label">
+                    Phone number <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(Optional)</span>
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="(555) 000-0000"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                  />
+                </div>
+              )}
 
               <div className="q">
                 <div className="q-label">Anything else you'd love?</div>
