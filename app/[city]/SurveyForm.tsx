@@ -3,6 +3,7 @@
 import React, { useState, use } from 'react';
 import { saveResponse } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 const GATHERINGS = [
   "Moms morning",
@@ -67,6 +68,8 @@ export default function SurveyForm({
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +87,13 @@ export default function SurveyForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    // Honeypot check: If visually hidden field is populated, silently abort (trap bots)
+    if (websiteUrl && websiteUrl.trim().length > 0) {
+      console.warn("Honeypot field populated on client. Aborting submission.");
+      setSubmitted(true);
+      return;
+    }
 
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
@@ -109,6 +119,32 @@ export default function SurveyForm({
     setSubmitting(true);
 
     try {
+      // 1. Verify anti-spam, duplicate uniqueness, and rate limits via API
+      const confirmRes = await fetch('/api/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          city: rawCity.toLowerCase(),
+          cityName: cityName,
+          name: trimmedName,
+          email: trimmedEmail,
+          phoneNumber: sanitizedPhone,
+          smsOptIn: hasSmsOptIn,
+          dates: selectedDates,
+          gatherings: selectedGatherings,
+          website_url: websiteUrl,
+          turnstileToken: turnstileToken,
+        }),
+      });
+
+      const confirmData = await confirmRes.json();
+
+      if (!confirmRes.ok) {
+        setFormError(confirmData.error || 'Unable to process RSVP. Please try again.');
+        return;
+      }
+
+      // 2. Save response to Firestore upon successful validation
       await saveResponse({
         city: rawCity.toLowerCase(),
         name: trimmedName,
@@ -125,27 +161,11 @@ export default function SurveyForm({
         guests: selectedGuests,
         drink: selectedDrink,
       });
-      setSubmitted(true);
 
-      // Trigger confirmation email asynchronously (non-blocking)
-      fetch('/api/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          city: cityName,
-          name: trimmedName,
-          email: trimmedEmail,
-          phoneNumber: sanitizedPhone,
-          smsOptIn: hasSmsOptIn,
-          dates: selectedDates,
-          gatherings: selectedGatherings,
-        }),
-      }).catch((err) => {
-        console.error('Confirmation email error:', err);
-      });
+      setSubmitted(true);
     } catch (err: any) {
       console.error("Error submitting response:", err);
-      setFormError('Something went wrong saving your response. Please try again.');
+      setFormError(err.message || 'Something went wrong saving your response. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -420,10 +440,23 @@ export default function SurveyForm({
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* Visually hidden honeypot input field named website_url */}
+            <div style={{ display: 'none', visibility: 'hidden' }} aria-hidden="true">
+              <label htmlFor="website_url">Website URL</label>
+              <input
+                id="website_url"
+                type="text"
+                name="website_url"
+                tabIndex={-1}
+                autoComplete="off"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+              />
+            </div>
+
             <div className="card">
               <div className="q">
                 <div className="q-label">Which gatherings would you attend?</div>
-                <div className="q-help">Pick all that appeal — this tells me what to plan next.</div>
                 <div className="chips">
                   {GATHERINGS.map((g) => (
                     <button
@@ -440,7 +473,6 @@ export default function SurveyForm({
 
               <div className="q">
                 <div className="q-label">Which dates could you make?</div>
-                <div className="q-help">Upcoming weekends. Select all that work.</div>
                 <div className="chips">
                   {DATES.map((d) => (
                     <button
@@ -464,7 +496,6 @@ export default function SurveyForm({
 
               <div className="q">
                 <div className="q-label">Best time of day?</div>
-                <div className="q-help">Pick any that suit you.</div>
                 <div className="chips">
                   {TIMES.map((t) => (
                     <button
@@ -585,7 +616,7 @@ export default function SurveyForm({
                     }}
                     style={{ accentColor: 'var(--sage)', width: '16px', height: '16px' }}
                   />
-                  Get a text notification for event updates & blurbs
+                  Get a text notification for event updates
                 </label>
               </div>
 
@@ -609,6 +640,16 @@ export default function SurveyForm({
                   placeholder="Optional — a cause, a vibe, a request…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Cloudflare Turnstile Bot Protection Widget */}
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                <Turnstile
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
                 />
               </div>
 

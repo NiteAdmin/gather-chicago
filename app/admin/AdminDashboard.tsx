@@ -59,6 +59,12 @@ export default function AdminDashboard() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Admin SMS Broadcast state
+  const [smsMessage, setSmsMessage] = useState('');
+  const [showSmsConfirmModal, setShowSmsConfirmModal] = useState(false);
+  const [sendingSms, setSendingSms] = useState(false);
+  const [smsToast, setSmsToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const fetchResults = async (targetPasscode: string, targetCity: string) => {
     const res = await fetch('/api/admin/results', {
       method: 'POST',
@@ -145,6 +151,10 @@ export default function AdminDashboard() {
   const writeInDates = responses.filter((r) => r.customDate).map((r) => `${r.customDate} — ${r.name}`);
   const writeInTimes = responses.filter((r) => r.customTime).map((r) => `${r.customTime} — ${r.name}`);
 
+  const smsOptedInResponses = responses.filter(
+    (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
+  );
+
   const handleOpenAdminModal = () => {
     setWinningDate(topDateOption || DATES[0]);
     setEventDetails('Join us for a relaxing morning of yoga, mimosa toasts, and great conversation with local neighbors!');
@@ -198,6 +208,56 @@ export default function AdminDashboard() {
       });
     } finally {
       setBroadcasting(false);
+    }
+  };
+
+  const handleSendSmsBroadcast = async () => {
+    setSmsToast(null);
+    const activePasscode = adminPasscode.trim() || passcode.trim();
+
+    if (!activePasscode) {
+      setSmsToast({ type: 'error', text: 'Please enter the Admin Passcode.' });
+      return;
+    }
+
+    if (!smsMessage.trim()) {
+      setSmsToast({ type: 'error', text: 'SMS message text cannot be empty.' });
+      return;
+    }
+
+    setSendingSms(true);
+
+    try {
+      const res = await fetch('/api/admin/broadcast-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: smsMessage.trim(),
+          adminSecret: activePasscode,
+          city: selectedCity,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send SMS broadcast');
+      }
+
+      setSmsToast({
+        type: 'success',
+        text: `Success! ${data.sentCount} text message${data.sentCount === 1 ? '' : 's'} sent successfully to opted-in attendees 🎉`,
+      });
+
+      setSmsMessage('');
+      setShowSmsConfirmModal(false);
+    } catch (err: any) {
+      setSmsToast({
+        type: 'error',
+        text: err.message || 'Error broadcasting SMS message.',
+      });
+    } finally {
+      setSendingSms(false);
     }
   };
 
@@ -841,11 +901,55 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* SMS Broadcast Panel */}
+            <div className="card">
+              <div className="res-title">📱 SMS Broadcast Panel ({formatCityName(selectedCity)})</div>
+              <p className="q-help" style={{ marginBottom: '14px' }}>
+                Send an instant text message alert to attendees who opted into SMS updates.
+              </p>
+
+              <div style={{ background: 'var(--cream-2)', padding: '12px 16px', borderRadius: '12px', marginBottom: '16px', fontSize: '0.9rem', color: 'var(--sage-deep)', fontWeight: 600 }}>
+                📲 Sending to {smsOptedInResponses.length} opted-in attendee{smsOptedInResponses.length === 1 ? '' : 's'} {selectedCity !== 'all' ? `in ${formatCityName(selectedCity)}` : 'across all cities'}
+              </div>
+
+              {smsToast && (
+                <div className={`toast ${smsToast.type}`} style={{ marginBottom: '14px' }}>
+                  {smsToast.text}
+                </div>
+              )}
+
+              <div className="q">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div className="q-label" style={{ fontSize: '0.95rem' }}>SMS Message Text</div>
+                  <span style={{ fontSize: '0.82rem', color: smsMessage.length >= 160 ? 'var(--terra)' : 'var(--ink-soft)', fontWeight: 600 }}>
+                    {smsMessage.length} / 160 chars
+                  </span>
+                </div>
+                <textarea
+                  value={smsMessage}
+                  onChange={(e) => setSmsMessage(e.target.value)}
+                  placeholder="e.g. Winner date selected! Check your email for details & RSVP tickets for Gather Chicago."
+                  maxLength={160}
+                  rows={3}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="submit"
+                style={{ marginTop: '8px', padding: '14px', background: 'var(--sage-deep)' }}
+                disabled={!smsMessage.trim() || smsOptedInResponses.length === 0}
+                onClick={() => setShowSmsConfirmModal(true)}
+              >
+                📲 Send SMS Broadcast ({smsOptedInResponses.length} Recipients)
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Admin Broadcast Modal */}
+      {/* Admin Email Broadcast Modal */}
       {showAdminModal && (
         <div className="modal-overlay" onClick={() => setShowAdminModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -923,6 +1027,59 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin SMS Broadcast Confirmation Modal */}
+      {showSmsConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowSmsConfirmModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📲 Confirm SMS Broadcast</div>
+              <button className="close-btn" onClick={() => setShowSmsConfirmModal(false)}>
+                &times;
+              </button>
+            </div>
+
+            <p style={{ margin: '12px 0 16px', color: 'var(--ink)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              Are you sure you want to send this text message to <strong>{smsOptedInResponses.length} opted-in attendee{smsOptedInResponses.length === 1 ? '' : 's'}</strong> ({formatCityName(selectedCity)})?
+            </p>
+
+            <div style={{ background: 'var(--cream)', padding: '14px', borderRadius: '12px', border: '1px solid var(--line)', fontStyle: 'italic', marginBottom: '20px', fontSize: '0.9rem', color: 'var(--ink)' }}>
+              "{smsMessage}"
+            </div>
+
+            <div className="q">
+              <div className="q-label">Admin Passcode *</div>
+              <input
+                type="password"
+                value={adminPasscode}
+                onChange={(e) => setAdminPasscode(e.target.value)}
+                placeholder="Enter secret passcode"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button
+                type="button"
+                className="ghost"
+                style={{ flex: 1 }}
+                onClick={() => setShowSmsConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="submit"
+                style={{ flex: 2, padding: '12px', background: 'var(--sage-deep)' }}
+                disabled={sendingSms}
+                onClick={handleSendSmsBroadcast}
+              >
+                {sendingSms ? 'Sending SMS...' : 'Confirm & Send Texts'}
+              </button>
+            </div>
           </div>
         </div>
       )}
