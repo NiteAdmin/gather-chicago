@@ -592,47 +592,19 @@ export default function SurveyForm({
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '9px',
-                    marginTop: '12px',
-                    cursor: 'pointer',
-                    fontSize: '0.92rem',
-                    color: 'var(--ink)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={smsOptIn}
-                    onChange={(e) => {
-                      const isChecked = e.target.checked;
-                      setSmsOptIn(isChecked);
-                      if (!isChecked) {
-                        setPhoneNumber('');
-                      }
-                    }}
-                    style={{ accentColor: 'var(--sage)', width: '16px', height: '16px' }}
-                  />
-                  Get a text notification for event updates
-                </label>
               </div>
 
-              {smsOptIn && (
-                <div className="q">
-                  <div className="q-label">
-                    Phone number <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(Optional)</span>
-                  </div>
-                  <input
-                    type="tel"
-                    placeholder="(555) 000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
-                  />
+              <div className="q">
+                <div className="q-label">
+                  Phone number <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(Optional)</span>
                 </div>
-              )}
+                <input
+                  type="tel"
+                  placeholder="(555) 000-0000"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                />
+              </div>
 
               <div className="q">
                 <div className="q-label">Anything else you'd love?</div>
@@ -651,6 +623,22 @@ export default function SurveyForm({
                   onExpire={() => setTurnstileToken(null)}
                   onError={() => setTurnstileToken(null)}
                 />
+              </div>
+
+              {/* Twilio A2P / Toll-Free Compliant SMS Opt-In Disclaimer */}
+              <div className="my-4 flex items-start space-x-3 rounded-xl border border-[#e5dcd0] bg-[#fdfbf7] p-3.5 shadow-sm">
+                <input
+                  type="checkbox"
+                  id="smsOptIn"
+                  name="smsOptIn"
+                  checked={smsOptIn}
+                  onChange={(e) => setSmsOptIn(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#c85a32] focus:ring-[#c85a32] cursor-pointer"
+                  style={{ accentColor: '#c85a32', width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }}
+                />
+                <label htmlFor="smsOptIn" className="text-xs text-gray-700 leading-relaxed cursor-pointer select-none">
+                  I agree to receive transactional SMS event confirmations and updates from <strong>Actually Let's</strong>. Message &amp; data rates may apply. Reply <strong>STOP</strong> to opt out or <strong>HELP</strong> for support.
+                </label>
               </div>
 
               <button className="submit" type="submit" disabled={submitting}>

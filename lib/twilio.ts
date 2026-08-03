@@ -8,8 +8,25 @@ export const twilioClient =
   accountSid && authToken ? twilio(accountSid, authToken) : null;
 
 /**
+ * Converts a phone number string into E.164 format (+1 followed by 10 digits).
+ */
+export function formatE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+  if (phone.trim().startsWith("+")) {
+    return `+${digits}`;
+  }
+  return `+1${digits}`;
+}
+
+/**
  * Sends an automated SMS message via Twilio.
- * @param to E.164 formatted phone number (e.g. +13125550199)
+ * @param to Phone number (will be converted to E.164 format)
  * @param body Message text
  */
 export async function sendSms(to: string, body: string) {
@@ -21,12 +38,13 @@ export async function sendSms(to: string, body: string) {
   }
 
   try {
+    const formattedTo = formatE164(to);
     const message = await twilioClient.messages.create({
       body,
       from: fromPhone,
-      to,
+      to: formattedTo,
     });
-    console.log(`Twilio SMS successfully sent to ${to}. SID: ${message.sid}`);
+    console.log(`Twilio SMS successfully sent to ${formattedTo}. SID: ${message.sid}`);
     return message;
   } catch (error: any) {
     console.error("Twilio SMS delivery error:", error);

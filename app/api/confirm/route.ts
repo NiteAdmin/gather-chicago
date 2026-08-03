@@ -200,11 +200,24 @@ export async function POST(req: Request) {
       </div>
     `;
 
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+
+    const emailText = `Gather · Chicago\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Gather Chicago community series.\n\nGatherings you'd attend:\n${
+      Array.isArray(gatherings) && gatherings.length > 0
+        ? gatherings.map((g: string) => `- ${g}`).join("\n")
+        : "None selected"
+    }\n\nDates that work for you:\n${
+      Array.isArray(dates) && dates.length > 0
+        ? dates.map((d: string) => `- ${d}`).join("\n")
+        : "Custom date specified"
+    }\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports the Institute of Cultural Affairs (ICA) in Chicago.`;
+
     const emailResponse = await resend.emails.send({
-      from: "Gather Chicago <onboarding@resend.dev>",
+      from: resendFromEmail,
       to: [trimmedEmail],
       subject: "Got your availability for Gather Chicago! 🎉",
       html: emailHtml,
+      text: emailText,
     });
 
     if (emailResponse.error) {
