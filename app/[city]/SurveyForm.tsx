@@ -600,10 +600,46 @@ export default function SurveyForm({
                 </div>
                 <input
                   type="tel"
+                  id="phoneNumber"
                   placeholder="(555) 000-0000"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                  onChange={(e) => {
+                    const formatted = formatPhoneNumber(e.target.value);
+                    setPhoneNumber(formatted);
+                    if (formatted.trim().length === 0) {
+                      setSmsOptIn(false);
+                    }
+                  }}
                 />
+
+                {/* Progressive Disclosure: Only render opt-in option if phone number is entered */}
+                {phoneNumber.trim().length > 0 && (
+                  <div className="pt-2 space-y-2" style={{ marginTop: '10px' }}>
+                    <label htmlFor="smsOptIn" className="flex items-center space-x-2.5 cursor-pointer select-none" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--ink)' }}>
+                      <input
+                        type="checkbox"
+                        id="smsOptIn"
+                        name="smsOptIn"
+                        checked={smsOptIn}
+                        onChange={(e) => setSmsOptIn(e.target.checked)}
+                        className="h-4 w-4 rounded border-[#e5dcd0] text-[#c85a32] focus:ring-[#c85a32] cursor-pointer"
+                        style={{ accentColor: '#c85a32', width: '16px', height: '16px', flexShrink: 0 }}
+                      />
+                      <span className="text-sm font-medium text-gray-800" style={{ fontWeight: 500 }}>
+                        Send me SMS updates for this event
+                      </span>
+                    </label>
+
+                    {/* Compliance Blurb: Expands dynamically when checked */}
+                    {smsOptIn && (
+                      <div className="mt-2 rounded-xl border border-[#e5dcd0] bg-[#fbf8f2] p-3.5 shadow-sm transition-all duration-200" style={{ marginTop: '8px', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e5dcd0', backgroundColor: '#fbf8f2' }}>
+                        <p className="text-xs text-gray-700 leading-relaxed" style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', lineHeight: '1.45', margin: 0 }}>
+                          I agree to receive transactional SMS event confirmations and updates from <strong>Actually Let's</strong>. Message &amp; data rates may apply. Reply <strong>STOP</strong> to opt out or <strong>HELP</strong> for support.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="q">
@@ -623,22 +659,6 @@ export default function SurveyForm({
                   onExpire={() => setTurnstileToken(null)}
                   onError={() => setTurnstileToken(null)}
                 />
-              </div>
-
-              {/* Twilio A2P / Toll-Free Compliant SMS Opt-In Disclaimer */}
-              <div className="my-4 flex items-start space-x-3 rounded-xl border border-[#e5dcd0] bg-[#fdfbf7] p-3.5 shadow-sm">
-                <input
-                  type="checkbox"
-                  id="smsOptIn"
-                  name="smsOptIn"
-                  checked={smsOptIn}
-                  onChange={(e) => setSmsOptIn(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#c85a32] focus:ring-[#c85a32] cursor-pointer"
-                  style={{ accentColor: '#c85a32', width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }}
-                />
-                <label htmlFor="smsOptIn" className="text-xs text-gray-700 leading-relaxed cursor-pointer select-none">
-                  I agree to receive transactional SMS event confirmations and updates from <strong>Actually Let's</strong>. Message &amp; data rates may apply. Reply <strong>STOP</strong> to opt out or <strong>HELP</strong> for support.
-                </label>
               </div>
 
               <button className="submit" type="submit" disabled={submitting}>
