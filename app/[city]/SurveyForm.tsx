@@ -75,6 +75,7 @@ export default function SurveyForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const toggleChip = (list: string[], setList: (v: string[]) => void, item: string) => {
     if (list.includes(item)) {
@@ -87,6 +88,7 @@ export default function SurveyForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setPhoneError(null);
 
     // Honeypot check: If visually hidden field is populated, silently abort (trap bots)
     if (websiteUrl && websiteUrl.trim().length > 0) {
@@ -98,7 +100,8 @@ export default function SurveyForm({
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
     const trimmedCustomDate = customDate.trim();
-    const sanitizedPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : undefined;
+    const cleanPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
+    const sanitizedPhone = cleanPhone.length > 0 ? cleanPhone : undefined;
     const hasSmsOptIn = Boolean(smsOptIn);
 
     if (!trimmedName) {
@@ -113,6 +116,12 @@ export default function SurveyForm({
 
     if (selectedDates.length === 0 && !trimmedCustomDate) {
       setFormError('Please pick or type at least one date that works for you.');
+      return;
+    }
+
+    if (hasSmsOptIn && cleanPhone.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit US phone number to receive SMS updates.');
+      setFormError('Please enter a valid 10-digit US phone number to receive SMS updates.');
       return;
     }
 
@@ -606,11 +615,18 @@ export default function SurveyForm({
                   onChange={(e) => {
                     const formatted = formatPhoneNumber(e.target.value);
                     setPhoneNumber(formatted);
+                    setPhoneError(null);
                     if (formatted.trim().length === 0) {
                       setSmsOptIn(false);
                     }
                   }}
                 />
+
+                {phoneError && (
+                  <div style={{ color: 'var(--terra)', fontSize: '0.82rem', marginTop: '6px', fontWeight: 500 }}>
+                    {phoneError}
+                  </div>
+                )}
 
                 {/* Progressive Disclosure: Only render opt-in option if phone number is entered */}
                 {phoneNumber.trim().length > 0 && (
@@ -621,7 +637,10 @@ export default function SurveyForm({
                         id="smsOptIn"
                         name="smsOptIn"
                         checked={smsOptIn}
-                        onChange={(e) => setSmsOptIn(e.target.checked)}
+                        onChange={(e) => {
+                          setSmsOptIn(e.target.checked);
+                          setPhoneError(null);
+                        }}
                         className="h-4 w-4 rounded border-[#e5dcd0] text-[#c85a32] focus:ring-[#c85a32] cursor-pointer"
                         style={{ accentColor: '#c85a32', width: '16px', height: '16px', flexShrink: 0 }}
                       />
