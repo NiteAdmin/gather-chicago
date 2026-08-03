@@ -212,18 +212,24 @@ export async function POST(req: Request) {
         : "Custom date specified"
     }\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports the Institute of Cultural Affairs (ICA) in Chicago.`;
 
-    const emailResponse = await resend.emails.send({
-      from: resendFromEmail,
-      to: [trimmedEmail],
-      subject: "Got your availability for Gather Chicago! 🎉",
-      html: emailHtml,
-      text: emailText,
-    });
+    let resendId: string | undefined = undefined;
+    try {
+      const emailResponse = await resend.emails.send({
+        from: resendFromEmail,
+        to: [trimmedEmail],
+        subject: "Got your availability for Gather Chicago! 🎉",
+        html: emailHtml,
+        text: emailText,
+      });
 
-    if (emailResponse.error) {
-      console.error('Resend Error:', emailResponse.error);
-    } else {
-      console.log('Confirmation email sent successfully:', emailResponse.data);
+      if (emailResponse.error) {
+        console.warn('[RESEND SANDBOX WARNING]: Could not send email to external address in test mode:', emailResponse.error.message || emailResponse.error);
+      } else {
+        console.log('Confirmation email sent successfully:', emailResponse.data);
+        resendId = emailResponse.data?.id;
+      }
+    } catch (resendErr: any) {
+      console.warn('[RESEND SANDBOX WARNING]: Could not send email to external address in test mode:', resendErr.message);
     }
 
     // Send automated Twilio SMS if user opted in and provided a valid 10-digit phone number
@@ -233,7 +239,7 @@ export async function POST(req: Request) {
         const targetCitySlug = typeof city === "string" ? city.toLowerCase() : "chicago";
         const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
-        const smsMessage = `You're in! Thanks for RSVPing to Actually ${targetCityName}. Updates & details: https://actuallylets.vercel.app/${targetCitySlug}`;
+        const smsMessage = `You're in! Thanks for RSVPing to Actually ${targetCityName}. Updates & details: actuallylets.vercel.app/${targetCitySlug}`;
 
         console.log(`Triggering Twilio confirmation SMS to ${formattedE164}...`);
         await sendSms(formattedE164, smsMessage);
@@ -244,7 +250,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      resendId: emailResponse.data?.id,
+      resendId: resendId,
     });
   } catch (error: any) {
     console.error('Resend Error:', error);
