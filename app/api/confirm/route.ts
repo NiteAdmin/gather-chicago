@@ -236,15 +236,19 @@ export async function POST(req: Request) {
     if (sanitizedSmsOptIn && sanitizedPhone && sanitizedPhone.length === 10) {
       try {
         const formattedE164 = `+1${sanitizedPhone}`;
-        const targetCitySlug = typeof city === "string" ? city.toLowerCase() : "chicago";
         const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
-        const smsMessage = `You're in! Thanks for RSVPing to Actually ${targetCityName}. Updates & details: actuallylets.vercel.app/${targetCitySlug}`;
+        // Plain-text SMS template (No URLs/links) to bypass carrier spam filters
+        const smsMessage = `Actually Let's: Hi ${trimmedName}, your RSVP for ${targetCityName} is confirmed! Reply STOP to opt out.`;
 
         console.log(`Triggering Twilio confirmation SMS to ${formattedE164}...`);
-        await sendSms(formattedE164, smsMessage);
-      } catch (smsError) {
-        console.error("Twilio SMS send error caught gracefully:", smsError);
+        const message = await sendSms(formattedE164, smsMessage);
+
+        if (message) {
+          console.log(`[TWILIO DIAGNOSTIC] SID: ${message.sid} | Status: ${message.status} | ErrorCode: ${message.errorCode || 'None'} | ErrorMsg: ${message.errorMessage || 'None'}`);
+        }
+      } catch (twilioError: any) {
+        console.error('[TWILIO API ERROR]', twilioError.code, twilioError.message);
       }
     }
 
