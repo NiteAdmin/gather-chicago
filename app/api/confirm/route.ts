@@ -233,7 +233,7 @@ export async function POST(req: Request) {
         const targetCitySlug = typeof city === "string" ? city.toLowerCase() : "chicago";
         const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
-        const smsMessage = `You're in! Thanks for RSVPing to Actually ${targetCityName}. Updates & details: actuallylets.com/${targetCitySlug}`;
+        const smsMessage = `You're in! Thanks for RSVPing to Actually ${targetCityName}. Updates & details: https://actuallylets.vercel.app/${targetCitySlug}`;
 
         console.log(`Triggering Twilio confirmation SMS to ${formattedE164}...`);
         await sendSms(formattedE164, smsMessage);
