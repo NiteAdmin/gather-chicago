@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, use } from 'react';
+import Link from 'next/link';
 import { saveResponse } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -232,6 +233,14 @@ export default function SurveyForm({
           color: var(--terra);
           font-weight: 700;
           margin-bottom: 10px;
+          display: inline-block;
+          text-decoration: none;
+          transition: opacity 0.2s;
+          cursor: pointer;
+        }
+
+        .eyebrow:hover {
+          opacity: 0.8;
         }
 
         h1 {
@@ -419,7 +428,9 @@ export default function SurveyForm({
 
       <div className="wrap">
         <header className="top">
-          <div className="eyebrow">ACTUALLY · {cityName.toUpperCase()}</div>
+          <Link href="/" className="eyebrow">
+            ACTUALLY · {cityName.toUpperCase()}
+          </Link>
           <h1>
             Let's find the <em>right time</em> to gather in {cityName}.
           </h1>
