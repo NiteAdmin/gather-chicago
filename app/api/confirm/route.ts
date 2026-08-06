@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     }
 
     // Cloudflare Turnstile Server-Side Token Verification
-    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA";
+    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || "0x4AAAAAAEHoBK71fRuK8Zu2";
     if (turnstileToken && turnstileSecret) {
       try {
         const verifyFormData = new URLSearchParams();

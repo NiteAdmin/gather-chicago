@@ -684,7 +684,7 @@ export default function SurveyForm({
               {/* Cloudflare Turnstile Bot Protection Widget */}
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
                 <Turnstile
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
                   onSuccess={(token) => setTurnstileToken(token)}
                   onExpire={() => setTurnstileToken(null)}
                   onError={() => setTurnstileToken(null)}
