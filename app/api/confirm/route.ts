@@ -200,7 +200,7 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const resendFromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
 
     const emailText = `Gather · Chicago\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Gather Chicago community series.\n\nGatherings you'd attend:\n${
       Array.isArray(gatherings) && gatherings.length > 0
