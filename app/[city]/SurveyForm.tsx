@@ -681,11 +681,11 @@ export default function SurveyForm({
                 />
               </div>
 
-              {/* Cloudflare Turnstile Bot Protection Widget */}
-              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              {/* Cloudflare Turnstile Bot Protection Widget (Invisible Background Verification) */}
+              <div style={{ display: 'none' }} aria-hidden="true">
                 <Turnstile
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
-                  options={{ appearance: 'interaction-only' }}
+                  options={{ size: 'invisible' }}
                   onSuccess={(token) => setTurnstileToken(token)}
                   onExpire={() => setTurnstileToken(null)}
                   onError={() => setTurnstileToken(null)}
