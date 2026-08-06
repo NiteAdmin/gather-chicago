@@ -685,6 +685,7 @@ export default function SurveyForm({
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
                 <Turnstile
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
+                  options={{ appearance: 'interaction-only' }}
                   onSuccess={(token) => setTurnstileToken(token)}
                   onExpire={() => setTurnstileToken(null)}
                   onError={() => setTurnstileToken(null)}
