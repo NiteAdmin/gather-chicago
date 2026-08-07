@@ -22,6 +22,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function CityPage({ params }: Props) {
+import { notFound } from 'next/navigation';
+
+export default async function CityPage({ params }: Props) {
+  const resolvedParams = await params;
+  const rawCity = resolvedParams?.city?.toLowerCase() || '';
+
+  if (rawCity === 'robots.txt' || rawCity === 'favicon.ico' || rawCity === 'sitemap.xml') {
+    notFound();
+  }
+
   return <SurveyForm params={params} />;
 }
