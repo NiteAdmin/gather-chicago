@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { fetchResponses } from "@/lib/firebase";
+import { fetchResponses, saveResponse } from "@/lib/firebase";
 import { sendSms } from "@/lib/twilio";
 
 // In-memory sliding window IP rate limiter (3 requests per 15 minutes)
@@ -139,6 +139,24 @@ export async function POST(req: Request) {
         { error: "This phone number or email has already RSVP'd for this event!" },
         { status: 400 }
       );
+    }
+
+    // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
+    try {
+      await saveResponse({
+        city: typeof city === "string" ? city : "chicago",
+        cityName: typeof cityName === "string" ? cityName : "Chicago",
+        name: trimmedName,
+        email: trimmedEmail,
+        phoneNumber: sanitizedPhone ? sanitizedPhone : null,
+        smsOptIn: sanitizedSmsOptIn,
+        dates: Array.isArray(dates) ? dates : [],
+        gatherings: Array.isArray(gatherings) ? gatherings : [],
+        customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
+        notes: typeof body.notes === "string" ? body.notes.trim() : null,
+      });
+    } catch (dbErr) {
+      console.error("Firestore server-side save error:", dbErr);
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;

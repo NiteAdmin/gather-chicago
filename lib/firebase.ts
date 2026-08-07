@@ -23,10 +23,21 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 
 export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt">): Promise<string> {
-  const docRef = await addDoc(collection(db, "responses"), {
-    ...data,
+  const sanitizedPayload = {
+    city: data.city || "chicago",
+    cityName: data.cityName || "Chicago",
+    name: data.name ? data.name.trim() : "",
+    email: data.email ? data.email.trim().toLowerCase() : "",
+    phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : null,
+    smsOptIn: Boolean(data.smsOptIn),
+    gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
+    dates: Array.isArray(data.dates) ? data.dates : [],
+    customDate: data.customDate ? data.customDate.trim() : null,
+    notes: data.notes ? data.notes.trim() : null,
     createdAt: serverTimestamp(),
-  });
+  };
+
+  const docRef = await addDoc(collection(db, "responses"), sanitizedPayload);
   return docRef.id;
 }
 

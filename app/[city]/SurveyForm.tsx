@@ -129,22 +129,26 @@ export default function SurveyForm({
     setSubmitting(true);
 
     try {
-      // 1. Verify anti-spam, duplicate uniqueness, and rate limits via API
+      // 1. Verify anti-spam, duplicate uniqueness, save to Firestore, and dispatch email/SMS via API
+      const payload = {
+        city: rawCity.toLowerCase(),
+        cityName: cityName,
+        name: trimmedName,
+        email: trimmedEmail,
+        phoneNumber: sanitizedPhone ? sanitizedPhone : null,
+        smsOptIn: Boolean(hasSmsOptIn),
+        dates: Array.isArray(selectedDates) ? selectedDates : [],
+        gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
+        customDate: trimmedCustomDate || null,
+        notes: notes ? notes.trim() : null,
+        website_url: websiteUrl || null,
+        turnstileToken: turnstileToken || null,
+      };
+
       const confirmRes = await fetch('/api/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          city: rawCity.toLowerCase(),
-          cityName: cityName,
-          name: trimmedName,
-          email: trimmedEmail,
-          phoneNumber: sanitizedPhone,
-          smsOptIn: hasSmsOptIn,
-          dates: selectedDates,
-          gatherings: selectedGatherings,
-          website_url: websiteUrl,
-          turnstileToken: turnstileToken,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const confirmData = await confirmRes.json();
@@ -154,28 +158,10 @@ export default function SurveyForm({
         return;
       }
 
-      // 2. Save response to Firestore upon successful validation
-      await saveResponse({
-        city: rawCity.toLowerCase(),
-        name: trimmedName,
-        email: trimmedEmail,
-        phoneNumber: sanitizedPhone,
-        smsOptIn: hasSmsOptIn,
-        notes: notes.trim(),
-        customDate: trimmedCustomDate,
-        customTime: customTime.trim(),
-        gatherings: selectedGatherings,
-        dates: selectedDates,
-        times: selectedTimes,
-        dayPref: selectedDayPref,
-        guests: selectedGuests,
-        drink: selectedDrink,
-      });
-
       setSubmitted(true);
     } catch (err: any) {
       console.error("Error submitting response:", err);
-      setFormError(err.message || 'Something went wrong saving your response. Please try again.');
+      setFormError('Something went wrong submitting your RSVP. Please try again.');
     } finally {
       setSubmitting(false);
     }
