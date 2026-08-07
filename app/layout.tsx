@@ -30,9 +30,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${hankenGrotesk.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${hankenGrotesk.variable} h-full antialiased bg-[#F4EEE2]`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#F4EEE2]">{children}</body>
     </html>
   );
 }

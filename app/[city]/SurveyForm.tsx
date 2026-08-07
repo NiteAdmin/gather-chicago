@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { saveResponse } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
@@ -54,6 +54,13 @@ export default function SurveyForm({
   const rawCity = resolvedParams?.city || 'chicago';
   const cityName = formatCityName(rawCity);
   const isChicago = rawCity.toLowerCase() === 'chicago';
+
+  // Hydration state check
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form state
   const [selectedGatherings, setSelectedGatherings] = useState<string[]>([]);
@@ -412,7 +419,7 @@ export default function SurveyForm({
         }
       `}</style>
 
-      <div className="wrap" style={{ minHeight: '850px' }}>
+      <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
           <Link href="/" className="eyebrow" style={{ display: 'inline-block', minHeight: '1.2rem' }}>
             ACTUALLY · {cityName.toUpperCase()}
