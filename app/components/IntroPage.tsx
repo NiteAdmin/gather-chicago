@@ -692,8 +692,6 @@ export default function IntroPage({ initialVariant = '1' }: IntroPageProps) {
             <Link href="/privacy" className="hover:text-[#2B271F]">Privacy</Link>
             <span>•</span>
             <Link href="/terms" className="hover:text-[#2B271F]">Terms</Link>
-            <span>•</span>
-            <Link href="/admin" className="hover:text-[#2B271F]">Host Dashboard</Link>
           </div>
           <p>
             Actually Let’s · A portion of every ticket supports local community & sustainability initiatives.
