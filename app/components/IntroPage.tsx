@@ -250,7 +250,7 @@ export default function IntroPage({ initialVariant = '1' }: IntroPageProps) {
                 <span className="w-2 h-2 rounded-full bg-[#A89F91]" />
                 <span>New York</span>
                 <span className="text-[11px] text-[#6A6253] bg-[#D8CEBC]/50 px-2 py-0.5 rounded-full">
-                  Expanding 2026
+                  Coming 2027
                 </span>
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function IntroPage({ initialVariant = '1' }: IntroPageProps) {
                   Austin (Soon)
                 </span>
                 <span className="inline-flex items-center gap-1.5 bg-[#EDE4D3] text-[#6A6253] px-3.5 py-2 rounded-full text-xs font-medium border border-[#D8CEBC]">
-                  NYC (2026)
+                  NYC (2027)
                 </span>
               </div>
 
@@ -583,7 +583,7 @@ export default function IntroPage({ initialVariant = '1' }: IntroPageProps) {
                     New York
                   </span>
                   <span className="text-[10px] bg-[#D8CEBC] text-[#6A6253] px-2 py-0.5 rounded-full font-bold uppercase">
-                    2026
+                    2027
                   </span>
                 </div>
                 <p className="text-xs text-[#6A6253]">
