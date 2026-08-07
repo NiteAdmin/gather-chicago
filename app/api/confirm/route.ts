@@ -166,16 +166,18 @@ export async function POST(req: Request) {
           </ul>`
         : `<p style="color: #6A6253; italic;">Custom date specified</p>`;
 
+    const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
+
     const emailHtml = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2B271F; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #F4EEE2; border-radius: 16px;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h2 style="color: #C8643F; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Gather · Chicago</h2>
+          <h2 style="color: #C8643F; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Actually Let's · ${targetCityName}</h2>
           <h1 style="color: #2B271F; font-size: 26px; margin: 0;">Thanks for your input, ${trimmedName}! 🌿</h1>
         </div>
         
         <div style="background-color: #FBF7EE; border: 1px solid #D8CEBC; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
           <p style="font-size: 16px; line-height: 1.5; color: #2B271F; margin-top: 0;">
-            We received your availability and preferences for the upcoming Gather Chicago community series.
+            We received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.
           </p>
           
           <h3 style="color: #4C5A40; margin: 16px 0 4px;">✨ Gatherings you'd attend:</h3>
@@ -195,14 +197,14 @@ export async function POST(req: Request) {
         </div>
 
         <p style="font-size: 13px; color: #6A6253; text-align: center; margin: 0;">
-          A portion of every ticket supports the Institute of Cultural Affairs (ICA) in Chicago.
+          A portion of every ticket supports local community building and sustainability efforts.
         </p>
       </div>
     `;
 
     const resendFromEmail = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
 
-    const emailText = `Gather · Chicago\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Gather Chicago community series.\n\nGatherings you'd attend:\n${
+    const emailText = `Actually Let's · ${targetCityName}\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${
       Array.isArray(gatherings) && gatherings.length > 0
         ? gatherings.map((g: string) => `- ${g}`).join("\n")
         : "None selected"
@@ -210,14 +212,14 @@ export async function POST(req: Request) {
       Array.isArray(dates) && dates.length > 0
         ? dates.map((d: string) => `- ${d}`).join("\n")
         : "Custom date specified"
-    }\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports the Institute of Cultural Affairs (ICA) in Chicago.`;
+    }\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     let resendId: string | undefined = undefined;
     try {
       const emailResponse = await resend.emails.send({
         from: resendFromEmail,
         to: [trimmedEmail],
-        subject: "Got your availability for Gather Chicago! 🎉",
+        subject: `Got your availability for Actually Let's ${targetCityName}! 🎉`,
         html: emailHtml,
         text: emailText,
       });

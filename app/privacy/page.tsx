@@ -38,7 +38,7 @@ export default function PrivacyPage() {
           <div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#4C5A40', marginBottom: '8px' }}>3. How We Use Your Information</h2>
             <p>
-              Your information is used solely to tally event availability, send transactional event updates, RSVP links, and administrative notifications related to your Gather community events.
+              Your information is used solely to tally event availability, send transactional event updates, RSVP links, and administrative notifications related to your Actually Let's community events.
             </p>
           </div>
 

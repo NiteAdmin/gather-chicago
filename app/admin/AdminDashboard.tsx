@@ -929,7 +929,7 @@ export default function AdminDashboard() {
                 <textarea
                   value={smsMessage}
                   onChange={(e) => setSmsMessage(e.target.value)}
-                  placeholder="e.g. Winner date selected! Check your email for details & RSVP tickets for Gather Chicago."
+                  placeholder="e.g. Winner date selected! Check your email for details & RSVP tickets for Actually Let's Chicago."
                   maxLength={160}
                   rows={3}
                 />
