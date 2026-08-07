@@ -16,10 +16,15 @@ const hankenGrotesk = Hanken_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "Actually | Event Availability",
+    default: "Actually Let's | Event Availability",
     template: "%s",
   },
   description: "A rotating community series — yoga, mimosas, and good company.",
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
