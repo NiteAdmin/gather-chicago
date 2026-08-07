@@ -59,11 +59,11 @@ gather-app/
 | `RESEND_FROM_EMAIL` | Server-Only | Default email sender identity | `Actually Let's <rsvp@actuallylets.com>` |
 | `TWILIO_ACCOUNT_SID` | Server-Only | Twilio SMS API account identifier | `ACXXXXXXXXXXXXXXXXAAAAAAAAAAAAAAAA` |
 | `TWILIO_AUTH_TOKEN` | Server-Only | Twilio SMS API authentication token | `your_auth_token` |
-| `TWILIO_PHONE_NUMBER` | Server-Only | Verified local US sender phone number | `+17372710831` |
+| `TWILIO_PHONE_NUMBER` | Server-Only | Verified local US sender phone number | `+15550199999` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Client-Side | Firebase web API key | `AIzaSyXXXXXXXXXXXXXXXX` |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client-Side | Firebase authentication domain | `gather-chicago.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client-Side | Firebase project identifier | `gather-chicago` |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client-Side | Firebase storage bucket | `gather-chicago.firebasestorage.app` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client-Side | Firebase authentication domain | `your-project-id.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client-Side | Firebase project identifier | `your-project-id` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client-Side | Firebase storage bucket | `your-project-id.firebasestorage.app` |
 
 ---
 
