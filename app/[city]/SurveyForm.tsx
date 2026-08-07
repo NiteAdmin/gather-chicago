@@ -412,12 +412,12 @@ export default function SurveyForm({
         }
       `}</style>
 
-      <div className="wrap">
-        <header className="top">
-          <Link href="/" className="eyebrow">
+      <div className="wrap" style={{ minHeight: '850px' }}>
+        <header className="top" style={{ minHeight: '180px' }}>
+          <Link href="/" className="eyebrow" style={{ display: 'inline-block', minHeight: '1.2rem' }}>
             ACTUALLY · {cityName.toUpperCase()}
           </Link>
-          <h1>
+          <h1 style={{ minHeight: '3.2rem' }}>
             Let's find the <em>right time</em> to gather in {cityName}.
           </h1>
           <p className="sub">
