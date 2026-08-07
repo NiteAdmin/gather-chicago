@@ -175,14 +175,29 @@ export async function POST(req: Request) {
         ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
             ${gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${g}</li>`).join("")}
           </ul>`
-        : `<p style="color: #6A6253; italic;">None selected</p>`;
+        : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
 
+    const customDateHtml =
+      body.customDate && typeof body.customDate === "string" && body.customDate.trim()
+        ? `<li style="margin-bottom: 4px; color: #C8643F;"><strong>Suggested Date:</strong> ${body.customDate.trim()}</li>`
+        : "";
+
+    const hasDates = Array.isArray(dates) && dates.length > 0;
     const datesListHtml =
-      Array.isArray(dates) && dates.length > 0
+      hasDates || customDateHtml
         ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
-            ${dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("")}
+            ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("") : ""}
+            ${customDateHtml}
           </ul>`
-        : `<p style="color: #6A6253; italic;">Custom date specified</p>`;
+        : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
+
+    const notesSectionHtml =
+      body.notes && typeof body.notes === "string" && body.notes.trim()
+        ? `<h3 style="color: #4C5A40; margin: 16px 0 4px;">💬 Your write-in notes / requests:</h3>
+           <p style="margin: 4px 0 16px 20px; color: #2B271F; font-style: italic; background-color: #EDE4D3; padding: 10px 14px; border-radius: 8px;">
+             "${body.notes.trim()}"
+           </p>`
+        : "";
 
     const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
@@ -204,6 +219,8 @@ export async function POST(req: Request) {
           <h3 style="color: #4C5A40; margin: 16px 0 4px;">📅 Dates that work for you:</h3>
           ${datesListHtml}
 
+          ${notesSectionHtml}
+
           <div style="background-color: #EDE4D3; padding: 14px; border-radius: 8px; margin-top: 16px;">
             <p style="margin: 0; font-size: 14px; color: #4C5A40; font-weight: bold;">
               What happens next?
@@ -222,15 +239,27 @@ export async function POST(req: Request) {
 
     const resendFromEmail = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
 
+    const customDateText =
+      body.customDate && typeof body.customDate === "string" && body.customDate.trim()
+        ? `- Suggested Date: ${body.customDate.trim()}`
+        : "";
+
+    const datesText =
+      [
+        ...(Array.isArray(dates) ? dates.map((d: string) => `- ${d}`) : []),
+        ...(customDateText ? [customDateText] : []),
+      ].join("\n") || "None selected";
+
+    const notesText =
+      body.notes && typeof body.notes === "string" && body.notes.trim()
+        ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
+        : "";
+
     const emailText = `Actually Let's · ${targetCityName}\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${
       Array.isArray(gatherings) && gatherings.length > 0
         ? gatherings.map((g: string) => `- ${g}`).join("\n")
         : "None selected"
-    }\n\nDates that work for you:\n${
-      Array.isArray(dates) && dates.length > 0
-        ? dates.map((d: string) => `- ${d}`).join("\n")
-        : "Custom date specified"
-    }\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    }\n\nDates that work for you:\n${datesText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     let resendId: string | undefined = undefined;
     try {
