@@ -177,17 +177,17 @@ export async function POST(req: Request) {
           </ul>`
         : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
 
-    const customDateHtml =
+    const customDateItemHtml =
       body.customDate && typeof body.customDate === "string" && body.customDate.trim()
         ? `<li style="margin-bottom: 4px; color: #C8643F;"><strong>Suggested Date:</strong> ${body.customDate.trim()}</li>`
         : "";
 
     const hasDates = Array.isArray(dates) && dates.length > 0;
     const datesListHtml =
-      hasDates || customDateHtml
+      hasDates || customDateItemHtml
         ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
             ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("") : ""}
-            ${customDateHtml}
+            ${customDateItemHtml}
           </ul>`
         : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
 
