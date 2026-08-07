@@ -33,6 +33,11 @@ export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt"
     gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
     dates: Array.isArray(data.dates) ? data.dates : [],
     customDate: data.customDate ? data.customDate.trim() : null,
+    times: Array.isArray(data.times) ? data.times : [],
+    customTime: data.customTime ? data.customTime.trim() : null,
+    dayPref: data.dayPref ? data.dayPref.trim() : null,
+    guests: data.guests ? data.guests.trim() : null,
+    drink: data.drink ? data.drink.trim() : null,
     notes: data.notes ? data.notes.trim() : null,
     createdAt: serverTimestamp(),
   };

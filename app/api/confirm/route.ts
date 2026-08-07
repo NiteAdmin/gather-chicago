@@ -153,6 +153,11 @@ export async function POST(req: Request) {
         dates: Array.isArray(dates) ? dates : [],
         gatherings: Array.isArray(gatherings) ? gatherings : [],
         customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
+        times: Array.isArray(body.times) ? body.times : [],
+        customTime: typeof body.customTime === "string" ? body.customTime.trim() : null,
+        dayPref: typeof body.dayPref === "string" ? body.dayPref.trim() : null,
+        guests: typeof body.guests === "string" ? body.guests.trim() : null,
+        drink: typeof body.drink === "string" ? body.drink.trim() : null,
         notes: typeof body.notes === "string" ? body.notes.trim() : null,
       });
     } catch (dbErr) {
@@ -177,19 +182,42 @@ export async function POST(req: Request) {
           </ul>`
         : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
 
-    const customDateItemHtml =
+    const customDateHtml =
       body.customDate && typeof body.customDate === "string" && body.customDate.trim()
-        ? `<li style="margin-bottom: 4px; color: #C8643F;"><strong>Suggested Date:</strong> ${body.customDate.trim()}</li>`
+        ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Date:</strong> ${body.customDate.trim()}</li>`
         : "";
 
     const hasDates = Array.isArray(dates) && dates.length > 0;
     const datesListHtml =
-      hasDates || customDateItemHtml
+      hasDates || customDateHtml
         ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
             ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("") : ""}
-            ${customDateItemHtml}
+            ${customDateHtml}
           </ul>`
         : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
+
+    const timesList = Array.isArray(body.times) ? body.times : [];
+    const customTimeStr =
+      typeof body.customTime === "string" && body.customTime.trim()
+        ? body.customTime.trim()
+        : null;
+
+    const timesItemsHtml = [
+      ...timesList.map((t: string) => `<li style="margin-bottom: 4px;">${t}</li>`),
+      customTimeStr
+        ? `<li style="margin-bottom: 4px;"><strong>Suggested Time:</strong> ${customTimeStr}</li>`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("");
+
+    const timesSectionHtml =
+      timesItemsHtml.length > 0
+        ? `<h3 style="color: #4C5A40; margin: 16px 0 4px;">⏰ Times that work for you:</h3>
+     <ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
+       ${timesItemsHtml}
+     </ul>`
+        : "";
 
     const notesSectionHtml =
       body.notes && typeof body.notes === "string" && body.notes.trim()
@@ -218,6 +246,8 @@ export async function POST(req: Request) {
 
           <h3 style="color: #4C5A40; margin: 16px 0 4px;">📅 Dates that work for you:</h3>
           ${datesListHtml}
+
+          ${timesSectionHtml}
 
           ${notesSectionHtml}
 
@@ -250,6 +280,21 @@ export async function POST(req: Request) {
         ...(customDateText ? [customDateText] : []),
       ].join("\n") || "None selected";
 
+    const customTimeText =
+      body.customTime && typeof body.customTime === "string" && body.customTime.trim()
+        ? `- Suggested Time: ${body.customTime.trim()}`
+        : "";
+
+    const timesText =
+      [
+        ...(Array.isArray(body.times) ? body.times.map((t: string) => `- ${t}`) : []),
+        ...(customTimeText ? [customTimeText] : []),
+      ].join("\n");
+
+    const timesSectionText = timesText
+      ? `\n\nTimes that work for you:\n${timesText}`
+      : "";
+
     const notesText =
       body.notes && typeof body.notes === "string" && body.notes.trim()
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
@@ -259,7 +304,7 @@ export async function POST(req: Request) {
       Array.isArray(gatherings) && gatherings.length > 0
         ? gatherings.map((g: string) => `- ${g}`).join("\n")
         : "None selected"
-    }\n\nDates that work for you:\n${datesText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    }\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     let resendId: string | undefined = undefined;
     try {
