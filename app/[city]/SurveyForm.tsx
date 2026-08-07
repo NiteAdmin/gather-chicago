@@ -27,14 +27,14 @@ const GUESTS = ["Just me", "2", "3", "4+"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
-  "Sat, Aug 8",
-  "Sun, Aug 9",
-  "Sat, Aug 15",
-  "Sun, Aug 16",
-  "Sat, Aug 22",
-  "Sun, Aug 23",
-  "Sat, Aug 29",
-  "Sun, Aug 30",
+  "Sat, Sep 5",
+  "Sun, Sep 6",
+  "Sat, Sep 12",
+  "Sun, Sep 13",
+  "Sat, Sep 19",
+  "Sun, Sep 20",
+  "Sat, Sep 26",
+  "Sun, Sep 27",
 ];
 
 function formatCityName(slug: string): string {
