@@ -664,7 +664,7 @@ export default function SurveyForm({
                     {smsOptIn && (
                       <div className="mt-2 rounded-xl border border-[#e5dcd0] bg-[#fbf8f2] p-3.5 shadow-sm transition-all duration-200" style={{ marginTop: '8px', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e5dcd0', backgroundColor: '#fbf8f2' }}>
                         <p className="text-xs text-gray-700 leading-relaxed" style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', lineHeight: '1.45', margin: 0 }}>
-                          I agree to receive transactional SMS event confirmations and updates from <strong>Actually Let's</strong>. Message &amp; data rates may apply. Reply <strong>STOP</strong> to opt out or <strong>HELP</strong> for support. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline' }}>Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline' }}>Terms &amp; Conditions</a>.
+                          By checking this box, you agree to receive SMS event updates from <strong>Actually Let's</strong>. Message frequency varies. Message &amp; data rates may apply. Reply <strong>STOP</strong> to cancel or <strong>HELP</strong> for help. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline' }}>Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline' }}>Terms of Service</a>.
                         </p>
                       </div>
                     )}
@@ -698,6 +698,17 @@ export default function SurveyForm({
               <p className="note">
                 Your response is saved securely and shared with the organizer.
               </p>
+
+              {/* A2P 10DLC Footer Legal Links */}
+              <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)' }}>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline', marginRight: '12px' }}>
+                  Privacy Policy
+                </a>
+                <span style={{ color: 'var(--line)' }}>&bull;</span>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline', marginLeft: '12px' }}>
+                  Terms of Service
+                </a>
+              </div>
             </div>
           </form>
         )}
