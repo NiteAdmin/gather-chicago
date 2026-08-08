@@ -4,13 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function IntroPage() {
-  // Cycler text state for Hero headline
+  // Cycler text state for Hero headline (8 phrases in exact sequence)
   const heroPhrases = [
     'toasting mimosas',
     'in child’s pose',
     'at the playground',
     'paddling rivers',
     'hiking the woods',
+    'making new old friends',
+    'giving back',
+    'finding our balance',
   ];
   const [activityIndex, setActivityIndex] = useState(0);
 
@@ -78,11 +81,11 @@ export default function IntroPage() {
         }
       `}</style>
 
-      {/* TOP NAVIGATION BAR (UNCONDITIONALLY VISIBLE HOW-IT-WORKS + COMPACT SERIES BADGE) */}
+      {/* TOP NAVIGATION BAR (UPDATED BRAND LOGO: Actually, Let’s) */}
       <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-3 sm:px-8 py-3 sm:py-4 font-sans-hanken">
         <Link href="/" className="group flex items-center gap-1.5 sm:gap-2 text-decoration-none shrink-0">
           <span className="font-serif-fraunces text-lg sm:text-xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
-            Actually Let’s
+            Actually, Let’s
           </span>
           <span className="rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
             SERIES
@@ -121,7 +124,7 @@ export default function IntroPage() {
             <span>CONSENSUS-DRIVEN COMMUNITY</span>
           </div>
 
-          {/* Headline with Text Cycler ("We’re" prefix + 5 animated phrases) */}
+          {/* Headline with Text Cycler ("We’re" prefix + 8 animated phrases) */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
             We’re{' '}
             <span className="inline-block text-[#C8643F] transition-all duration-300 font-serif-fraunces underline decoration-[#E08A63]/50 decoration-wavy underline-offset-8">
@@ -301,7 +304,7 @@ export default function IntroPage() {
             </Link>
           </div>
           <p>
-            Actually Let’s · A portion of every ticket supports local community and sustainability nonprofits.
+            Actually, Let’s · A portion of every ticket supports local community and sustainability nonprofits.
           </p>
         </div>
       </footer>
