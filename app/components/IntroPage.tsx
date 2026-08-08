@@ -78,8 +78,8 @@ export default function IntroPage() {
         }
       `}</style>
 
-      {/* TOP NAVIGATION BAR */}
-      <header className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between font-sans-hanken">
+      {/* TOP NAVIGATION BAR (WITH RESPONSIVE SPACING) */}
+      <header className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between font-sans-hanken">
         <Link href="/" className="group flex items-center gap-2 text-decoration-none">
           <span className="text-xl font-bold font-serif-fraunces tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors">
             Actually Let’s
@@ -89,7 +89,7 @@ export default function IntroPage() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-6 text-sm font-medium text-[#6A6253]">
+        <nav className="flex items-center gap-4 sm:gap-6 text-sm font-medium text-[#6A6253]">
           <a
             href="#cities"
             className="hover:text-[#2B271F] transition-colors hidden sm:inline"
@@ -104,7 +104,7 @@ export default function IntroPage() {
           </a>
           <Link
             href="/chicago"
-            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
+            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] px-3.5 sm:px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
           >
             Chicago RSVP →
           </Link>
@@ -112,9 +112,9 @@ export default function IntroPage() {
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
-      <main className="max-w-4xl mx-auto px-6 pt-6 pb-24 font-sans-hanken">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
         {/* 1. HERO SECTION (CARD DECK STYLE) */}
-        <section className="text-center pt-8 pb-14 animate-fade-in">
+        <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
           {/* Eyebrow Badge */}
           <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6 shadow-sm">
             <span>✦</span>
@@ -199,63 +199,69 @@ export default function IntroPage() {
           </div>
         </section>
 
-        {/* 2. HOW IT WORKS SECTION (UPDATED EDITORIAL 3-CARD GRID) */}
-        <section id="how-it-works" className="pt-16 pb-12 animate-fade-in-delayed">
-          <div className="text-center mb-12">
+        {/* 2. HOW IT WORKS SECTION (CARD DECK STYLE FULL-WIDTH STACK) */}
+        <section id="how-it-works" className="pt-14 sm:pt-16 pb-12 animate-fade-in-delayed">
+          <div className="text-center mb-10">
             <span className="text-xs uppercase tracking-widest font-bold text-[#4C5A40]">
-              Simple &amp; Consensus-Driven
+              THE EXPERIENCE DECK
             </span>
-            <h2 className="text-3xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-2">
+            <h2 className="text-3xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
               How It Works
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 01 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-2xl p-7 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-              <div className="text-4xl font-bold font-serif-fraunces text-[#C8643F]/30 group-hover:text-[#C8643F]/60 transition-colors mb-4">
-                01
+          <div className="space-y-4">
+            {/* Card 1 */}
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                1
               </div>
-              <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F] mb-3">
-                01 · Vote on vibes &amp; dates
-              </h3>
-              <p className="text-sm text-[#6A6253] leading-relaxed">
-                Pick the gatherings you&apos;d actually show up for — yoga mornings, mimosa brunches, ladies&apos; nights, couples dates — and mark the days and times that fit your real calendar.
-              </p>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
+                  Vote on vibes &amp; dates
+                </h3>
+                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
+                  Pick the gatherings you&apos;d actually show up for — yoga mornings, mimosa brunches, ladies&apos; nights, couples dates — and mark the days and times that fit your real calendar.
+                </p>
+              </div>
             </div>
 
-            {/* Card 02 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-2xl p-7 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-              <div className="text-4xl font-bold font-serif-fraunces text-[#4C5A40]/30 group-hover:text-[#4C5A40]/60 transition-colors mb-4">
-                02
+            {/* Card 2 */}
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                2
               </div>
-              <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F] mb-3">
-                02 · We find the winning time
-              </h3>
-              <p className="text-sm text-[#6A6253] leading-relaxed">
-                We tally everyone&apos;s availability and lock in the slot that works for the most people. No more &lsquo;when&apos;s good for you?&rsquo; bouncing around a group chat for three weeks.
-              </p>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
+                  We find the winning time
+                </h3>
+                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
+                  We tally everyone&apos;s availability and lock in the slot that works for the most people. No more &lsquo;when&apos;s good for you?&rsquo; bouncing around a group chat for three weeks.
+                </p>
+              </div>
             </div>
 
-            {/* Card 03 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-2xl p-7 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-              <div className="text-4xl font-bold font-serif-fraunces text-[#6E7F5E]/30 group-hover:text-[#6E7F5E]/60 transition-colors mb-4">
-                03
+            {/* Card 3 */}
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#6E7F5E] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                3
               </div>
-              <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F] mb-3">
-                03 · Watch for your invite
-              </h3>
-              <p className="text-sm text-[#6A6253] leading-relaxed">
-                Once the date&apos;s set, keep an eye on your inbox — we&apos;ll email you the event details, plus how to sign up and grab your ticket. A portion of every ticket supports local community and sustainability nonprofits, so a good time does a little good, too.
-              </p>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
+                  Watch for your invite
+                </h3>
+                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
+                  Once the date&apos;s set, keep an eye on your inbox — we&apos;ll email you the event details, plus how to sign up and grab your ticket. A portion of every ticket supports local community and sustainability nonprofits, so a good time does a little good, too.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* 3. BOTTOM CTA ELEVATED CARD */}
         <section className="mt-8 bg-gradient-to-br from-[#FBF7EE] to-[#EDE4D3] border border-[#D8CEBC] rounded-3xl p-8 sm:p-12 text-center shadow-md animate-fade-in-delayed-2">
-          <span className="text-xs uppercase tracking-widest font-bold text-[#C8643F]">
-            ✦ Be Part of the Cohort
+          <span className="text-xs uppercase tracking-wider font-bold text-[#C8643F]">
+            READY TO BEGIN?
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-2">
             Shape Chicago&apos;s Next Gathering
