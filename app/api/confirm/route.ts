@@ -177,10 +177,10 @@ export async function POST(req: Request) {
 
     const gatheringsListHtml =
       Array.isArray(gatherings) && gatherings.length > 0
-        ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
+        ? `<ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
             ${gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${g}</li>`).join("")}
           </ul>`
-        : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
+        : `<p style="color: #8C8270; font-size: 14px; font-style: italic; margin: 6px 0 0;">None selected</p>`;
 
     const customDateHtml =
       body.customDate && typeof body.customDate === "string" && body.customDate.trim()
@@ -190,11 +190,11 @@ export async function POST(req: Request) {
     const hasDates = Array.isArray(dates) && dates.length > 0;
     const datesListHtml =
       hasDates || customDateHtml
-        ? `<ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
+        ? `<ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
             ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("") : ""}
             ${customDateHtml}
           </ul>`
-        : `<p style="color: #6A6253; font-style: italic;">None selected</p>`;
+        : `<p style="color: #8C8270; font-size: 14px; font-style: italic; margin: 6px 0 0;">None selected</p>`;
 
     const timesList = Array.isArray(body.times) ? body.times : [];
     const customTimeStr =
@@ -213,57 +213,110 @@ export async function POST(req: Request) {
 
     const timesSectionHtml =
       timesItemsHtml.length > 0
-        ? `<h3 style="color: #4C5A40; margin: 16px 0 4px;">⏰ Times that work for you:</h3>
-     <ul style="margin: 8px 0 16px 20px; padding: 0; color: #2B271F;">
-       ${timesItemsHtml}
-     </ul>`
+        ? `<div style="margin-bottom: 20px;">
+            <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
+              ⏰ Times that work for you:
+            </h3>
+            <ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
+              ${timesItemsHtml}
+            </ul>
+          </div>`
         : "";
 
     const notesSectionHtml =
       body.notes && typeof body.notes === "string" && body.notes.trim()
-        ? `<h3 style="color: #4C5A40; margin: 16px 0 4px;">💬 Your write-in notes / requests:</h3>
-           <p style="margin: 4px 0 16px 20px; color: #2B271F; font-style: italic; background-color: #EDE4D3; padding: 10px 14px; border-radius: 8px;">
-             "${body.notes.trim()}"
-           </p>`
+        ? `<div style="margin-bottom: 20px;">
+            <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
+              💬 Your write-in notes / requests:
+            </h3>
+            <div style="background-color: #EDE4D3; border: 1px solid #D8CEBC; padding: 12px 16px; border-radius: 10px; font-size: 14px; color: #2B271F; font-style: italic; line-height: 1.45;">
+              &ldquo;${body.notes.trim()}&rdquo;
+            </div>
+          </div>`
         : "";
 
     const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
     const emailHtml = `
-      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2B271F; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #F4EEE2; border-radius: 16px;">
-        <div style="text-align: center; margin-bottom: 24px;">
-          <h2 style="color: #C8643F; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Actually Let's · ${targetCityName}</h2>
-          <h1 style="color: #2B271F; font-size: 26px; margin: 0;">Thanks for your input, ${trimmedName}! 🌿</h1>
-        </div>
-        
-        <div style="background-color: #FBF7EE; border: 1px solid #D8CEBC; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-          <p style="font-size: 16px; line-height: 1.5; color: #2B271F; margin-top: 0;">
-            We received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.
-          </p>
-          
-          <h3 style="color: #4C5A40; margin: 16px 0 4px;">✨ Gatherings you'd attend:</h3>
-          ${gatheringsListHtml}
+      <div style="background-color: #FBF7EE; padding: 32px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2B271F;">
+        <div style="max-width: 580px; margin: 0 auto;">
+          <!-- Brand Header -->
+          <div style="text-align: center; margin-bottom: 24px;">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+              <tr>
+                <td style="font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px; padding-right: 8px;">
+                  Actually Let’s
+                </td>
+                <td style="vertical-align: middle;">
+                  <span style="background-color: #EFEAD8; border: 1px solid #D8CEBC; color: #C8643F; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
+                    SERIES
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-          <h3 style="color: #4C5A40; margin: 16px 0 4px;">📅 Dates that work for you:</h3>
-          ${datesListHtml}
+          <!-- Main Elevated Card -->
+          <div style="background-color: #FFFFFF; border: 1px solid #E6DEC8; border-radius: 16px; padding: 32px 24px; box-shadow: 0 4px 16px rgba(43, 39, 31, 0.05);">
+            
+            <!-- Greeting Header -->
+            <div style="text-align: center; border-bottom: 1px solid #EFEAD8; padding-bottom: 20px; margin-bottom: 24px;">
+              <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #C8643F; display: block; margin-bottom: 6px;">
+                ${targetCityName.toUpperCase()} · RSVP CONFIRMED
+              </span>
+              <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; margin: 0; line-height: 1.25;">
+                Thanks for your input, ${trimmedName}! 🌿
+              </h1>
+              <p style="font-size: 14px; line-height: 1.5; color: #6A6253; margin: 10px 0 0;">
+                We received your availability and preferences for the upcoming Actually Let’s ${targetCityName} community series.
+              </p>
+            </div>
 
-          ${timesSectionHtml}
+            <!-- 1. Gatherings Section -->
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
+                ✨ Gatherings you'd attend:
+              </h3>
+              ${gatheringsListHtml}
+            </div>
 
-          ${notesSectionHtml}
+            <!-- 2. Dates Section -->
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
+                📅 Dates that work for you:
+              </h3>
+              ${datesListHtml}
+            </div>
 
-          <div style="background-color: #EDE4D3; padding: 14px; border-radius: 8px; margin-top: 16px;">
-            <p style="margin: 0; font-size: 14px; color: #4C5A40; font-weight: bold;">
-              What happens next?
+            <!-- 3. Times Section (if present) -->
+            ${timesSectionHtml}
+
+            <!-- 4. Write-In Notes Callout Block (if present) -->
+            ${notesSectionHtml}
+
+            <!-- 5. What Happens Next Card -->
+            <div style="background-color: #FBF7EE; border: 1px solid #E6DEC8; border-radius: 12px; padding: 16px 18px; margin-top: 24px;">
+              <h4 style="font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: bold; color: #4C5A40; margin: 0 0 4px;">
+                What happens next?
+              </h4>
+              <p style="margin: 0; font-size: 13px; color: #6A6253; line-height: 1.45;">
+                Once survey responses close, we'll tally the winning date and email you an official invite details &amp; ticket RSVP link!
+              </p>
+            </div>
+
+          </div>
+
+          <!-- Clean Footer -->
+          <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #8C8270; line-height: 1.5;">
+            <p style="margin: 0 0 4px; font-weight: 500;">
+              Actually Let’s Series · Community-led gatherings
             </p>
-            <p style="margin: 4px 0 0; font-size: 14px; color: #6A6253; line-height: 1.4;">
-              Once survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!
+            <p style="margin: 0;">
+              A portion of every ticket supports local community building and sustainability efforts.
             </p>
           </div>
-        </div>
 
-        <p style="font-size: 13px; color: #6A6253; text-align: center; margin: 0;">
-          A portion of every ticket supports local community building and sustainability efforts.
-        </p>
+        </div>
       </div>
     `;
 
