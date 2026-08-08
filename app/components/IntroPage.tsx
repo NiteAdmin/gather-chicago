@@ -78,33 +78,33 @@ export default function IntroPage() {
         }
       `}</style>
 
-      {/* TOP NAVIGATION BAR (WITH RESPONSIVE SPACING) */}
-      <header className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between font-sans-hanken">
-        <Link href="/" className="group flex items-center gap-2 text-decoration-none">
-          <span className="text-xl font-bold font-serif-fraunces tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors">
+      {/* TOP NAVIGATION BAR (WITH RESPONSIVE FLEX SPACING & ZERO OVERLAP) */}
+      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 sm:px-8 py-4 font-sans-hanken">
+        <Link href="/" className="group flex items-center gap-2 text-decoration-none shrink-0">
+          <span className="font-serif-fraunces text-xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors">
             Actually Let’s
           </span>
-          <span className="text-[11px] uppercase tracking-widest text-[#C8643F] font-semibold bg-[#EDE4D3] px-2 py-0.5 rounded-full border border-[#D8CEBC]/60">
-            Series
+          <span className="rounded-full bg-[#EFEAD8] px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60">
+            SERIES
           </span>
         </Link>
 
-        <nav className="flex items-center gap-4 sm:gap-6 text-sm font-medium text-[#6A6253]">
+        <nav className="flex items-center gap-3 sm:gap-6 text-sm font-medium text-[#6A6253]">
           <a
             href="#cities"
-            className="hover:text-[#2B271F] transition-colors hidden sm:inline"
+            className="hover:text-[#2B271F] transition-colors hidden md:inline"
           >
             Cities
           </a>
           <a
             href="#how-it-works"
-            className="hover:text-[#2B271F] transition-colors"
+            className="hover:text-[#2B271F] transition-colors hidden sm:inline"
           >
             How It Works
           </a>
           <Link
             href="/chicago"
-            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] px-3.5 sm:px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
+            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
           >
             Chicago RSVP →
           </Link>
