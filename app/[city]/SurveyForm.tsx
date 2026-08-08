@@ -13,10 +13,10 @@ const GATHERINGS = [
   "Family-friendly",
   "Prenatal & new parents",
   "All ages / community",
-  "🥾 Hiking",
-  "🚶 City Walk",
-  "🚣 Kayaking / Paddle boarding",
-  "🌿 Outdoor activities",
+  "Hiking",
+  "City Walk",
+  "Kayaking / Paddle boarding",
+  "Outdoor activities",
 ];
 
 const TIMES = [
