@@ -13,6 +13,7 @@ const GATHERINGS = [
   "Family-friendly",
   "Prenatal & new parents",
   "All ages / community",
+  "Hiking",
 ];
 
 const TIMES = [

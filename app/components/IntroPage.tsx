@@ -5,21 +5,21 @@ import Link from 'next/link';
 
 export default function IntroPage() {
   // Cycler text state for Hero headline
-  const rotatingActivities = [
-    'rooftop mocktails',
-    'yoga mornings',
-    'ladies’ nights',
-    'family-friendly parks',
-    'new parent brunches',
+  const heroPhrases = [
+    'toasting mimosas',
+    'in child’s pose',
+    'at the playground',
+    'paddling rivers',
+    'hiking the woods',
   ];
   const [activityIndex, setActivityIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActivityIndex((prev) => (prev + 1) % rotatingActivities.length);
+      setActivityIndex((prev) => (prev + 1) % heroPhrases.length);
     }, 2800);
     return () => clearInterval(interval);
-  }, [rotatingActivities.length]);
+  }, [heroPhrases.length]);
 
   return (
     <div className="min-h-screen bg-[#F4EEE2] text-[#2B271F] selection:bg-[#E08A63]/30">
@@ -121,11 +121,11 @@ export default function IntroPage() {
             <span>CONSENSUS-DRIVEN COMMUNITY</span>
           </div>
 
-          {/* Headline with Text Cycler */}
+          {/* Headline with Text Cycler ("We’re" prefix + 5 animated phrases) */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
-            Let’s make time for{' '}
+            We’re{' '}
             <span className="inline-block text-[#C8643F] transition-all duration-300 font-serif-fraunces underline decoration-[#E08A63]/50 decoration-wavy underline-offset-8">
-              {rotatingActivities[activityIndex]}
+              {heroPhrases[activityIndex]}
             </span>
           </h1>
 
