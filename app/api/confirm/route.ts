@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         : undefined;
     const sanitizedSmsOptIn = Boolean(smsOptIn);
 
-    console.log('Incoming Payload:', {
+    console.log('Incoming RSVP Payload:', {
       name: trimmedName,
       email: trimmedEmail,
       phoneNumber: sanitizedPhone,
@@ -166,9 +166,9 @@ export async function POST(req: Request) {
 
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error('Resend Error: RESEND_API_KEY is not configured in environment variables');
+      console.error('[RESEND CONFIG ERROR]: RESEND_API_KEY is not configured in environment variables');
       return NextResponse.json(
-        { error: "Server error: RESEND_API_KEY is not configured" },
+        { success: false, error: "Server error: RESEND_API_KEY is not configured" },
         { status: 500 }
       );
     }
@@ -320,8 +320,6 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const resendFromEmail = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
-
     const customDateText =
       body.customDate && typeof body.customDate === "string" && body.customDate.trim()
         ? `- Suggested Date: ${body.customDate.trim()}`
@@ -359,10 +357,16 @@ export async function POST(req: Request) {
         : "None selected"
     }\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
+    const primarySender = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
+    const fallbackSender = "Actually Let's <onboarding@resend.dev>";
+
     let resendId: string | undefined = undefined;
+    let senderUsed = primarySender;
+
     try {
+      console.log(`Attempting Resend dispatch via ${primarySender} to ${trimmedEmail}...`);
       const emailResponse = await resend.emails.send({
-        from: resendFromEmail,
+        from: primarySender,
         to: [trimmedEmail],
         subject: `Got your availability for Actually Let's ${targetCityName}! 🎉`,
         html: emailHtml,
@@ -370,13 +374,46 @@ export async function POST(req: Request) {
       });
 
       if (emailResponse.error) {
-        console.warn('[RESEND SANDBOX WARNING]: Could not send email to external address in test mode:', emailResponse.error.message || emailResponse.error);
+        console.error('[RESEND PRIMARY DISPATCH ERROR]:', emailResponse.error);
+        
+        // If error is domain verification or sending restriction, attempt fallback sender
+        console.log(`Attempting fallback dispatch via ${fallbackSender}...`);
+        const fallbackResponse = await resend.emails.send({
+          from: fallbackSender,
+          to: [trimmedEmail],
+          subject: `Got your availability for Actually Let's ${targetCityName}! 🎉`,
+          html: emailHtml,
+          text: emailText,
+        });
+
+        if (fallbackResponse.error) {
+          console.error('[RESEND FALLBACK DISPATCH ERROR]:', fallbackResponse.error);
+          return NextResponse.json(
+            {
+              success: false,
+              error: fallbackResponse.error.message || emailResponse.error.message,
+              details: fallbackResponse.error,
+            },
+            { status: 500 }
+          );
+        } else {
+          console.log('[RESEND FALLBACK SUCCESS]:', fallbackResponse.data);
+          resendId = fallbackResponse.data?.id;
+          senderUsed = fallbackSender;
+        }
       } else {
-        console.log('Confirmation email sent successfully:', emailResponse.data);
+        console.log('[RESEND PRIMARY SUCCESS]:', emailResponse.data);
         resendId = emailResponse.data?.id;
       }
     } catch (resendErr: any) {
-      console.warn('[RESEND SANDBOX WARNING]: Could not send email to external address in test mode:', resendErr.message);
+      console.error('[RESEND EXCEPTION]:', resendErr);
+      return NextResponse.json(
+        {
+          success: false,
+          error: resendErr.message || "Failed to dispatch confirmation email",
+        },
+        { status: 500 }
+      );
     }
 
     // Send automated Twilio SMS if user opted in and provided a valid 10-digit phone number
@@ -402,11 +439,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       resendId: resendId,
+      sender: senderUsed,
     });
   } catch (error: any) {
-    console.error('Resend Error:', error);
+    console.error('Fatal Confirm API Error:', error);
     return NextResponse.json(
-      { error: error.message || "Failed to send confirmation email" },
+      { success: false, error: error.message || "Failed to process RSVP confirmation" },
       { status: 500 }
     );
   }
