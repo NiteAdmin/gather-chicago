@@ -14,6 +14,7 @@ const GATHERINGS = [
   "City Walk",
   "Kayaking / Paddle boarding",
   "Outdoor activities",
+  "Golfing",
 ];
 
 const TIMES = [

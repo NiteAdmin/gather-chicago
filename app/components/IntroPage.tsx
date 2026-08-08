@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function IntroPage() {
-  // Cycler text state for Hero headline (8 phrases in exact sequence)
+  // Cycler text state for Hero headline (9 phrases in exact sequence)
   const heroPhrases = [
     'toasting mimosas',
     'in child’s pose',
@@ -14,6 +14,7 @@ export default function IntroPage() {
     'making new old friends',
     'giving back',
     'finding our balance',
+    'golfing',
   ];
   const [activityIndex, setActivityIndex] = useState(0);
 
