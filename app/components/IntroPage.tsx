@@ -78,33 +78,33 @@ export default function IntroPage() {
         }
       `}</style>
 
-      {/* TOP NAVIGATION BAR (WITH RESPONSIVE FLEX SPACING & ZERO OVERLAP) */}
-      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 sm:px-8 py-4 font-sans-hanken">
-        <Link href="/" className="group flex items-center gap-2 text-decoration-none shrink-0">
-          <span className="font-serif-fraunces text-xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors">
+      {/* TOP NAVIGATION BAR (UNCONDITIONALLY VISIBLE HOW-IT-WORKS + COMPACT SERIES BADGE) */}
+      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-3 sm:px-8 py-3 sm:py-4 font-sans-hanken">
+        <Link href="/" className="group flex items-center gap-1.5 sm:gap-2 text-decoration-none shrink-0">
+          <span className="font-serif-fraunces text-lg sm:text-xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
             Actually Let’s
           </span>
-          <span className="rounded-full bg-[#EFEAD8] px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60">
+          <span className="rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
             SERIES
           </span>
         </Link>
 
-        <nav className="flex items-center gap-3 sm:gap-6 text-sm font-medium text-[#6A6253]">
+        <nav className="flex items-center gap-2 sm:gap-6 text-xs sm:text-sm font-medium text-[#6A6253]">
           <a
             href="#cities"
-            className="hover:text-[#2B271F] transition-colors hidden md:inline"
+            className="hover:text-[#2B271F] transition-colors hidden md:inline whitespace-nowrap"
           >
             Cities
           </a>
           <a
             href="#how-it-works"
-            className="hover:text-[#2B271F] transition-colors hidden sm:inline"
+            className="hover:text-[#2B271F] transition-colors whitespace-nowrap"
           >
             How It Works
           </a>
           <Link
             href="/chicago"
-            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
+            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-[11px] sm:text-xs px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
           >
             Chicago RSVP →
           </Link>
