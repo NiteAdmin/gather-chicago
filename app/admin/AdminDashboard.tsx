@@ -189,6 +189,7 @@ export default function AdminDashboard() {
           eventDetails,
           eventLink: eventLink.trim() || undefined,
           adminSecret: activePasscode,
+          city: selectedCity,
         }),
       });
 

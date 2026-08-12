@@ -23,4 +23,5 @@ export interface BroadcastPayload {
   eventDetails: string;
   eventLink?: string;
   adminSecret: string;
+  city?: string;
 }

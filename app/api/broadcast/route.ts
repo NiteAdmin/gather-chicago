@@ -6,7 +6,7 @@ import { BroadcastPayload } from "@/types/survey";
 export async function POST(req: Request) {
   try {
     const body: BroadcastPayload = await req.json();
-    const { winningDate, eventDetails, eventLink, adminSecret } = body;
+    const { winningDate, eventDetails, eventLink, adminSecret, city } = body;
 
     const expectedSecret = process.env.ADMIN_SECRET || "admin123";
     if (!adminSecret || adminSecret !== expectedSecret) {
@@ -24,17 +24,27 @@ export async function POST(req: Request) {
     }
 
     const responses = await fetchResponses();
+    const targetCity = typeof city === "string" ? city.toLowerCase() : "all";
+
+    const filteredResponses = responses.filter((r) => {
+      if (targetCity !== "all") {
+        const docCity = (r.city || "chicago").toLowerCase();
+        return docCity === targetCity;
+      }
+      return true;
+    });
+
     const emails = Array.from(
       new Set(
-        responses
-          .map((r) => r.email?.trim())
+        filteredResponses
+          .map((r) => r.email?.trim().toLowerCase())
           .filter((e): e is string => Boolean(e && e.includes("@")))
       )
     );
 
     if (emails.length === 0) {
       return NextResponse.json(
-        { error: "No valid recipient email addresses found in survey responses" },
+        { error: `No valid recipient email addresses found for target selection (${targetCity})` },
         { status: 400 }
       );
     }
@@ -52,7 +62,7 @@ export async function POST(req: Request) {
     const emailHtml = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2B271F; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #F4EEE2; border-radius: 16px;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h2 style="color: #C8643F; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Gather · Chicago</h2>
+          <h2 style="color: #C8643F; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Actually Let’s Series</h2>
           <h1 style="color: #2B271F; font-size: 28px; margin: 0;">It's Official! We're Gathering 🎉</h1>
         </div>
         
@@ -78,20 +88,59 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Gather Chicago <onboarding@resend.dev>",
-      to: emails,
-      subject: `🎉 Gathering Date Locked: ${winningDate}!`,
-      html: emailHtml,
-    });
+    const primarySender = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
+    const fallbackSender = "Actually Let's <onboarding@resend.dev>";
+
+    // Send emails individually to avoid batch restrictions or address exposure
+    const results = await Promise.allSettled(
+      emails.map(async (email) => {
+        let senderUsed = primarySender;
+        let res = await resend.emails.send({
+          from: primarySender,
+          to: [email],
+          subject: `🎉 Gathering Date Locked: ${winningDate}!`,
+          html: emailHtml,
+        });
+
+        if (res.error) {
+          console.warn(`[RESEND BROADCAST PRIMARY ERROR for ${email}]:`, res.error);
+          senderUsed = fallbackSender;
+          res = await resend.emails.send({
+            from: fallbackSender,
+            to: [email],
+            subject: `🎉 Gathering Date Locked: ${winningDate}!`,
+            html: emailHtml,
+          });
+        }
+
+        if (res.error) {
+          console.error(`[RESEND BROADCAST DISPATCH ERROR for ${email}]:`, res.error);
+          throw new Error(res.error.message || `Failed to send email to ${email}`);
+        }
+
+        return { email, id: res.data?.id, sender: senderUsed };
+      })
+    );
+
+    const successful = results.filter((r) => r.status === "fulfilled");
+    const failed = results.filter((r) => r.status === "rejected");
+
+    if (successful.length === 0 && emails.length > 0) {
+      const firstError = (failed[0] as PromiseRejectedResult)?.reason?.message || "Failed to dispatch broadcast emails";
+      return NextResponse.json(
+        { error: `Broadcast email delivery failed: ${firstError}` },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       recipientCount: emails.length,
-      resendId: emailResponse.data?.id,
+      sentCount: successful.length,
+      failedCount: failed.length,
     });
   } catch (error: any) {
-    console.error("Broadcast route error:", error);
+    console.error("Broadcast route exception:", error);
     return NextResponse.json(
       { error: error.message || "Failed to send broadcast email" },
       { status: 500 }
