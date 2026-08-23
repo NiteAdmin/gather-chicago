@@ -291,21 +291,32 @@ export default function IntroPage() {
       {/* 4. FOOTER */}
       <footer className="border-t border-[#D8CEBC]/70 py-10 text-center text-xs text-[#6A6253] font-sans-hanken bg-[#EDE4D3]/40">
         <div className="max-w-4xl mx-auto px-6 space-y-3">
-          <div className="flex justify-center items-center gap-4 text-xs font-medium text-[#6A6253]">
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 text-xs font-medium text-[#6A6253]">
             <Link href="/chicago" className="hover:text-[#2B271F] underline underline-offset-4">
               Chicago Series
             </Link>
             <span>▪</span>
             <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
-              Privacy
+              Privacy Policy
             </Link>
             <span>▪</span>
             <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
-              Terms
+              Terms of Service
             </Link>
+            <span>▪</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = 'mailto:rsvp@actuallylets.com';
+              }}
+              className="underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer text-inherit font-inherit"
+            >
+              rsvp@actuallylets.com
+            </button>
           </div>
-          <p>
-            Actually, Let’s · A portion of every ticket supports local community and sustainability nonprofits.
+          <p className="text-[11px] sm:text-xs">
+            <strong>Actually, Let’s</strong> &bull; Austin, TX &bull; A portion of every ticket supports local community and sustainability nonprofits.
           </p>
         </div>
       </footer>

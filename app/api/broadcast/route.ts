@@ -88,14 +88,12 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const primarySender = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
-    const fallbackSender = "Actually Let's <onboarding@resend.dev>";
+    const primarySender = "Actually Let's <rsvp@actuallylets.com>";
 
     // Send emails individually to avoid batch restrictions or address exposure
     const results = await Promise.allSettled(
       emails.map(async (email) => {
-        let senderUsed = primarySender;
-        let res = await resend.emails.send({
+        const res = await resend.emails.send({
           from: primarySender,
           to: [email],
           subject: `🎉 Gathering Date Locked: ${winningDate}!`,
@@ -103,22 +101,11 @@ export async function POST(req: Request) {
         });
 
         if (res.error) {
-          console.warn(`[RESEND BROADCAST PRIMARY ERROR for ${email}]:`, res.error);
-          senderUsed = fallbackSender;
-          res = await resend.emails.send({
-            from: fallbackSender,
-            to: [email],
-            subject: `🎉 Gathering Date Locked: ${winningDate}!`,
-            html: emailHtml,
-          });
-        }
-
-        if (res.error) {
           console.error(`[RESEND BROADCAST DISPATCH ERROR for ${email}]:`, res.error);
           throw new Error(res.error.message || `Failed to send email to ${email}`);
         }
 
-        return { email, id: res.data?.id, sender: senderUsed };
+        return { email, id: res.data?.id, sender: primarySender };
       })
     );
 
