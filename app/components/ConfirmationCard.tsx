@@ -72,7 +72,17 @@ export default function ConfirmationCard({
   return (
     <div className="card thanks-card" style={{ padding: '32px 24px', textAlign: 'center', backgroundColor: '#FBF7EE', border: '1px solid #D8CEBC', borderRadius: '20px', boxShadow: '0 18px 40px -22px rgba(43, 39, 31, 0.45)' }}>
       {/* Visual Badge */}
-      <div style={{ fontSize: '2.8rem', lineHeight: 1, marginBottom: '12px' }}>🌿</div>
+      <div style={{ fontSize: '2.8rem', lineHeight: 1, marginBottom: '8px' }}>🌿</div>
+
+      {/* Brand Header & Subtitle */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C8643F', fontWeight: 700 }}>
+          Actually, Let&apos;s
+        </div>
+        <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#4C5A40', marginTop: '2px', fontFamily: "'Fraunces', serif" }}>
+          Stretch &amp; Sip
+        </div>
+      </div>
 
       <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '2rem', fontWeight: 900, color: '#2B271F', margin: '0 0 8px' }}>
         Thank you, {name || 'friend'}!

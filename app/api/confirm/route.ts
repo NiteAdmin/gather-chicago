@@ -252,18 +252,8 @@ export async function POST(req: Request) {
         <div style="max-width: 580px; margin: 0 auto;">
           <!-- Brand Header -->
           <div style="text-align: center; margin-bottom: 24px;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-              <tr>
-                <td style="font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px; padding-right: 8px;">
-                  Actually Let’s
-                </td>
-                <td style="vertical-align: middle;">
-                  <span style="background-color: #EFEAD8; border: 1px solid #D8CEBC; color: #C8643F; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
-                    SERIES
-                  </span>
-                </td>
-              </tr>
-            </table>
+            <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
+            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Stretch &amp; Sip</p>
           </div>
 
           <!-- Main Elevated Card -->
@@ -278,7 +268,7 @@ export async function POST(req: Request) {
                 Thanks for your input, ${trimmedName}! 🌿
               </h1>
               <p style="font-size: 14px; line-height: 1.5; color: #6A6253; margin: 10px 0 0;">
-                We received your availability and preferences for the upcoming Actually Let’s ${targetCityName} community series.
+                We received your availability and preferences for the upcoming Actually, Let&apos;s ${targetCityName} community series.
               </p>
             </div>
 
@@ -319,7 +309,7 @@ export async function POST(req: Request) {
           <!-- Clean Footer -->
           <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #8C8270; line-height: 1.5;">
             <p style="margin: 0 0 4px; font-weight: 500;">
-              Actually Let’s Series · Community-led gatherings
+              Actually, Let&apos;s Series · Community-led gatherings
             </p>
             <p style="margin: 0;">
               A portion of every ticket supports local community building and sustainability efforts.
@@ -372,7 +362,7 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually Let's · ${targetCityName}\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually, Let's\nStretch & Sip\n---\n${targetCityName} · RSVP CONFIRMED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
 
