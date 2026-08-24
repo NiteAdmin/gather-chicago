@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Duplicate Uniqueness Check in Firestore responses
+    // Duplicate Check: Log re-submission / update instead of bailing out with 400
     const existingResponses = await fetchResponses();
     const isDuplicate = existingResponses.some((r) => {
       const existingEmail = r.email ? r.email.trim().toLowerCase() : "";
@@ -136,11 +136,7 @@ export async function POST(req: Request) {
     });
 
     if (isDuplicate) {
-      console.warn(`Duplicate RSVP detected for email: ${trimmedEmail} or phone: ${sanitizedPhone}`);
-      return NextResponse.json(
-        { error: "This phone number or email has already RSVP'd for this event!" },
-        { status: 400 }
-      );
+      console.log(`[RSVP UPDATE]: Existing RSVP detected for email: ${trimmedEmail}. Saving updated response and triggering confirmation email.`);
     }
 
     // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
@@ -369,14 +365,16 @@ export async function POST(req: Request) {
     let resendId: string | undefined = undefined;
 
     try {
-      console.log(`Attempting Resend dispatch via ${primarySender} to ${trimmedEmail}...`);
+      console.log(`Attempting to send confirmation to: ${trimmedEmail} via ${primarySender}...`);
       const emailResponse = await resend.emails.send({
         from: primarySender,
         to: [trimmedEmail],
-        subject: `Got your availability for Actually Let's ${targetCityName}! 🎉`,
+        subject: `Got your availability for Actually, Let's Stretch & Sip! 🎉`,
         html: emailHtml,
         text: emailText,
       });
+
+      console.log("Resend API Result:", emailResponse);
 
       if (emailResponse.error) {
         console.error('[RESEND DISPATCH ERROR]:', emailResponse.error);
