@@ -9,6 +9,7 @@ interface ConfirmationCardProps {
   email: string;
   cityName: string;
   selectedGatherings: string[];
+  customGathering?: string;
   selectedDates: string[];
   customDate?: string;
   selectedTimes: string[];
@@ -23,6 +24,7 @@ export default function ConfirmationCard({
   email,
   cityName,
   selectedGatherings,
+  customGathering,
   selectedDates,
   customDate,
   selectedTimes,
@@ -38,6 +40,7 @@ export default function ConfirmationCard({
     name,
     email,
     gatherings: selectedGatherings,
+    customGathering,
     dates: selectedDates,
     times: selectedTimes,
     customDate,
@@ -62,6 +65,7 @@ export default function ConfirmationCard({
     }
   };
 
+  const allGatherings = [...selectedGatherings, customGathering ? `"${customGathering}"` : ''].filter(Boolean);
   const allDates = [...selectedDates, customDate].filter(Boolean);
   const allTimes = [...selectedTimes, customTime].filter(Boolean);
 
@@ -84,10 +88,10 @@ export default function ConfirmationCard({
           Your Selected Choices
         </div>
 
-        {selectedGatherings.length > 0 && (
+        {allGatherings.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
             <span style={{ color: '#6A6253', fontWeight: 500 }}>Vibes: </span>
-            <span style={{ color: '#2B271F', fontWeight: 600 }}>{selectedGatherings.join(', ')}</span>
+            <span style={{ color: '#2B271F', fontWeight: 600 }}>{allGatherings.join(', ')}</span>
           </div>
         )}
 

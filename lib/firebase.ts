@@ -31,6 +31,7 @@ export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt"
     phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : null,
     smsOptIn: Boolean(data.smsOptIn),
     gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
+    customGathering: data.customGathering ? data.customGathering.trim() : null,
     dates: Array.isArray(data.dates) ? data.dates : [],
     customDate: data.customDate ? data.customDate.trim() : null,
     times: Array.isArray(data.times) ? data.times : [],

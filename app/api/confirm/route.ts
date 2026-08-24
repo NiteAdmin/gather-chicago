@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       smsOptIn = false,
       dates = [],
       gatherings = [],
+      customGathering,
       website_url,
       turnstileToken,
     } = body;
@@ -109,6 +110,7 @@ export async function POST(req: Request) {
       smsOptIn: sanitizedSmsOptIn,
       dates,
       gatherings,
+      customGathering,
       turnstileVerified: Boolean(turnstileToken),
     });
 
@@ -152,6 +154,7 @@ export async function POST(req: Request) {
         smsOptIn: sanitizedSmsOptIn,
         dates: Array.isArray(dates) ? dates : [],
         gatherings: Array.isArray(gatherings) ? gatherings : [],
+        customGathering: typeof body.customGathering === "string" ? body.customGathering.trim() : null,
         customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
         times: Array.isArray(body.times) ? body.times : [],
         customTime: typeof body.customTime === "string" ? body.customTime.trim() : null,
@@ -175,10 +178,17 @@ export async function POST(req: Request) {
 
     const resend = new Resend(resendApiKey);
 
+    const customGatheringHtml =
+      body.customGathering && typeof body.customGathering === "string" && body.customGathering.trim()
+        ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Idea:</strong> ${body.customGathering.trim()}</li>`
+        : "";
+
+    const hasGatherings = Array.isArray(gatherings) && gatherings.length > 0;
     const gatheringsListHtml =
-      Array.isArray(gatherings) && gatherings.length > 0
+      hasGatherings || customGatheringHtml
         ? `<ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
-            ${gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${g}</li>`).join("")}
+            ${hasGatherings ? gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${g}</li>`).join("") : ""}
+            ${customGatheringHtml}
           </ul>`
         : `<p style="color: #8C8270; font-size: 14px; font-style: italic; margin: 6px 0 0;">None selected</p>`;
 
@@ -320,6 +330,17 @@ export async function POST(req: Request) {
       </div>
     `;
 
+    const customGatheringText =
+      body.customGathering && typeof body.customGathering === "string" && body.customGathering.trim()
+        ? `- Suggested Idea: ${body.customGathering.trim()}`
+        : "";
+
+    const gatheringsText =
+      [
+        ...(Array.isArray(gatherings) ? gatherings.map((g: string) => `- ${g}`) : []),
+        ...(customGatheringText ? [customGatheringText] : []),
+      ].join("\n") || "None selected";
+
     const customDateText =
       body.customDate && typeof body.customDate === "string" && body.customDate.trim()
         ? `- Suggested Date: ${body.customDate.trim()}`
@@ -351,11 +372,7 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually Let's · ${targetCityName}\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${
-      Array.isArray(gatherings) && gatherings.length > 0
-        ? gatherings.map((g: string) => `- ${g}`).join("\n")
-        : "None selected"
-    }\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually Let's · ${targetCityName}\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
 

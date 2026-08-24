@@ -8,24 +8,29 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
 
 const GATHERINGS = [
-  "Moms morning",
-  "Couples / date",
-  "Ladies' night",
-  "Family-friendly",
-  "Prenatal & new parents",
-  "All ages / community",
+  "Moms Morning",
+  "Ladies Morning",
+  "Ladies Night",
+  "Couples / Date Night",
+  "Down for Whatever",
+  "Happy Hour",
+  "Family-Friendly",
+  "Prenatal & New Parents",
+  "All Ages / Community",
   "Hiking",
   "City Walk",
-  "Kayaking / Paddle boarding",
-  "Outdoor activities",
+  "Kayaking / Paddleboarding",
+  "Outdoor Activities",
   "Golfing",
 ];
 
 const TIMES = [
-  "Mid-morning (9–10)",
-  "Late AM (11)",
+  "Early-Morning (8am)",
+  "Mid-Morning (10am)",
+  "Late-Morning (11am)",
   "Afternoon",
   "Evening",
+  "Any time",
 ];
 
 const DAYPREF = ["Weekend", "Weekday", "Either works"];
@@ -33,14 +38,9 @@ const GUESTS = ["Just me", "2", "3", "4+"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
-  "Sat, Sep 5",
-  "Sun, Sep 6",
-  "Sat, Sep 12",
-  "Sun, Sep 13",
-  "Sat, Sep 19",
-  "Sun, Sep 20",
   "Sat, Sep 26",
   "Sun, Sep 27",
+  "Any date",
 ];
 
 function formatCityName(slug: string): string {
@@ -70,6 +70,7 @@ export default function SurveyForm({
 
   // Form state
   const [selectedGatherings, setSelectedGatherings] = useState<string[]>([]);
+  const [customGathering, setCustomGathering] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [selectedDayPref, setSelectedDayPref] = useState<string>('');
@@ -113,6 +114,7 @@ export default function SurveyForm({
 
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
+    const trimmedCustomGathering = customGathering.trim();
     const trimmedCustomDate = customDate.trim();
     const cleanPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
     const sanitizedPhone = cleanPhone.length > 0 ? cleanPhone : undefined;
@@ -152,6 +154,7 @@ export default function SurveyForm({
         smsOptIn: Boolean(hasSmsOptIn),
         dates: Array.isArray(selectedDates) ? selectedDates : [],
         gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
+        customGathering: trimmedCustomGathering || null,
         customDate: trimmedCustomDate || null,
         times: Array.isArray(selectedTimes) ? selectedTimes : [],
         customTime: customTime.trim() || null,
@@ -460,6 +463,7 @@ export default function SurveyForm({
             email={email}
             cityName={cityName}
             selectedGatherings={selectedGatherings}
+            customGathering={customGathering}
             selectedDates={selectedDates}
             customDate={customDate}
             selectedTimes={selectedTimes}
@@ -469,6 +473,7 @@ export default function SurveyForm({
             onReset={() => {
               setSubmitted(false);
               setSelectedGatherings([]);
+              setCustomGathering('');
               setSelectedDates([]);
               setSelectedTimes([]);
               setSelectedDayPref('');
@@ -510,6 +515,13 @@ export default function SurveyForm({
                     </button>
                   ))}
                 </div>
+                <input
+                  type="text"
+                  placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
+                  style={{ marginTop: '11px' }}
+                  value={customGathering}
+                  onChange={(e) => setCustomGathering(e.target.value)}
+                />
               </div>
 
               <div className="q">

@@ -4,38 +4,38 @@ import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
 
 const GATHERINGS = [
-  "Moms morning",
-  "Couples / date",
-  "Ladies' night",
-  "Family-friendly",
-  "Prenatal & new parents",
-  "All ages / community",
+  "Moms Morning",
+  "Ladies Morning",
+  "Ladies Night",
+  "Couples / Date Night",
+  "Down for Whatever",
+  "Happy Hour",
+  "Family-Friendly",
+  "Prenatal & New Parents",
+  "All Ages / Community",
   "Hiking",
   "City Walk",
-  "Kayaking / Paddle boarding",
-  "Outdoor activities",
+  "Kayaking / Paddleboarding",
+  "Outdoor Activities",
   "Golfing",
 ];
 
 const TIMES = [
-  "Mid-morning (9–10)",
-  "Late AM (11)",
+  "Early-Morning (8am)",
+  "Mid-Morning (10am)",
+  "Late-Morning (11am)",
   "Afternoon",
   "Evening",
+  "Any time",
 ];
 
 const DAYPREF = ["Weekend", "Weekday", "Either works"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
-  "Sat, Sep 5",
-  "Sun, Sep 6",
-  "Sat, Sep 12",
-  "Sun, Sep 13",
-  "Sat, Sep 19",
-  "Sun, Sep 20",
   "Sat, Sep 26",
   "Sun, Sep 27",
+  "Any date",
 ];
 
 function formatCityName(slug: string): string {
@@ -153,6 +153,7 @@ export default function AdminDashboard() {
     return acc + (isNaN(parsed) ? 1 : parsed);
   }, 0);
 
+  const writeInGatherings = responses.filter((r) => r.customGathering).map((r) => `${r.customGathering} — ${r.name}`);
   const writeInDates = responses.filter((r) => r.customDate).map((r) => `${r.customDate} — ${r.name}`);
   const writeInTimes = responses.filter((r) => r.customTime).map((r) => `${r.customTime} — ${r.name}`);
 
@@ -277,6 +278,7 @@ export default function AdminDashboard() {
       'SMS Opt-In',
       'Will bring',
       'Gatherings',
+      'Write-in gathering',
       'Dates that work',
       'Write-in date',
       'Times',
@@ -300,6 +302,7 @@ export default function AdminDashboard() {
         r.smsOptIn ? 'Yes' : 'No',
         r.guests,
         (r.gatherings || []).join('; '),
+        r.customGathering || '',
         (r.dates || []).join('; '),
         r.customDate || '',
         (r.times || []).join('; '),
@@ -841,9 +844,21 @@ export default function AdminDashboard() {
               {renderBars(drinkTally)}
             </div>
 
-            {(writeInDates.length > 0 || writeInTimes.length > 0) && (
+            {(writeInGatherings.length > 0 || writeInDates.length > 0 || writeInTimes.length > 0) && (
               <div className="card">
                 <div className="res-title">✍️ Write-in requests</div>
+                {writeInGatherings.length > 0 && (
+                  <>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--ink-soft)', marginBottom: '6px' }}>
+                      Gathering Ideas &amp; Suggestions
+                    </div>
+                    <ul style={{ margin: '0 0 10px 18px', fontSize: '0.92rem' }}>
+                      {writeInGatherings.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 {writeInDates.length > 0 && (
                   <>
                     <div style={{ fontSize: '0.9rem', color: 'var(--ink-soft)', marginBottom: '6px' }}>
@@ -887,17 +902,20 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {responses.map((r, idx) => (
-                      <tr key={r.id || idx}>
-                        <td><strong>{formatCityName(r.city || 'chicago')}</strong></td>
-                        <td>{r.name}</td>
-                        <td className="em">{r.email || '—'}</td>
-                        <td className="em">{r.phoneNumber ? r.phoneNumber : '—'}</td>
-                        <td className="em">{r.smsOptIn ? 'Yes' : 'No'}</td>
-                        <td className="em">{r.guests || '—'}</td>
-                        <td className="em">{(r.gatherings || []).join(', ') || '—'}</td>
-                      </tr>
-                    ))}
+                    {responses.map((r, idx) => {
+                      const allGaths = [...(r.gatherings || []), ...(r.customGathering ? [`"${r.customGathering}"`] : [])];
+                      return (
+                        <tr key={r.id || idx}>
+                          <td><strong>{formatCityName(r.city || 'chicago')}</strong></td>
+                          <td>{r.name}</td>
+                          <td className="em">{r.email || '—'}</td>
+                          <td className="em">{r.phoneNumber ? r.phoneNumber : '—'}</td>
+                          <td className="em">{r.smsOptIn ? 'Yes' : 'No'}</td>
+                          <td className="em">{r.guests || '—'}</td>
+                          <td className="em">{allGaths.join(', ') || '—'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

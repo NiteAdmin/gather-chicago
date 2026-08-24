@@ -7,6 +7,7 @@ export interface CalendarEventOptions {
   name?: string;
   email?: string;
   gatherings?: string[];
+  customGathering?: string | null;
   dates?: string[];
   times?: string[];
   customDate?: string | null;
@@ -50,9 +51,11 @@ function parseEventDates(options: CalendarEventOptions): { start: Date; end: Dat
   let durationHours = 2;
 
   const firstTime = (options.times && options.times.length > 0) ? options.times[0].toLowerCase() : (options.customTime?.toLowerCase() || '');
-  if (firstTime.includes('mid-morning') || firstTime.includes('9')) {
-    startHour = 9;
-  } else if (firstTime.includes('late am') || firstTime.includes('11')) {
+  if (firstTime.includes('early-morning') || firstTime.includes('8')) {
+    startHour = 8;
+  } else if (firstTime.includes('mid-morning') || firstTime.includes('10')) {
+    startHour = 10;
+  } else if (firstTime.includes('late-morning') || firstTime.includes('late am') || firstTime.includes('11')) {
     startHour = 11;
   } else if (firstTime.includes('afternoon') || firstTime.includes('2') || firstTime.includes('3')) {
     startHour = 14;
@@ -74,16 +77,17 @@ function formatIsoForCalendar(date: Date): string {
 }
 
 export function generateCalendarDetails(options: CalendarEventOptions) {
-  const { cityName, name, email, gatherings = [], dates = [], times = [], customDate, customTime } = options;
+  const { cityName, name, email, gatherings = [], customGathering, dates = [], times = [], customDate, customTime } = options;
   const { start, end } = parseEventDates(options);
 
-  const primaryActivity = gatherings.length > 0 ? gatherings.slice(0, 2).join(' & ') : 'Community Gathering';
+  const allGatherings = [...gatherings, customGathering].filter(Boolean);
+  const primaryActivity = allGatherings.length > 0 ? allGatherings.slice(0, 2).join(' & ') : 'Community Gathering';
   const title = `Actually, Let's ${cityName} - ${primaryActivity}`;
   const location = `${cityName}, Actually Let's Community Series`;
 
   const dateList = [...dates, customDate].filter(Boolean).join(', ') || 'Community Consensus';
   const timeList = [...times, customTime].filter(Boolean).join(', ') || 'TBD';
-  const activitiesList = gatherings.length > 0 ? gatherings.join(', ') : 'All community activities';
+  const activitiesList = allGatherings.length > 0 ? allGatherings.join(', ') : 'All community activities';
 
   const description = [
     `Hi ${name || 'there'}! This calendar placeholder marks your RSVP for the Actually, Let's ${cityName} series.`,

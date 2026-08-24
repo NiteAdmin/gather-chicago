@@ -8,6 +8,7 @@ export interface SurveyResponse {
   phoneNumber?: string | null;
   smsOptIn?: boolean;
   notes?: string | null;
+  customGathering?: string | null;
   customDate?: string | null;
   customTime?: string | null;
   gatherings?: string[];
