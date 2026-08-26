@@ -1,5 +1,5 @@
 /**
- * Calendar utilities for generating Google Calendar URLs and .ics files.
+ * Calendar utilities for generating Google Calendar URLs and RFC 5545-compliant .ics files.
  */
 
 export interface CalendarEventOptions {
@@ -14,18 +14,34 @@ export interface CalendarEventOptions {
   customTime?: string | null;
 }
 
-/**
- * Parses user-selected date/time strings or falls back to a sensible upcoming weekend slot.
- */
-function parseEventDates(options: CalendarEventOptions): { start: Date; end: Date } {
-  const currentYear = new Date().getFullYear();
-  let targetDate = new Date();
+export interface CalendarEvent {
+  title: string;
+  description: string;
+  location: string;
+  startIso: string;
+  endIso: string;
+}
 
-  // Try to parse the first selected date (e.g. "Sat, Sep 5", "Sun, Sep 13", etc.)
+export function formatIsoForCalendar(date: Date): string {
+  return date.toISOString().replace(/-|:|\.\d+/g, '');
+}
+
+/**
+ * Parses user-selected date/time strings or falls back to a sensible slot.
+ */
+export function parseEventDates(options: CalendarEventOptions): {
+  start: Date;
+  end: Date;
+  startIso: string;
+  endIso: string;
+} {
+  const currentYear = new Date().getFullYear();
+  let targetDate: Date | null = null;
+
+  // Try to parse the first selected date (e.g. "Sat, Sep 26", "Sun, Sep 27", etc.)
   const candidateDateStr = (options.dates && options.dates.length > 0) ? options.dates[0] : (options.customDate || '');
   
-  if (candidateDateStr) {
-    // Check if month name and day number can be extracted
+  if (candidateDateStr && !candidateDateStr.toLowerCase().includes('any date')) {
     const match = candidateDateStr.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})/i);
     if (match) {
       const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -38,17 +54,22 @@ function parseEventDates(options: CalendarEventOptions): { start: Date; end: Dat
     }
   }
 
-  // Fallback: If date is in past or invalid, set to next Saturday 10:00 AM
-  if (isNaN(targetDate.getTime()) || targetDate.getTime() < Date.now() - 86400000) {
-    targetDate = new Date();
-    const dayOfWeek = targetDate.getDay();
-    const daysUntilNextSaturday = (6 - dayOfWeek + 7) % 7 || 7;
-    targetDate.setDate(targetDate.getDate() + daysUntilNextSaturday);
+  // Fallback: If no date or "Any date" or past date, default to Sep 26, currentYear or next Saturday
+  if (!targetDate || isNaN(targetDate.getTime()) || targetDate.getTime() < Date.now() - 86400000) {
+    const sep26 = new Date(currentYear, 8, 26);
+    if (sep26.getTime() >= Date.now() - 86400000) {
+      targetDate = sep26;
+    } else {
+      targetDate = new Date();
+      const dayOfWeek = targetDate.getDay();
+      const daysUntilNextSaturday = (6 - dayOfWeek + 7) % 7 || 7;
+      targetDate.setDate(targetDate.getDate() + daysUntilNextSaturday);
+    }
   }
 
   // Determine start hour based on selected time
   let startHour = 10;
-  let durationHours = 2;
+  const durationHours = 2;
 
   const firstTime = (options.times && options.times.length > 0) ? options.times[0].toLowerCase() : (options.customTime?.toLowerCase() || '');
   if (firstTime.includes('early-morning') || firstTime.includes('8')) {
@@ -69,61 +90,37 @@ function parseEventDates(options: CalendarEventOptions): { start: Date; end: Dat
   const endDate = new Date(startDate);
   endDate.setHours(startHour + durationHours, 0, 0, 0);
 
-  return { start: startDate, end: endDate };
+  const startIso = formatIsoForCalendar(startDate);
+  const endIso = formatIsoForCalendar(endDate);
+
+  return { start: startDate, end: endDate, startIso, endIso };
 }
 
-function formatIsoForCalendar(date: Date): string {
-  return date.toISOString().replace(/-|:|\.\d+/g, '');
-}
-
-export function generateCalendarDetails(options: CalendarEventOptions) {
-  const { cityName, name, email, gatherings = [], customGathering, dates = [], times = [], customDate, customTime } = options;
-  const { start, end } = parseEventDates(options);
-
-  const allGatherings = [...gatherings, customGathering].filter(Boolean);
-  const primaryActivity = allGatherings.length > 0 ? allGatherings.slice(0, 2).join(' & ') : 'Community Gathering';
-  const title = `Actually, Let's ${cityName} - ${primaryActivity}`;
-  const location = `${cityName}, Actually Let's Community Series`;
-
-  const dateList = [...dates, customDate].filter(Boolean).join(', ') || 'Community Consensus';
-  const timeList = [...times, customTime].filter(Boolean).join(', ') || 'TBD';
-  const activitiesList = allGatherings.length > 0 ? allGatherings.join(', ') : 'All community activities';
-
-  const description = [
-    `Hi ${name || 'there'}! This calendar placeholder marks your RSVP for the Actually, Let's ${cityName} series.`,
-    ``,
-    `Your Selected Preferences:`,
-    `• Gatherings: ${activitiesList}`,
-    `• Preferred Dates: ${dateList}`,
-    `• Preferred Times: ${timeList}`,
-    ``,
-    `We tally everyone's availability and will email your finalized gathering invite & ticket details to ${email || 'your email'}.`,
-    ``,
-    `Organizer: Actually, Let's (Austin, TX)`,
-    `Contact: rsvp@actuallylets.com`,
-    `Website: https://actuallylets.com`,
-  ].join('\n');
-
-  // Google Calendar URL
+/**
+ * 1. Formats parameters for Google Calendar web deep-linking.
+ */
+export function generateGoogleCalendarUrl(event: CalendarEvent): string {
   const googleCalParams = new URLSearchParams({
     action: 'TEMPLATE',
-    text: title,
-    dates: `${formatIsoForCalendar(start)}/${formatIsoForCalendar(end)}`,
-    details: description,
-    location: location,
+    text: event.title,
+    dates: `${event.startIso}/${event.endIso}`,
+    details: event.description,
+    location: event.location,
   });
-  const googleCalendarUrl = `https://calendar.google.com/calendar/render?${googleCalParams.toString()}`;
+  return `https://calendar.google.com/calendar/render?${googleCalParams.toString()}`;
+}
 
-  // ICS File Content
+/**
+ * RFC 5545-compliant .ics file content generation.
+ */
+export function generateIcsContent(event: CalendarEvent): string {
   const escapeIcsText = (str: string) =>
-    str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    (str || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
   const nowIso = formatIsoForCalendar(new Date());
-  const startIso = formatIsoForCalendar(start);
-  const endIso = formatIsoForCalendar(end);
   const uid = `event-${Date.now()}-${Math.random().toString(36).substring(2, 8)}@actuallylets.com`;
 
-  const icsContent = [
+  return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Actually Lets//Gathering Confirmation//EN',
@@ -132,15 +129,48 @@ export function generateCalendarDetails(options: CalendarEventOptions) {
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${nowIso}`,
-    `DTSTART:${startIso}`,
-    `DTEND:${endIso}`,
-    `SUMMARY:${escapeIcsText(title)}`,
-    `DESCRIPTION:${escapeIcsText(description)}`,
-    `LOCATION:${escapeIcsText(location)}`,
+    `DTSTART:${event.startIso}`,
+    `DTEND:${event.endIso}`,
+    `SUMMARY:${escapeIcsText(event.title)}`,
+    `DESCRIPTION:${escapeIcsText(event.description)}`,
+    `LOCATION:${escapeIcsText(event.location)}`,
     'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
+}
+
+/**
+ * 2. Formats a clean .ics file blob URL for 1-click Apple Calendar / Outlook import.
+ */
+export function generateIcsBlobUrl(event: CalendarEvent): string {
+  const content = generateIcsContent(event);
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Higher-level helper bundling details, URLs, and filenames.
+ */
+export function generateCalendarDetails(options: CalendarEventOptions) {
+  const { cityName } = options;
+  const { start, end, startIso, endIso } = parseEventDates(options);
+
+  const cityDisplayName = cityName || 'Chicago';
+  const location = `${cityDisplayName === 'Chicago' ? 'Chicago, IL' : cityDisplayName === 'Austin' ? 'Austin, TX' : cityDisplayName}`;
+  const title = `Actually, Let's — ${cityDisplayName} Gathering Series`;
+  const description = `Community gathering series survey confirmed. Specific venue and details to follow.`;
+
+  const event: CalendarEvent = {
+    title,
+    description,
+    location,
+    startIso,
+    endIso,
+  };
+
+  const googleCalendarUrl = generateGoogleCalendarUrl(event);
+  const icsContent = generateIcsContent(event);
 
   return {
     title,
@@ -148,8 +178,11 @@ export function generateCalendarDetails(options: CalendarEventOptions) {
     description,
     startDate: start,
     endDate: end,
+    startIso,
+    endIso,
     googleCalendarUrl,
     icsContent,
-    fileName: `actually-lets-${cityName.toLowerCase().replace(/\s+/g, '-')}.ics`,
+    fileName: `actually-lets-${cityDisplayName.toLowerCase().replace(/\s+/g, '-')}.ics`,
   };
 }
+

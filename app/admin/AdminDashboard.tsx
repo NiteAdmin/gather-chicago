@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
+import { formatPhoneNumber } from '@/lib/formatPhone';
 
 const GATHERINGS = [
   "Moms Morning",
   "Ladies Morning",
   "Ladies Night",
   "Couples / Date Night",
-  "Down for Whatever",
   "Happy Hour",
   "Family-Friendly",
   "Prenatal & New Parents",
@@ -18,6 +18,7 @@ const GATHERINGS = [
   "Kayaking / Paddleboarding",
   "Outdoor Activities",
   "Golfing",
+  "Down for Whatever",
 ];
 
 const TIMES = [
@@ -69,6 +70,12 @@ export default function AdminDashboard() {
   const [showSmsConfirmModal, setShowSmsConfirmModal] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
   const [smsToast, setSmsToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Contact list search and filter controls state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterGathering, setFilterGathering] = useState('all');
+  const [filterTime, setFilterTime] = useState('all');
+  const [filterDate, setFilterDate] = useState('all');
 
   const fetchResults = async (targetPasscode: string, targetCity: string) => {
     const res = await fetch('/api/admin/results', {
@@ -160,6 +167,53 @@ export default function AdminDashboard() {
   const smsOptedInResponses = responses.filter(
     (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
   );
+
+  const filteredResponses = responses.filter((r) => {
+    // 1. Search Query filter across Name, Email, Phone
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const nameMatch = (r.name || '').toLowerCase().includes(q);
+      const emailMatch = (r.email || '').toLowerCase().includes(q);
+      const rawPhone = (r.phoneNumber || '').replace(/\D/g, '');
+      const formattedPhone = formatPhoneNumber(r.phoneNumber || '').toLowerCase();
+      const phoneMatch = rawPhone.includes(q) || formattedPhone.includes(q);
+      if (!nameMatch && !emailMatch && !phoneMatch) {
+        return false;
+      }
+    }
+
+    // 2. Gathering filter
+    if (filterGathering !== 'all') {
+      const gaths = Array.isArray(r.gatherings) ? r.gatherings : [];
+      const customGath = r.customGathering || '';
+      const hasGathering = gaths.includes(filterGathering) || customGath.toLowerCase().includes(filterGathering.toLowerCase());
+      if (!hasGathering) {
+        return false;
+      }
+    }
+
+    // 3. Time filter
+    if (filterTime !== 'all') {
+      const times = Array.isArray(r.times) ? r.times : [];
+      const customTime = r.customTime || '';
+      const hasTime = times.includes(filterTime) || customTime.toLowerCase().includes(filterTime.toLowerCase());
+      if (!hasTime) {
+        return false;
+      }
+    }
+
+    // 4. Date filter
+    if (filterDate !== 'all') {
+      const dates = Array.isArray(r.dates) ? r.dates : [];
+      const customDate = r.customDate || '';
+      const hasDate = dates.includes(filterDate) || customDate.toLowerCase().includes(filterDate.toLowerCase());
+      if (!hasDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   const handleOpenAdminModal = () => {
     setWinningDate(topDateOption || DATES[0]);
@@ -319,6 +373,63 @@ export default function AdminDashboard() {
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `gathering-responses-${selectedCity}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportFilteredCSV = () => {
+    const headers = [
+      'City',
+      'Name',
+      'Email',
+      'Phone',
+      'Bringing',
+      'Interests',
+      'Preferred Dates',
+      'Preferred Times',
+      'Notes',
+    ];
+
+    const escapeCsv = (str: any) => `"${String(str == null ? '' : str).replace(/"/g, '""')}"`;
+
+    const csvLines = [headers.map(escapeCsv).join(',')];
+
+    filteredResponses.forEach((r) => {
+      const allGaths = [
+        ...(Array.isArray(r.gatherings) ? r.gatherings : []),
+        ...(r.customGathering ? [`"${r.customGathering}"`] : []),
+      ].join('; ');
+
+      const allDates = [
+        ...(Array.isArray(r.dates) ? r.dates : []),
+        ...(r.customDate ? [`"${r.customDate}"`] : []),
+      ].join('; ');
+
+      const allTimes = [
+        ...(Array.isArray(r.times) ? r.times : []),
+        ...(r.customTime ? [`"${r.customTime}"`] : []),
+      ].join('; ');
+
+      const line = [
+        formatCityName(r.city || 'chicago'),
+        r.name || '',
+        r.email || '',
+        r.phoneNumber ? `'${r.phoneNumber}` : '',
+        r.guests || '',
+        allGaths,
+        allDates,
+        allTimes,
+        r.notes || '',
+      ];
+      csvLines.push(line.map(escapeCsv).join(','));
+    });
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `contacts-filtered-${selectedCity}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -887,41 +998,368 @@ export default function AdminDashboard() {
             )}
 
             <div className="card">
-              <div className="res-title">Contact list ({responses.length})</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+                <div className="res-title" style={{ margin: 0 }}>Contact list ({responses.length})</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--ink-soft)' }}>
+                    Showing <strong>{filteredResponses.length}</strong> of <strong>{responses.length}</strong> contacts
+                    {(searchQuery || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') && ' (Filtered)'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={exportFilteredCSV}
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      color: 'var(--ink)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.2s',
+                    }}
+                    className="hover:border-[#C8643F] hover:text-[#C8643F]"
+                  >
+                    📥 Export CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Filter Controls Panel */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', margin: '14px 0 16px', background: 'var(--cream-2)', padding: '14px', borderRadius: '14px', border: '1px solid var(--line)' }}>
+                {/* Search Bar */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: '4px' }}>
+                    🔍 Search Contacts
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Search name, email, phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      fontSize: '0.88rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                    }}
+                  />
+                </div>
+
+                {/* Gathering / Interest Filter */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: '4px' }}>
+                    ✨ Filter by Interest
+                  </label>
+                  <select
+                    value={filterGathering}
+                    onChange={(e) => setFilterGathering(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      fontSize: '0.88rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">All Interests ({responses.length})</option>
+                    {GATHERINGS.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Time Slot Filter */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: '4px' }}>
+                    ⏰ Filter by Time
+                  </label>
+                  <select
+                    value={filterTime}
+                    onChange={(e) => setFilterTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      fontSize: '0.88rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">All Times</option>
+                    {TIMES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Filter */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: '4px' }}>
+                    📅 Filter by Date
+                  </label>
+                  <select
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      fontSize: '0.88rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">All Dates</option>
+                    {DATES.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Clear / Reset Filters Button */}
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterGathering('all');
+                      setFilterTime('all');
+                      setFilterDate('all');
+                    }}
+                    disabled={!searchQuery && filterGathering === 'all' && filterTime === 'all' && filterDate === 'all'}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--line)',
+                      background: (searchQuery || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') ? 'var(--terra)' : 'var(--cream-2)',
+                      color: (searchQuery || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') ? '#FFFFFF' : 'var(--ink-soft)',
+                      fontSize: '0.88rem',
+                      fontWeight: 600,
+                      cursor: (searchQuery || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') ? 'pointer' : 'default',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ↺ Clear Filters
+                  </button>
+                </div>
+              </div>
+
               <div style={{ overflowX: 'auto' }}>
-                <table>
+                <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th>City</th>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>SMS Opt-In</th>
-                      <th>Bringing</th>
-                      <th>Interested in</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>City</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Name</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Email</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Phone</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Bringing</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Interests / Gatherings</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Preferred Dates</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Preferred Times</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Notes / Suggestions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {responses.map((r, idx) => {
-                      const allGaths = [...(r.gatherings || []), ...(r.customGathering ? [`"${r.customGathering}"`] : [])];
-                      return (
-                        <tr key={r.id || idx}>
-                          <td><strong>{formatCityName(r.city || 'chicago')}</strong></td>
-                          <td>{r.name}</td>
-                          <td className="em">{r.email || '—'}</td>
-                          <td className="em">{r.phoneNumber ? r.phoneNumber : '—'}</td>
-                          <td className="em">{r.smsOptIn ? 'Yes' : 'No'}</td>
-                          <td className="em">{r.guests || '—'}</td>
-                          <td className="em">{allGaths.join(', ') || '—'}</td>
-                        </tr>
-                      );
-                    })}
+                    {filteredResponses.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+                          No contacts match your current filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredResponses.map((r, idx) => {
+                        const rawGatherings = Array.isArray(r.gatherings) ? r.gatherings : [];
+                        const rawDates = Array.isArray(r.dates) ? r.dates : [];
+                        const rawTimes = Array.isArray(r.times) ? r.times : [];
+
+                        return (
+                          <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--line)' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              <strong>{formatCityName(r.city || 'chicago')}</strong>
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px', fontWeight: 600 }}>
+                              {r.name || '—'}
+                            </td>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              {r.email ? (
+                                <a href={`mailto:${r.email}`} style={{ color: 'var(--terra)', textDecoration: 'underline' }}>
+                                  {r.email}
+                                </a>
+                              ) : '—'}
+                            </td>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              {r.phoneNumber ? (
+                                <div>
+                                  <div>{formatPhoneNumber(r.phoneNumber)}</div>
+                                  <span style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.7rem',
+                                    padding: '1px 6px',
+                                    borderRadius: '8px',
+                                    marginTop: '2px',
+                                    backgroundColor: r.smsOptIn ? '#EAF0E6' : '#F4EEE2',
+                                    color: r.smsOptIn ? '#3B5730' : '#8C8270',
+                                    border: `1px solid ${r.smsOptIn ? '#BACFB2' : '#D8CEBC'}`,
+                                    fontWeight: 600,
+                                  }}>
+                                    {r.smsOptIn ? '✓ SMS Opt-In' : 'No SMS'}
+                                  </span>
+                                </div>
+                              ) : '—'}
+                            </td>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              {r.guests || '—'}
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '280px' }}>
+                                {rawGatherings.map((g, gIdx) => (
+                                  <span key={gIdx} style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#F4EEE2',
+                                    border: '1px solid #D8CEBC',
+                                    color: '#2B271F',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    {g}
+                                  </span>
+                                ))}
+                                {r.customGathering && (
+                                  <span style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#FBF0E4',
+                                    border: '1px solid #E4C0A2',
+                                    color: '#A24A28',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    ✍️ &ldquo;{r.customGathering}&rdquo;
+                                  </span>
+                                )}
+                                {rawGatherings.length === 0 && !r.customGathering && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
+                              </div>
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '180px' }}>
+                                {rawDates.map((d, dIdx) => (
+                                  <span key={dIdx} style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#EAF0E6',
+                                    border: '1px solid #BACFB2',
+                                    color: '#3B5730',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    {d}
+                                  </span>
+                                ))}
+                                {r.customDate && (
+                                  <span style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#FDF7E7',
+                                    border: '1px solid #E6D29A',
+                                    color: '#826012',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    ✍️ {r.customDate}
+                                  </span>
+                                )}
+                                {rawDates.length === 0 && !r.customDate && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
+                              </div>
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '180px' }}>
+                                {rawTimes.map((t, tIdx) => (
+                                  <span key={tIdx} style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#EAEFF8',
+                                    border: '1px solid #B8CBEA',
+                                    color: '#27477D',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    {t}
+                                  </span>
+                                ))}
+                                {r.customTime && (
+                                  <span style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#F5ECF8',
+                                    border: '1px solid #D9BFDF',
+                                    color: '#6A2E78',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    lineHeight: 1.3,
+                                  }}>
+                                    ✍️ {r.customTime}
+                                  </span>
+                                )}
+                                {rawTimes.length === 0 && !r.customTime && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
+                              </div>
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              {r.notes ? (
+                                <span style={{ fontSize: '0.82rem', color: 'var(--ink)', fontStyle: 'italic', display: 'block', maxWidth: '200px', wordBreak: 'break-word' }}>
+                                  &ldquo;{r.notes}&rdquo;
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--ink-soft)' }}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
               <div className="row-actions">
                 <button className="ghost" onClick={exportCSV}>
-                  ⬇ Export CSV
+                  ⬇ Export All (CSV)
+                </button>
+                <button className="ghost" onClick={exportFilteredCSV}>
+                  📥 Export Filtered ({filteredResponses.length} rows)
                 </button>
               </div>
             </div>

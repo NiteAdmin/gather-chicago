@@ -12,7 +12,6 @@ const GATHERINGS = [
   "Ladies Morning",
   "Ladies Night",
   "Couples / Date Night",
-  "Down for Whatever",
   "Happy Hour",
   "Family-Friendly",
   "Prenatal & New Parents",
@@ -22,6 +21,7 @@ const GATHERINGS = [
   "Kayaking / Paddleboarding",
   "Outdoor Activities",
   "Golfing",
+  "Down for Whatever",
 ];
 
 const TIMES = [
@@ -735,12 +735,12 @@ export default function SurveyForm({
               {/* A2P 10DLC Footer Legal & Compliance Links */}
               <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)', lineHeight: '1.6' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong>Actually, Let&apos;s</strong> &bull; Austin, TX &bull;{' '}
+                  <strong>Actually, Let&apos;s</strong> &bull; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &bull;{' '}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      window.location.href = 'mailto:rsvp@actuallylets.com';
+                      window.location.href = 'mailto:admin@actuallylets.com';
                     }}
                     className="underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer font-inherit"
                     style={{ color: 'var(--terra)', textDecoration: 'underline', fontSize: 'inherit', font: 'inherit' }}

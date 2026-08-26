@@ -10,7 +10,7 @@ interface MailtoButtonProps {
 }
 
 export default function MailtoButton({
-  email = 'rsvp@actuallylets.com',
+  email = 'admin@actuallylets.com',
   className = 'underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer text-inherit font-inherit',
   style,
   children,

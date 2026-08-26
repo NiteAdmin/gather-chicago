@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { fetchResponses, saveResponse } from "@/lib/firebase";
 import { sendSms } from "@/lib/twilio";
+import { formatPhoneNumber } from "@/lib/formatPhone";
+import { generateCalendarDetails } from "@/lib/calendar";
 
 // In-memory sliding window IP rate limiter (3 requests per 15 minutes)
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -243,6 +245,18 @@ export async function POST(req: Request) {
 
     const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
+    const calData = generateCalendarDetails({
+      cityName: targetCityName,
+      name: trimmedName,
+      email: trimmedEmail,
+      gatherings,
+      customGathering: body.customGathering,
+      dates,
+      times: body.times,
+      customDate: body.customDate,
+      customTime: body.customTime,
+    });
+
     const emailHtml = `
       <div style="background-color: #FBF7EE; padding: 32px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2B271F;">
         <div style="max-width: 580px; margin: 0 auto;">
@@ -290,8 +304,22 @@ export async function POST(req: Request) {
             <!-- 4. Write-In Notes Callout Block (if present) -->
             ${notesSectionHtml}
 
-            <!-- 5. What Happens Next Card -->
-            <div style="background-color: #FBF7EE; border: 1px solid #E6DEC8; border-radius: 12px; padding: 16px 18px; margin-top: 24px;">
+            <!-- 5. Add to Calendar Button Section -->
+            <div style="text-align: center; margin: 26px 0 20px; padding: 18px; background-color: #FBF7EE; border: 1px solid #E6DEC8; border-radius: 12px;">
+              <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #4C5A40;">
+                📅 Keep your schedule open:
+              </p>
+              <a
+                href="${calData.googleCalendarUrl}"
+                target="_blank"
+                style="display: inline-block; background-color: #C8643F; color: #FFFFFF; text-decoration: none; padding: 11px 22px; border-radius: 10px; font-weight: bold; font-size: 13px; box-shadow: 0 3px 8px rgba(200, 100, 63, 0.3);"
+              >
+                Add to Google Calendar
+              </a>
+            </div>
+
+            <!-- 6. What Happens Next Card -->
+            <div style="background-color: #F4EEE2; border: 1px solid #E6DEC8; border-radius: 12px; padding: 16px 18px; margin-top: 16px;">
               <h4 style="font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: bold; color: #4C5A40; margin: 0 0 4px;">
                 What happens next?
               </h4>
@@ -358,32 +386,119 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually, Let's\nStretch & Sip\n---\n${targetCityName} · RSVP CONFIRMED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually, Let's\nStretch & Sip\n---\n${targetCityName} · RSVP CONFIRMED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nAdd to Google Calendar placeholder:\n${calData.googleCalendarUrl}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
+    const adminSender = "Actually Let's System <rsvp@actuallylets.com>";
+
+    const allGatheringsStr = [
+      ...(Array.isArray(gatherings) ? gatherings : []),
+      ...(body.customGathering && typeof body.customGathering === "string" && body.customGathering.trim() ? [`Write-in: "${body.customGathering.trim()}"`] : []),
+    ].join(', ') || 'None selected';
+
+    const allDatesStr = [
+      ...(Array.isArray(dates) ? dates : []),
+      ...(body.customDate && typeof body.customDate === "string" && body.customDate.trim() ? [`Write-in: "${body.customDate.trim()}"`] : []),
+    ].join(', ') || 'None selected';
+
+    const allTimesStr = [
+      ...(Array.isArray(body.times) ? body.times : []),
+      ...(body.customTime && typeof body.customTime === "string" && body.customTime.trim() ? [`Write-in: "${body.customTime.trim()}"`] : []),
+    ].join(', ') || 'None selected';
+
+    const adminEmailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #2B271F; background-color: #FBF7EE;">
+        <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border: 1px solid #D8CEBC; border-radius: 12px; padding: 24px;">
+          <h2 style="margin: 0 0 16px 0; color: #C8643F; font-size: 18px; font-weight: 700;">
+            🎉 New RSVP Received: ${trimmedName} (${targetCityName})
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+            <tbody>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; width: 140px; font-weight: 600;">Name</th>
+                <td style="padding: 10px 8px; color: #2B271F; font-weight: 600;">${trimmedName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Email</th>
+                <td style="padding: 10px 8px; color: #2B271F;"><a href="mailto:${trimmedEmail}" style="color: #C8643F; text-decoration: underline;">${trimmedEmail}</a></td>
+              </tr>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Phone</th>
+                <td style="padding: 10px 8px; color: #2B271F;">${sanitizedPhone ? formatPhoneNumber(sanitizedPhone) : "N/A"}${sanitizedSmsOptIn ? ' (SMS Opted In)' : ''}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Gatherings</th>
+                <td style="padding: 10px 8px; color: #2B271F;">${allGatheringsStr}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Dates</th>
+                <td style="padding: 10px 8px; color: #2B271F;">${allDatesStr}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #EFEAD8;">
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Times</th>
+                <td style="padding: 10px 8px; color: #2B271F;">${allTimesStr}</td>
+              </tr>
+              ${body.notes && typeof body.notes === "string" && body.notes.trim() ? `
+              <tr>
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Notes</th>
+                <td style="padding: 10px 8px; color: #2B271F; font-style: italic;">"${body.notes.trim()}"</td>
+              </tr>` : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
 
     let resendId: string | undefined = undefined;
+    let adminResendId: string | undefined = undefined;
 
     try {
-      console.log(`Attempting to send confirmation to: ${trimmedEmail} via ${primarySender}...`);
-      const emailResponse = await resend.emails.send({
-        from: primarySender,
-        to: [trimmedEmail],
-        subject: `Got your availability for Actually, Let's Stretch & Sip! 🎉`,
-        html: emailHtml,
-        text: emailText,
-      });
+      console.log(`[EMAIL DISPATCH] Triggering attendee confirmation (${trimmedEmail}) & admin alert...`);
+      const [attendeeResult, adminResult] = await Promise.allSettled([
+        resend.emails.send({
+          from: primarySender,
+          to: [trimmedEmail],
+          replyTo: "admin@actuallylets.com",
+          subject: `Got your availability for Actually, Let's Stretch & Sip! 🎉`,
+          html: emailHtml,
+          text: emailText,
+        }),
+        resend.emails.send({
+          from: adminSender,
+          to: ["admin@actuallylets.com"],
+          replyTo: trimmedEmail,
+          subject: `[New RSVP] ${trimmedName} - ${targetCityName} Gathering Availability`,
+          html: adminEmailHtml,
+        }),
+      ]);
 
-      console.log("Resend API Result:", emailResponse);
-
-      if (emailResponse.error) {
-        console.error('[RESEND DISPATCH ERROR]:', emailResponse.error);
+      if (attendeeResult.status === "fulfilled") {
+        const emailResponse = attendeeResult.value;
+        console.log("Attendee Resend API Result:", emailResponse);
+        if (emailResponse.error) {
+          console.error('[ATTENDEE RESEND ERROR]:', emailResponse.error);
+        } else {
+          console.log('[ATTENDEE RESEND SUCCESS]:', emailResponse.data);
+          resendId = emailResponse.data?.id;
+        }
       } else {
-        console.log('[RESEND SUCCESS]:', emailResponse.data);
-        resendId = emailResponse.data?.id;
+        console.error('[ATTENDEE RESEND REJECTION]:', attendeeResult.reason);
+      }
+
+      if (adminResult.status === "fulfilled") {
+        const adminResponse = adminResult.value;
+        console.log("Admin Alert Resend API Result:", adminResponse);
+        if (adminResponse.error) {
+          console.error('[ADMIN ALERT RESEND ERROR]:', adminResponse.error);
+        } else {
+          console.log('[ADMIN ALERT RESEND SUCCESS]:', adminResponse.data);
+          adminResendId = adminResponse.data?.id;
+        }
+      } else {
+        console.error('[ADMIN ALERT RESEND REJECTION]:', adminResult.reason);
       }
     } catch (resendErr: any) {
-      console.error('[RESEND EXCEPTION]:', resendErr);
+      console.error('[RESEND DISPATCH EXCEPTION]:', resendErr);
     }
 
     // Send automated Twilio SMS if user opted in and provided a valid 10-digit phone number
@@ -409,6 +524,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       resendId: resendId,
+      adminResendId: adminResendId,
       sender: primarySender,
     });
   } catch (error: any) {

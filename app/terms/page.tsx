@@ -66,11 +66,11 @@ export default function TermsPage() {
               <strong>Entity / DBA:</strong> Actually, Let&apos;s
             </p>
             <p style={{ margin: '0 0 6px' }}>
-              <strong>Operational Region:</strong> Austin, TX
+              <strong>Operational Region:</strong> Chicago, IL
             </p>
             <p style={{ margin: 0 }}>
               <strong>Email:</strong>{' '}
-              <MailtoButton style={{ color: '#C8643F', fontWeight: 600, textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
+              <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', fontWeight: 600, textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
                 rsvp@actuallylets.com
               </MailtoButton>
             </p>
@@ -79,8 +79,8 @@ export default function TermsPage() {
 
         <footer style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #D8CEBC', textAlign: 'center', fontSize: '0.85rem', color: '#6A6253', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
-            <strong>Actually, Let&apos;s</strong> &bull; Austin, TX &bull;{' '}
-            <MailtoButton style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
+            <strong>Actually, Let&apos;s</strong> &bull; Chicago, IL &bull;{' '}
+            <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
               rsvp@actuallylets.com
             </MailtoButton>
           </div>

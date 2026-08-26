@@ -152,7 +152,7 @@ export default function IntroPage() {
                 <span className="w-2.5 h-2.5 rounded-full bg-[#6E7F5E] animate-pulse" />
               </div>
               <p className="text-xs text-[#6A6253] mb-3 leading-relaxed">
-                Fall Series survey open. Voting in progress across Lincoln Park, Lakeview, and West Loop.
+                Fall Series survey open. Voting in progress across Chicago and outside the city.
               </p>
               <div className="text-xs font-bold text-[#C8643F] flex items-center gap-1 group-hover:gap-2 transition-all">
                 <span>Enter RSVP</span>
@@ -171,7 +171,7 @@ export default function IntroPage() {
                 </span>
               </div>
               <p className="text-xs text-[#6A6253] leading-relaxed">
-                Waitlist opening soon for South Congress &amp; East Austin community circles.
+                Waitlist opening soon for Austin and surrounding areas.
               </p>
             </div>
 
@@ -186,7 +186,7 @@ export default function IntroPage() {
                 </span>
               </div>
               <p className="text-xs text-[#6A6253] leading-relaxed">
-                Brooklyn &amp; Manhattan gatherings launching in the next phase.
+                Waitlist opening soon for New York City and surrounding areas.
               </p>
             </div>
           </div>
@@ -308,7 +308,7 @@ export default function IntroPage() {
               type="button"
               onClick={(e) => {
                 e.preventDefault();
-                window.location.href = 'mailto:rsvp@actuallylets.com';
+                window.location.href = 'mailto:admin@actuallylets.com';
               }}
               className="underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer text-inherit font-inherit"
             >
@@ -316,7 +316,7 @@ export default function IntroPage() {
             </button>
           </div>
           <p className="text-[11px] sm:text-xs">
-            <strong>Actually, Let’s</strong> &bull; Austin, TX &bull; A portion of every ticket supports local community and sustainability nonprofits.
+            <strong>Actually, Let’s</strong> &bull; Chicago, IL &bull; A portion of every ticket supports local community and sustainability nonprofits.
           </p>
         </div>
       </footer>

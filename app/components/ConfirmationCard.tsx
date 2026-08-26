@@ -161,7 +161,7 @@ export default function ConfirmationCard({
               transition: 'background-color 0.18s, transform 0.1s',
               boxShadow: '0 4px 12px -2px rgba(200, 100, 63, 0.35)',
               flex: '1 1 200px',
-              maxWidth: '230px',
+              maxWidth: '240px',
             }}
             onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#b5582f')}
             onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#C8643F')}
@@ -169,7 +169,7 @@ export default function ConfirmationCard({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z" />
             </svg>
-            <span>Google Calendar</span>
+            <span>Add to Google Calendar</span>
           </a>
 
           {/* Download ICS Button */}
@@ -192,7 +192,7 @@ export default function ConfirmationCard({
               transition: 'background-color 0.18s, transform 0.1s',
               boxShadow: '0 4px 12px -2px rgba(76, 90, 64, 0.35)',
               flex: '1 1 200px',
-              maxWidth: '230px',
+              maxWidth: '240px',
             }}
             onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#3c4733')}
             onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#4C5A40')}
@@ -202,7 +202,7 @@ export default function ConfirmationCard({
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>{downloaded ? 'Downloaded! ✓' : 'Apple / .ICS File'}</span>
+            <span>{downloaded ? 'Downloaded! ✓' : 'Download .ics (Apple / Outlook)'}</span>
           </button>
         </div>
       </div>
@@ -229,12 +229,12 @@ export default function ConfirmationCard({
       {/* Compliance / Entity Footer */}
       <div style={{ marginTop: '28px', paddingTop: '16px', borderTop: '1px solid #D8CEBC', fontSize: '0.78rem', color: '#6A6253', lineHeight: '1.6' }}>
         <div style={{ marginBottom: '4px' }}>
-          <strong>Actually, Let&apos;s</strong> &bull; Austin, TX &bull;{' '}
+          <strong>Actually, Let&apos;s</strong> &bull; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &bull;{' '}
           <button
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = 'mailto:rsvp@actuallylets.com';
+              window.location.href = 'mailto:admin@actuallylets.com';
             }}
             className="underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer font-inherit"
             style={{ color: '#C8643F', textDecoration: 'underline', fontSize: 'inherit', font: 'inherit' }}
