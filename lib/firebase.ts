@@ -69,3 +69,25 @@ export async function fetchResponses(): Promise<SurveyResponse[]> {
     });
   }
 }
+
+export interface BroadcastLogData {
+  city?: string;
+  winningDate: string;
+  timeWindow?: string;
+  venueName?: string;
+  venueAddress?: string;
+  ticketUrl?: string;
+  customNote?: string;
+  groupACount: number;
+  groupBCount: number;
+  totalDispatched: number;
+}
+
+export async function logBroadcast(data: BroadcastLogData): Promise<string> {
+  const docRef = await addDoc(collection(db, "broadcasts"), {
+    ...data,
+    dispatchedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+

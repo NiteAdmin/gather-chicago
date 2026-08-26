@@ -56,17 +56,25 @@ export default function AdminDashboard() {
 
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
 
-  // Admin Broadcast Modal state
+  // Announce Winning Date Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [modalStep, setModalStep] = useState<'configure' | 'review'>('configure');
   const [winningDate, setWinningDate] = useState('');
-  const [eventDetails, setEventDetails] = useState('');
+  const [eventTimeWindow, setEventTimeWindow] = useState('10:00 AM – 12:00 PM CDT');
+  const [venueName, setVenueName] = useState('Lincoln Park Conservatory');
+  const [venueAddress, setVenueAddress] = useState('2391 N Stockton Dr, Chicago, IL');
   const [eventLink, setEventLink] = useState('');
-  const [adminPasscode, setAdminPasscode] = useState('');
-  const [broadcasting, setBroadcasting] = useState(false);
+  const [hostNote, setHostNote] = useState("Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras.");
+  const [confirmInput, setConfirmInput] = useState('');
+  const [expandedGroup, setExpandedGroup] = useState<'groupA' | 'groupB' | null>(null);
+  const [isDryRun, setIsDryRun] = useState(true);
+  const [testEmail, setTestEmail] = useState('admin@actuallylets.com');
+  const [isDispatching, setIsDispatching] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Admin SMS Broadcast state
   const [smsMessage, setSmsMessage] = useState('');
+  const [adminPasscode, setAdminPasscode] = useState('');
   const [showSmsConfirmModal, setShowSmsConfirmModal] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
   const [smsToast, setSmsToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -215,60 +223,100 @@ export default function AdminDashboard() {
     return true;
   });
 
+  const selectedDateStr = winningDate || (topDateOption || DATES[0]);
+
+  // Group A (Available): Contacts who voted for the selected date or selected "Any date"
+  const groupA = responses.filter((r) => {
+    const rDates = Array.isArray(r.dates) ? r.dates : [];
+    const customDate = (r.customDate || '').toLowerCase();
+    const hasWinningDate = rDates.includes(selectedDateStr);
+    const hasAnyDate = rDates.some((d) => d.toLowerCase().includes('any date')) || customDate.includes('any date');
+    const customMatch = customDate.includes(selectedDateStr.toLowerCase());
+    return hasWinningDate || hasAnyDate || customMatch;
+  });
+
+  // Group B (Unavailable): Contacts who voted only for other dates
+  const groupB = responses.filter((r) => {
+    const inA = groupA.some((a) => (a.id && r.id && a.id === r.id) || (a.email && r.email && a.email.toLowerCase() === r.email.toLowerCase()));
+    return !inA;
+  });
+
   const handleOpenAdminModal = () => {
-    setWinningDate(topDateOption || DATES[0]);
-    setEventDetails('Join us for a relaxing morning of yoga, mimosa toasts, and great conversation with local neighbors!');
+    const defaultDate = topDateOption || DATES[0];
+    setWinningDate(defaultDate);
+    setEventTimeWindow('10:00 AM – 12:00 PM CDT');
+    setVenueName('Lincoln Park Conservatory');
+    setVenueAddress('2391 N Stockton Dr, Chicago, IL');
     setEventLink('');
+    setHostNote("Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras.");
+    setModalStep('configure');
+    setConfirmInput('');
+    setToastMessage(null);
+    setExpandedGroup(null);
     setShowAdminModal(true);
   };
 
-  const handleSendBroadcast = async (e: React.FormEvent) => {
+  const handleDispatchAnnouncements = async (e: React.FormEvent) => {
     e.preventDefault();
     setToastMessage(null);
 
-    const activePasscode = adminPasscode.trim() || passcode.trim();
-
-    if (!activePasscode) {
-      setToastMessage({ type: 'error', text: 'Please enter the Admin Passcode.' });
+    if (confirmInput.trim().toUpperCase() !== 'CONFIRM') {
+      setToastMessage({ type: 'error', text: 'Please type CONFIRM to unlock dispatch.' });
       return;
     }
 
-    setBroadcasting(true);
+    const activePasscode = adminPasscode.trim() || passcode.trim();
+    setIsDispatching(true);
 
     try {
-      const res = await fetch('/api/broadcast', {
+      const res = await fetch('/api/admin/announce-date', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          winningDate,
-          eventDetails,
-          eventLink: eventLink.trim() || undefined,
           adminSecret: activePasscode,
           city: selectedCity,
+          winningDate: selectedDateStr,
+          timeWindow: eventTimeWindow,
+          venueName,
+          venueAddress,
+          ticketUrl: eventLink.trim() || undefined,
+          customNote: hostNote.trim() || undefined,
+          isDryRun,
+          testEmail: testEmail.trim() || undefined,
+          groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
+          groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Broadcast failed');
+        throw new Error(data.error || 'Announcement dispatch failed.');
       }
 
-      setToastMessage({
-        type: 'success',
-        text: `Success! Email broadcast sent to ${data.recipientCount} attendees 🎉`,
-      });
+      if (data.isDryRun) {
+        setToastMessage({
+          type: 'success',
+          text: `🧪 Test mode success! Sent 2 sample preview emails (Group A & Group B) directly to ${data.testEmail || 'admin@actuallylets.com'}.`,
+        });
+      } else {
+        setToastMessage({
+          type: 'success',
+          text: `🎉 Success! Live announcement broadcast sent to ${data.totalSent} attendees (${data.groupACount} Group A, ${data.groupBCount} Group B)!`,
+        });
+      }
 
       setTimeout(() => {
         setShowAdminModal(false);
       }, 2500);
     } catch (err: any) {
+      console.error('Dispatch error:', err);
       setToastMessage({
         type: 'error',
-        text: err.message || 'Error sending announcement email.',
+        text: err.message || 'Error transmitting announcement broadcast.',
       });
     } finally {
-      setBroadcasting(false);
+      setIsDispatching(false);
     }
   };
 
@@ -828,6 +876,22 @@ export default function AdminDashboard() {
           color: var(--terra);
         }
 
+        .mobile-scroll-hint {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .mobile-scroll-hint {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.78rem;
+            color: #7C7267;
+            margin-bottom: 8px;
+            font-weight: 500;
+          }
+        }
+
         @media (max-width: 480px) {
           h1 {
             font-size: 2rem;
@@ -1167,25 +1231,31 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse' }}>
+              {/* Mobile/Tablet Scroll Indicator */}
+              <div className="text-xs text-[#8C827A] flex items-center gap-1.5 mb-2 md:hidden" style={{ fontSize: '0.78rem', color: '#8C827A', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <span>↔ Scroll horizontally to view all attendee details</span>
+              </div>
+
+              {/* Dedicated Table Scroll Wrapper */}
+              <div className="w-full overflow-x-auto border border-[#E8E1D5] rounded-xl my-4 bg-white shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]" style={{ overflowX: 'auto', width: '100%', borderRadius: '12px', border: '1px solid #E8E1D5', margin: '16px 0', background: '#FFFFFF', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}>
+                <table style={{ minWidth: '1150px', width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
-                    <tr>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>City</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Name</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Email</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Phone</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Bringing</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Interests / Gatherings</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Preferred Dates</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Preferred Times</th>
-                      <th style={{ verticalAlign: 'bottom', padding: '10px 8px', textAlign: 'left' }}>Notes / Suggestions</th>
+                    <tr style={{ background: '#FAF7F2', borderBottom: '1.5px solid #E8E1D5' }}>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '90px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>CITY</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '130px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>NAME</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '200px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>EMAIL</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '130px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>PHONE</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '80px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>BRINGING</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '260px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>INTERESTS / GATHERINGS</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '180px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>PREFERRED DATES</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '160px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>PREFERRED TIMES</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '200px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>NOTES / CUSTOM</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredResponses.length === 0 ? (
                       <tr>
-                        <td colSpan={9} style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+                        <td colSpan={9} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ink-soft)', fontStyle: 'italic', fontSize: '0.9rem' }}>
                           No contacts match your current filter criteria.
                         </td>
                       </tr>
@@ -1196,30 +1266,30 @@ export default function AdminDashboard() {
                         const rawTimes = Array.isArray(r.times) ? r.times : [];
 
                         return (
-                          <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--line)' }}>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                          <tr key={r.id || idx} style={{ borderBottom: '1px solid #EFEAE1' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '90px' }}>
                               <strong>{formatCityName(r.city || 'chicago')}</strong>
                             </td>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px', fontWeight: 600 }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', fontWeight: 600, minWidth: '130px' }}>
                               {r.name || '—'}
                             </td>
-                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '200px' }}>
                               {r.email ? (
-                                <a href={`mailto:${r.email}`} style={{ color: 'var(--terra)', textDecoration: 'underline' }}>
+                                <a href={`mailto:${r.email}`} style={{ color: 'var(--terra)', textDecoration: 'underline', wordBreak: 'break-all' }}>
                                   {r.email}
                                 </a>
                               ) : '—'}
                             </td>
-                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '130px' }}>
                               {r.phoneNumber ? (
                                 <div>
-                                  <div>{formatPhoneNumber(r.phoneNumber)}</div>
+                                  <div style={{ whiteSpace: 'nowrap' }}>{formatPhoneNumber(r.phoneNumber)}</div>
                                   <span style={{
                                     display: 'inline-block',
                                     fontSize: '0.7rem',
                                     padding: '1px 6px',
                                     borderRadius: '8px',
-                                    marginTop: '2px',
+                                    marginTop: '3px',
                                     backgroundColor: r.smsOptIn ? '#EAF0E6' : '#F4EEE2',
                                     color: r.smsOptIn ? '#3B5730' : '#8C8270',
                                     border: `1px solid ${r.smsOptIn ? '#BACFB2' : '#D8CEBC'}`,
@@ -1230,11 +1300,11 @@ export default function AdminDashboard() {
                                 </div>
                               ) : '—'}
                             </td>
-                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                            <td className="em" style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '80px' }}>
                               {r.guests || '—'}
                             </td>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '280px' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '260px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '320px', minWidth: '240px' }}>
                                 {rawGatherings.map((g, gIdx) => (
                                   <span key={gIdx} style={{
                                     display: 'inline-block',
@@ -1268,8 +1338,8 @@ export default function AdminDashboard() {
                                 {rawGatherings.length === 0 && !r.customGathering && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
                               </div>
                             </td>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '180px' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '180px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minWidth: '160px' }}>
                                 {rawDates.map((d, dIdx) => (
                                   <span key={dIdx} style={{
                                     display: 'inline-block',
@@ -1303,8 +1373,8 @@ export default function AdminDashboard() {
                                 {rawDates.length === 0 && !r.customDate && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
                               </div>
                             </td>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '180px' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '160px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minWidth: '140px' }}>
                                 {rawTimes.map((t, tIdx) => (
                                   <span key={tIdx} style={{
                                     display: 'inline-block',
@@ -1338,9 +1408,9 @@ export default function AdminDashboard() {
                                 {rawTimes.length === 0 && !r.customTime && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
                               </div>
                             </td>
-                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', minWidth: '200px' }}>
                               {r.notes ? (
-                                <span style={{ fontSize: '0.82rem', color: 'var(--ink)', fontStyle: 'italic', display: 'block', maxWidth: '200px', wordBreak: 'break-word' }}>
+                                <span style={{ fontSize: '0.82rem', color: 'var(--ink)', fontStyle: 'italic', display: 'block', maxWidth: '240px', wordBreak: 'break-word', lineHeight: 1.4 }}>
                                   &ldquo;{r.notes}&rdquo;
                                 </span>
                               ) : (
@@ -1411,84 +1481,444 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Admin Email Broadcast Modal */}
+      {/* Admin Email Broadcast / Announce Winning Date Modal */}
       {showAdminModal && (
         <div className="modal-overlay" onClick={() => setShowAdminModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">📧 Broadcast Announcement ({formatCityName(selectedCity)})</div>
+          <div className="modal-content" style={{ maxWidth: '640px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <div>
+                <div className="modal-title" style={{ fontSize: '1.15rem' }}>
+                  📢 Announce Winning Date ({formatCityName(selectedCity)})
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', marginTop: '2px' }}>
+                  Configure event details, venue, and review audience segmentation before dispatching.
+                </div>
+              </div>
               <button className="close-btn" onClick={() => setShowAdminModal(false)}>
                 &times;
               </button>
             </div>
 
+            {/* Step navigation tabs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'var(--cream-2)', padding: '4px', borderRadius: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setModalStep('configure')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: modalStep === 'configure' ? 'var(--card)' : 'transparent',
+                  color: modalStep === 'configure' ? 'var(--ink)' : 'var(--ink-soft)',
+                  boxShadow: modalStep === 'configure' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                1. Event Details Form
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalStep('review')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: modalStep === 'review' ? 'var(--card)' : 'transparent',
+                  color: modalStep === 'review' ? 'var(--ink)' : 'var(--ink-soft)',
+                  boxShadow: modalStep === 'review' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                2. Review &amp; Segmentation Preview
+              </button>
+            </div>
+
             {toastMessage && (
-              <div className={`toast ${toastMessage.type}`}>{toastMessage.text}</div>
+              <div className={`toast ${toastMessage.type}`} style={{ marginBottom: '16px' }}>
+                {toastMessage.text}
+              </div>
             )}
 
-            <form onSubmit={handleSendBroadcast}>
-              <div className="q">
-                <div className="q-label">Winning Date</div>
-                <input
-                  type="text"
-                  value={winningDate}
-                  onChange={(e) => setWinningDate(e.target.value)}
-                  placeholder="e.g. Sat, Sep 12"
-                  required
-                />
-              </div>
+            {modalStep === 'configure' ? (
+              <div>
+                {/* 1. Winning Date Selector */}
+                <div className="q" style={{ marginBottom: '14px' }}>
+                  <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                    🏆 Select Winning Date
+                  </div>
+                  <select
+                    value={winningDate}
+                    onChange={(e) => setWinningDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--card)',
+                      fontSize: '0.92rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {DATES.map((d) => (
+                      <option key={d} value={d}>
+                        {d} {topDateOption === d ? '🔥 (Top Poll Winner)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="q">
-                <div className="q-label">Event Details</div>
-                <textarea
-                  value={eventDetails}
-                  onChange={(e) => setEventDetails(e.target.value)}
-                  placeholder="Describe location, schedule, or bring-your-own items..."
-                  required
-                  rows={3}
-                />
-              </div>
+                {/* 2. Event Time Window */}
+                <div className="q" style={{ marginBottom: '14px' }}>
+                  <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                    ⏰ Event Time Window
+                  </div>
+                  <input
+                    type="text"
+                    value={eventTimeWindow}
+                    onChange={(e) => setEventTimeWindow(e.target.value)}
+                    placeholder="e.g. 10:00 AM – 12:00 PM CDT"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
+                  />
+                </div>
 
-              <div className="q">
-                <div className="q-label">Ticket / RSVP Link (Optional)</div>
-                <input
-                  type="text"
-                  value={eventLink}
-                  onChange={(e) => setEventLink(e.target.value)}
-                  placeholder="https://example.com/tickets"
-                />
-              </div>
+                {/* 3. Venue Details */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                  <div className="q" style={{ margin: 0 }}>
+                    <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                      📍 Venue Name
+                    </div>
+                    <input
+                      type="text"
+                      value={venueName}
+                      onChange={(e) => setVenueName(e.target.value)}
+                      placeholder="e.g. Lincoln Park Conservatory"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
+                    />
+                  </div>
+                  <div className="q" style={{ margin: 0 }}>
+                    <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                      🗺️ Venue Address
+                    </div>
+                    <input
+                      type="text"
+                      value={venueAddress}
+                      onChange={(e) => setVenueAddress(e.target.value)}
+                      placeholder="e.g. 2391 N Stockton Dr, Chicago, IL"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
+                    />
+                  </div>
+                </div>
 
-              <div className="q">
-                <div className="q-label">Admin Passcode *</div>
-                <input
-                  type="password"
-                  value={adminPasscode}
-                  onChange={(e) => setAdminPasscode(e.target.value)}
-                  placeholder="Enter secret passcode"
-                  required
-                />
-              </div>
+                {/* 4. Ticket / RSVP Link */}
+                <div className="q" style={{ marginBottom: '14px' }}>
+                  <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                    🎟️ Ticket / RSVP Link (Optional)
+                  </div>
+                  <input
+                    type="text"
+                    value={eventLink}
+                    onChange={(e) => setEventLink(e.target.value)}
+                    placeholder="https://partiful.com/e/... or https://luma.com/..."
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
+                  />
+                </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button
-                  type="button"
-                  className="ghost"
-                  style={{ flex: 1 }}
-                  onClick={() => setShowAdminModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="submit"
-                  style={{ flex: 2, padding: '12px' }}
-                  disabled={broadcasting}
-                >
-                  {broadcasting ? 'Broadcasting...' : 'Send Broadcast Email'}
-                </button>
+                {/* 5. Custom Note from Lola */}
+                <div className="q" style={{ marginBottom: '16px' }}>
+                  <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
+                    ✍️ Custom Note from Lola (Host Note)
+                  </div>
+                  <textarea
+                    value={hostNote}
+                    onChange={(e) => setHostNote(e.target.value)}
+                    placeholder="Write a personal note to the community..."
+                    rows={3}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
+                  />
+                </div>
+
+                {/* Live Segmentation Quick Stat Pill */}
+                <div style={{ background: 'var(--cream-2)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--line)', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--ink)', fontWeight: 600 }}>
+                    👥 Audience Preview for <strong>{selectedDateStr}</strong>:
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ fontSize: '0.78rem', background: '#EAF0E6', color: '#3B5730', border: '1px solid #BACFB2', padding: '3px 8px', borderRadius: '8px', fontWeight: 700 }}>
+                      Group A (Available): {groupA.length}
+                    </span>
+                    <span style={{ fontSize: '0.78rem', background: '#F4EEE2', color: '#8C8270', border: '1px solid #D8CEBC', padding: '3px 8px', borderRadius: '8px', fontWeight: 700 }}>
+                      Group B (Other): {groupB.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    className="ghost"
+                    style={{ flex: 1 }}
+                    onClick={() => setShowAdminModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="submit"
+                    style={{ flex: 2, padding: '12px' }}
+                    onClick={() => setModalStep('review')}
+                  >
+                    Continue to Review &amp; Preview →
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleDispatchAnnouncements}>
+                {/* Event Summary Overview Card */}
+                <div style={{ background: 'var(--cream-2)', borderRadius: '12px', padding: '14px 16px', border: '1px solid var(--line)', marginBottom: '16px', fontSize: '0.88rem' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--terra)', marginBottom: '6px', fontSize: '0.92rem' }}>
+                    📌 Announcement Summary
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', color: 'var(--ink)' }}>
+                    <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Winning Date:</span>
+                    <strong>{selectedDateStr}</strong>
+                    <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Time Window:</span>
+                    <span>{eventTimeWindow || 'TBD'}</span>
+                    <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Venue:</span>
+                    <span>{venueName} {venueAddress ? `(${venueAddress})` : ''}</span>
+                    {eventLink && (
+                      <>
+                        <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>RSVP Link:</span>
+                        <span style={{ color: 'var(--terra)', wordBreak: 'break-all' }}>{eventLink}</span>
+                      </>
+                    )}
+                    {hostNote && (
+                      <>
+                        <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Host Note:</span>
+                        <span style={{ fontStyle: 'italic' }}>&ldquo;{hostNote}&rdquo;</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Audience Segmentation Cards */}
+                <div style={{ marginBottom: '18px' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px' }}>
+                    📊 Audience Segmentation Preview ({responses.length} Total Contacts)
+                  </div>
+
+                  {/* Group A (Available) */}
+                  <div style={{ background: '#FFFFFF', border: '1.5px solid #BACFB2', borderRadius: '12px', padding: '12px 14px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#3B5730', fontSize: '0.9rem' }}>
+                          🟢 Group A: Available Attendees ({groupA.length})
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--ink-soft)' }}>
+                          Voted for <strong>{selectedDateStr}</strong> or selected <strong>"Any date"</strong>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGroup(expandedGroup === 'groupA' ? null : 'groupA')}
+                        style={{
+                          fontSize: '0.76rem',
+                          fontWeight: 600,
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid #BACFB2',
+                          background: '#EAF0E6',
+                          color: '#3B5730',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {expandedGroup === 'groupA' ? 'Hide List ▲' : `View ${groupA.length} Attendees ▼`}
+                      </button>
+                    </div>
+
+                    {expandedGroup === 'groupA' && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #BACFB2', maxHeight: '150px', overflowY: 'auto' }}>
+                        {groupA.length === 0 ? (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', fontStyle: 'italic' }}>No attendees in this group.</div>
+                        ) : (
+                          <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--ink)' }}>
+                            {groupA.map((r, i) => (
+                              <li key={r.id || i} style={{ marginBottom: '3px' }}>
+                                <strong>{r.name}</strong> ({r.email || 'No email'}) — <span style={{ color: 'var(--ink-soft)' }}>Dates: {(r.dates || []).join(', ') || r.customDate || 'Any date'}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Group B (Unavailable / Alternate Dates) */}
+                  <div style={{ background: '#FFFFFF', border: '1.5px solid #D8CEBC', borderRadius: '12px', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#6A6253', fontSize: '0.9rem' }}>
+                          ⚪ Group B: Other Date Attendees ({groupB.length})
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--ink-soft)' }}>
+                          Voted only for alternate dates (did not choose {selectedDateStr})
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGroup(expandedGroup === 'groupB' ? null : 'groupB')}
+                        style={{
+                          fontSize: '0.76rem',
+                          fontWeight: 600,
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid #D8CEBC',
+                          background: '#F4EEE2',
+                          color: '#6A6253',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {expandedGroup === 'groupB' ? 'Hide List ▲' : `View ${groupB.length} Attendees ▼`}
+                      </button>
+                    </div>
+
+                    {expandedGroup === 'groupB' && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #D8CEBC', maxHeight: '150px', overflowY: 'auto' }}>
+                        {groupB.length === 0 ? (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', fontStyle: 'italic' }}>No attendees in this group.</div>
+                        ) : (
+                          <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--ink)' }}>
+                            {groupB.map((r, i) => (
+                              <li key={r.id || i} style={{ marginBottom: '3px' }}>
+                                <strong>{r.name}</strong> ({r.email || 'No email'}) — <span style={{ color: 'var(--ink-soft)' }}>Dates: {(r.dates || []).join(', ') || r.customDate || 'None'}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dry Run / Test Mode Toggle Box */}
+                <div style={{
+                  background: isDryRun ? '#F0F5ED' : '#FFF7F4',
+                  border: `1.5px solid ${isDryRun ? '#6E7F5E' : '#C8643F'}`,
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  marginBottom: '16px',
+                  transition: 'all 0.2s ease',
+                }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', color: isDryRun ? '#3B5730' : '#A24A28' }}>
+                    <input
+                      type="checkbox"
+                      checked={isDryRun}
+                      onChange={(e) => setIsDryRun(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#4C5A40' }}
+                    />
+                    <span>🧪 Test Mode (Send preview exclusively to test email)</span>
+                  </label>
+                  {isDryRun ? (
+                    <div style={{ marginTop: '10px', fontSize: '0.82rem', color: '#4C5A40' }}>
+                      <p style={{ margin: '0 0 6px', lineHeight: 1.4 }}>
+                        Sends 1 Group A and 1 Group B sample email directly to the address below. Zero emails will be sent to regular attendees.
+                      </p>
+                      <input
+                        type="email"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        placeholder="admin@actuallylets.com"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #BACFB2',
+                          fontSize: '0.85rem',
+                          background: '#FFFFFF',
+                          color: '#2B271F',
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p style={{ margin: '6px 0 0 28px', fontSize: '0.8rem', color: '#A24A28', lineHeight: 1.4 }}>
+                      ⚠️ <strong>Live Mode Active:</strong> This will dispatch live announcements to all {groupA.length + groupB.length} contacts ({groupA.length} Group A, {groupB.length} Group B).
+                    </p>
+                  )}
+                </div>
+
+                {/* Safety Guard & Confirmation Text Lock */}
+                <div style={{ background: '#FFF7F4', border: '1.5px solid var(--terra)', borderRadius: '12px', padding: '14px', marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '1rem' }}>🔒</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--terra)' }}>
+                      Safety Confirmation Lock
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.84rem', color: 'var(--ink)', marginBottom: '10px', lineHeight: '1.45' }}>
+                    To unlock {isDryRun ? 'test dispatch' : 'live announcement dispatch'}, type <strong>CONFIRM</strong> into the box below:
+                  </p>
+                  <input
+                    type="text"
+                    value={confirmInput}
+                    onChange={(e) => setConfirmInput(e.target.value)}
+                    placeholder="Type CONFIRM to enable"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--terra)',
+                      background: '#FFFFFF',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                      fontWeight: 600,
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="ghost"
+                    style={{ flex: 1 }}
+                    onClick={() => setModalStep('configure')}
+                    disabled={isDispatching}
+                  >
+                    ← Back to Details
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit"
+                    style={{
+                      flex: 2,
+                      padding: '12px',
+                      background: (!isDispatching && confirmInput.trim().toUpperCase() === 'CONFIRM')
+                        ? (isDryRun ? '#4C5A40' : 'var(--terra)')
+                        : 'var(--line)',
+                      color: (!isDispatching && confirmInput.trim().toUpperCase() === 'CONFIRM') ? '#FFFFFF' : 'var(--ink-soft)',
+                      cursor: (!isDispatching && confirmInput.trim().toUpperCase() === 'CONFIRM') ? 'pointer' : 'not-allowed',
+                    }}
+                    disabled={isDispatching || confirmInput.trim().toUpperCase() !== 'CONFIRM'}
+                  >
+                    {isDispatching
+                      ? 'Dispatching Announcements...'
+                      : isDryRun
+                      ? '🧪 Send Test Preview (2 Sample Emails)'
+                      : '🚀 Dispatch Live Announcement to All Contacts'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
