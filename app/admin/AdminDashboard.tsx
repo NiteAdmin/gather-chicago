@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
+import { fetchBroadcasts, BroadcastRecord } from '@/lib/firebase';
 
 const GATHERINGS = [
   "Moms Morning",
@@ -79,6 +80,12 @@ export default function AdminDashboard() {
   const [sendingSms, setSendingSms] = useState(false);
   const [smsToast, setSmsToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Broadcast History State
+  const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>([]);
+  const [loadingBroadcasts, setLoadingBroadcasts] = useState(false);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
+
   // Contact list search and filter controls state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGathering, setFilterGathering] = useState('all');
@@ -101,6 +108,18 @@ export default function AdminDashboard() {
     setResponses(data.responses || []);
   };
 
+  const loadBroadcasts = async (targetCity: string) => {
+    try {
+      setLoadingBroadcasts(true);
+      const list = await fetchBroadcasts(targetCity);
+      setBroadcasts(list);
+    } catch (err) {
+      console.error('Failed to load broadcasts:', err);
+    } finally {
+      setLoadingBroadcasts(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -114,7 +133,10 @@ export default function AdminDashboard() {
     setAuthenticating(true);
 
     try {
-      await fetchResults(trimmedPasscode, selectedCity);
+      await Promise.all([
+        fetchResults(trimmedPasscode, selectedCity),
+        loadBroadcasts(selectedCity),
+      ]);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
     } catch (err: any) {
@@ -128,7 +150,10 @@ export default function AdminDashboard() {
     setSelectedCity(newCity);
     if (authenticated) {
       try {
-        await fetchResults(passcode, newCity);
+        await Promise.all([
+          fetchResults(passcode, newCity),
+          loadBroadcasts(newCity),
+        ]);
       } catch (err: any) {
         console.error('Failed to update city filter:', err);
       }
@@ -306,6 +331,8 @@ export default function AdminDashboard() {
         });
       }
 
+      await loadBroadcasts(selectedCity);
+
       setTimeout(() => {
         setShowAdminModal(false);
       }, 2500);
@@ -317,6 +344,62 @@ export default function AdminDashboard() {
       });
     } finally {
       setIsDispatching(false);
+    }
+  };
+
+  const handleResendInvite = async (contact: SurveyResponse) => {
+    if (!contact.email || !contact.email.includes('@')) {
+      setToastMessage({
+        type: 'error',
+        text: `Cannot email details: No valid email address for ${contact.name || 'this contact'}.`,
+      });
+      return;
+    }
+
+    const latestBroadcast = broadcasts.length > 0 ? broadcasts[0] : null;
+    if (!latestBroadcast) {
+      setToastMessage({
+        type: 'error',
+        text: 'Please announce a winning date first before emailing event details.',
+      });
+      return;
+    }
+
+    const activePasscode = adminPasscode.trim() || passcode.trim();
+    setResendingEmail(contact.email);
+
+    try {
+      const res = await fetch('/api/admin/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminSecret: activePasscode,
+          contactEmail: contact.email,
+          contactName: contact.name,
+          votedDates: contact.dates || (contact.customDate ? [contact.customDate] : []),
+          broadcastId: latestBroadcast.id,
+          cityName: contact.cityName || formatCityName(contact.city || selectedCity),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to email details.');
+      }
+
+      setToastMessage({
+        type: 'success',
+        text: `✉️ Sent details to ${data.recipient} (Group ${data.group})!`,
+      });
+    } catch (err: any) {
+      console.error('Single email dispatch error:', err);
+      setToastMessage({
+        type: 'error',
+        text: err.message || 'Failed to transmit email details.',
+      });
+    } finally {
+      setResendingEmail(null);
     }
   };
 
@@ -876,6 +959,42 @@ export default function AdminDashboard() {
           color: var(--terra);
         }
 
+        .history-drawer-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(43, 39, 31, 0.45);
+          backdrop-filter: blur(4px);
+          z-index: 1000;
+          display: flex;
+          justify-content: flex-end;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .history-drawer-content {
+          background: var(--card);
+          width: 100%;
+          max-width: 520px;
+          height: 100vh;
+          overflow-y: auto;
+          padding: 28px 24px;
+          box-shadow: -4px 0 24px rgba(43, 39, 31, 0.15);
+          display: flex;
+          flex-direction: column;
+          animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+
         .mobile-scroll-hint {
           display: none;
         }
@@ -971,6 +1090,103 @@ export default function AdminDashboard() {
                 <option value="austin">🤠 Austin</option>
               </select>
             </div>
+
+            {/* Confirmed Gathering Post-Broadcast Banner */}
+            {broadcasts.length > 0 && (
+              <div
+                className="card confirmed-gathering-banner"
+                style={{
+                  background: 'linear-gradient(135deg, #FAF4EB 0%, #F5ECE0 100%)',
+                  border: '2px solid #D8C3A8',
+                  borderRadius: '16px',
+                  padding: '20px 22px',
+                  marginBottom: '22px',
+                  boxShadow: '0 4px 16px rgba(162, 74, 40, 0.08)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
+                  <div style={{ flex: '1 1 320px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EAF0E6', border: '1px solid #BACFB2', color: '#3B5730', padding: '3px 10px', borderRadius: '12px', fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                      <span>🎉 Confirmed Gathering · {formatCityName(broadcasts[0].city || selectedCity)}</span>
+                    </div>
+                    <h3 style={{ margin: '0 0 6px', fontFamily: 'Fraunces, Georgia, serif', fontSize: '1.45rem', color: '#2B271F' }}>
+                      {broadcasts[0].winningDate}
+                    </h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '0.88rem', color: '#5A5243' }}>
+                      <span>⏰ {broadcasts[0].timeWindow || '10:00 AM – 12:00 PM CDT'}</span>
+                      <span>
+                        📍 <strong>{broadcasts[0].venueName}</strong>
+                        {broadcasts[0].venueAddress && (
+                          <a
+                            href={`https://maps.google.com/?q=${encodeURIComponent(`${broadcasts[0].venueName} ${broadcasts[0].venueAddress}`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: '#C8643F', textDecoration: 'underline', marginLeft: '5px' }}
+                          >
+                            ({broadcasts[0].venueAddress}) ↗
+                          </a>
+                        )}
+                      </span>
+                    </div>
+                    {broadcasts[0].customNote && (
+                      <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#6A6253', fontStyle: 'italic', background: 'rgba(255,255,255,0.6)', padding: '6px 12px', borderRadius: '8px', border: '1px solid #E6DEC8' }}>
+                        &ldquo;{broadcasts[0].customNote}&rdquo;
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flex: '0 0 auto' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ background: '#EAF0E6', border: '1px solid #BACFB2', color: '#3B5730', padding: '3px 8px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: 600 }}>
+                        Group A: {broadcasts[0].groupACount}
+                      </span>
+                      <span style={{ background: '#F4EEE2', border: '1px solid #D8CEBC', color: '#6A6253', padding: '3px 8px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: 600 }}>
+                        Group B: {broadcasts[0].groupBCount}
+                      </span>
+                      <span style={{ background: '#EDE4D3', border: '1px solid #D8CEBC', color: '#2B271F', padding: '3px 8px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: 700 }}>
+                        Total: {broadcasts[0].totalDispatched} Notified
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowHistoryDrawer(true)}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1.5px solid #D8CEBC',
+                          color: '#2B271F',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        📜 View Broadcast History ({broadcasts.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenAdminModal}
+                        style={{
+                          background: '#C8643F',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 6px rgba(200, 100, 63, 0.25)',
+                        }}
+                      >
+                        📢 Update Announcement
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="stat-row">
               <div className="stat">
@@ -1238,7 +1454,7 @@ export default function AdminDashboard() {
 
               {/* Dedicated Table Scroll Wrapper */}
               <div className="w-full overflow-x-auto border border-[#E8E1D5] rounded-xl my-4 bg-white shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]" style={{ overflowX: 'auto', width: '100%', borderRadius: '12px', border: '1px solid #E8E1D5', margin: '16px 0', background: '#FFFFFF', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}>
-                <table style={{ minWidth: '1150px', width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <table style={{ minWidth: '1280px', width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ background: '#FAF7F2', borderBottom: '1.5px solid #E8E1D5' }}>
                       <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '90px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>CITY</th>
@@ -1250,12 +1466,13 @@ export default function AdminDashboard() {
                       <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '180px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>PREFERRED DATES</th>
                       <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '160px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>PREFERRED TIMES</th>
                       <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'left', minWidth: '200px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>NOTES / CUSTOM</th>
+                      <th style={{ verticalAlign: 'bottom', padding: '12px 10px', textAlign: 'center', minWidth: '130px', fontSize: '0.82rem', color: '#6A6253', fontWeight: 700 }}>ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredResponses.length === 0 ? (
                       <tr>
-                        <td colSpan={9} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ink-soft)', fontStyle: 'italic', fontSize: '0.9rem' }}>
+                        <td colSpan={10} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ink-soft)', fontStyle: 'italic', fontSize: '0.9rem' }}>
                           No contacts match your current filter criteria.
                         </td>
                       </tr>
@@ -1415,6 +1632,34 @@ export default function AdminDashboard() {
                                 </span>
                               ) : (
                                 <span style={{ color: 'var(--ink-soft)' }}>—</span>
+                              )}
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 10px', textAlign: 'center', minWidth: '130px' }}>
+                              {r.email && r.email.includes('@') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResendInvite(r)}
+                                  disabled={resendingEmail === r.email || broadcasts.length === 0}
+                                  title={broadcasts.length === 0 ? 'Announce winning date first' : `Email event details to ${r.email}`}
+                                  style={{
+                                    background: (broadcasts.length === 0 || resendingEmail === r.email) ? '#F4EEE2' : '#FFFFFF',
+                                    border: `1.5px solid ${broadcasts.length === 0 ? '#D8CEBC' : 'var(--terra)'}`,
+                                    color: broadcasts.length === 0 ? '#8C8270' : 'var(--terra)',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.76rem',
+                                    fontWeight: 600,
+                                    cursor: broadcasts.length === 0 ? 'not-allowed' : 'pointer',
+                                    boxShadow: broadcasts.length === 0 ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
+                                    transition: 'all 0.15s ease',
+                                    whiteSpace: 'nowrap',
+                                    opacity: resendingEmail === r.email ? 0.7 : 1,
+                                  }}
+                                >
+                                  {resendingEmail === r.email ? '⏳ Sending...' : '✉️ Email Details'}
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--ink-soft)', fontStyle: 'italic' }}>No email</span>
                               )}
                             </td>
                           </tr>
@@ -1972,6 +2217,124 @@ export default function AdminDashboard() {
                 {sendingSms ? 'Sending SMS...' : 'Confirm & Send Texts'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Broadcast History Drawer */}
+      {showHistoryDrawer && (
+        <div className="history-drawer-overlay" onClick={() => setShowHistoryDrawer(false)}>
+          <div className="history-drawer-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--line)', paddingBottom: '12px', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontFamily: 'Fraunces, Georgia, serif', fontSize: '1.25rem', color: 'var(--ink)' }}>
+                  📜 Broadcast History
+                </h3>
+                <div style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', marginTop: '2px' }}>
+                  {formatCityName(selectedCity)} · {broadcasts.length} past announcement log{broadcasts.length === 1 ? '' : 's'}
+                </div>
+              </div>
+              <button
+                className="close-btn"
+                onClick={() => setShowHistoryDrawer(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink-soft)' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {broadcasts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--ink-soft)', fontStyle: 'italic', fontSize: '0.9rem' }}>
+                No broadcast announcements have been logged yet for this city view.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {broadcasts.map((b, idx) => {
+                  let formattedDate = 'Recent';
+                  if (b.dispatchedAt) {
+                    const timeMs = b.dispatchedAt.toMillis ? b.dispatchedAt.toMillis() : (typeof b.dispatchedAt === 'number' ? b.dispatchedAt : new Date(b.dispatchedAt).getTime());
+                    if (!isNaN(timeMs)) {
+                      formattedDate = new Date(timeMs).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      });
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={b.id || idx}
+                      style={{
+                        background: idx === 0 ? '#FAF7F2' : '#FFFFFF',
+                        border: `1.5px solid ${idx === 0 ? '#D8C3A8' : '#E8E1D5'}`,
+                        borderRadius: '12px',
+                        padding: '16px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--terra)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {idx === 0 ? '⭐ Latest Dispatch' : `Broadcast #${broadcasts.length - idx}`}
+                        </span>
+                        <span style={{ fontSize: '0.76rem', color: 'var(--ink-soft)' }}>
+                          🕒 {formattedDate}
+                        </span>
+                      </div>
+
+                      <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)', marginBottom: '4px' }}>
+                        {b.winningDate}
+                      </div>
+
+                      <div style={{ fontSize: '0.84rem', color: '#5A5243', marginBottom: '8px', lineHeight: 1.4 }}>
+                        <div>⏰ {b.timeWindow || '10:00 AM – 12:00 PM CDT'}</div>
+                        <div>
+                          📍 <strong>{b.venueName}</strong>{' '}
+                          {b.venueAddress && (
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(`${b.venueName} ${b.venueAddress}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: 'var(--terra)', textDecoration: 'underline' }}
+                            >
+                              ({b.venueAddress}) ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Delivery Pills */}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                        <span style={{ background: '#EAF0E6', border: '1px solid #BACFB2', color: '#3B5730', padding: '2px 7px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                          Group A: {b.groupACount}
+                        </span>
+                        <span style={{ background: '#F4EEE2', border: '1px solid #D8CEBC', color: '#6A6253', padding: '2px 7px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                          Group B: {b.groupBCount}
+                        </span>
+                        <span style={{ background: '#EDE4D3', border: '1px solid #D8CEBC', color: '#2B271F', padding: '2px 7px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 }}>
+                          Total: {b.totalDispatched}
+                        </span>
+                      </div>
+
+                      {b.customNote && (
+                        <div style={{ fontSize: '0.78rem', color: '#6A6253', fontStyle: 'italic', background: '#FFFFFF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E8E1D5', marginTop: '6px' }}>
+                          &ldquo;{b.customNote}&rdquo;
+                        </div>
+                      )}
+                      {b.ticketUrl && (
+                        <div style={{ marginTop: '6px', fontSize: '0.78rem' }}>
+                          <a href={b.ticketUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline' }}>
+                            🎟️ RSVP/Ticket URL ↗
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,8 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
   collection,
+  doc,
+  getDoc,
   addDoc,
   getDocs,
   query,
@@ -83,6 +85,11 @@ export interface BroadcastLogData {
   totalDispatched: number;
 }
 
+export interface BroadcastRecord extends BroadcastLogData {
+  id: string;
+  dispatchedAt?: any;
+}
+
 export async function logBroadcast(data: BroadcastLogData): Promise<string> {
   const docRef = await addDoc(collection(db, "broadcasts"), {
     ...data,
@@ -90,4 +97,60 @@ export async function logBroadcast(data: BroadcastLogData): Promise<string> {
   });
   return docRef.id;
 }
+
+export async function fetchBroadcasts(city?: string): Promise<BroadcastRecord[]> {
+  try {
+    const q = query(collection(db, "broadcasts"), orderBy("dispatchedAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    let broadcasts = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as BroadcastRecord[];
+
+    if (city && city !== "all") {
+      const targetCity = city.toLowerCase();
+      broadcasts = broadcasts.filter((b) => (b.city || "chicago").toLowerCase() === targetCity);
+    }
+    return broadcasts;
+  } catch (error) {
+    console.warn("Ordered broadcasts fetch failed, falling back to basic fetch:", error);
+    try {
+      const querySnapshot = await getDocs(collection(db, "broadcasts"));
+      let broadcasts = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as BroadcastRecord[];
+
+      if (city && city !== "all") {
+        const targetCity = city.toLowerCase();
+        broadcasts = broadcasts.filter((b) => (b.city || "chicago").toLowerCase() === targetCity);
+      }
+
+      return broadcasts.sort((a, b) => {
+        const timeA = a.dispatchedAt?.toMillis ? a.dispatchedAt.toMillis() : (a.dispatchedAt ? new Date(a.dispatchedAt).getTime() : 0);
+        const timeB = b.dispatchedAt?.toMillis ? b.dispatchedAt.toMillis() : (b.dispatchedAt ? new Date(b.dispatchedAt).getTime() : 0);
+        return timeB - timeA;
+      });
+    } catch (fallbackError) {
+      console.error("Failed to fetch broadcasts:", fallbackError);
+      return [];
+    }
+  }
+}
+
+export async function getBroadcastById(id: string): Promise<BroadcastRecord | null> {
+  try {
+    const docRef = doc(db, "broadcasts", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as BroadcastRecord;
+    }
+    return null;
+  } catch (err) {
+    console.error("Error fetching broadcast by ID:", err);
+    return null;
+  }
+}
+
+
 
