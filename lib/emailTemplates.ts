@@ -75,7 +75,7 @@ export function generateWinningDateEmailGroupA(params: WinningDateEmailParams): 
         <!-- Brand Header -->
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
-          <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Stretch &amp; Sip · ${city}</p>
+          <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Gathering · ${city}</p>
         </div>
 
         <!-- Main Card -->
@@ -200,7 +200,7 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
         <!-- Brand Header -->
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
-          <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Stretch &amp; Sip · ${city}</p>
+          <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Gathering · ${city}</p>
         </div>
 
         <!-- Main Card -->

@@ -263,7 +263,7 @@ export async function POST(req: Request) {
           <!-- Brand Header -->
           <div style="text-align: center; margin-bottom: 24px;">
             <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
-            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Stretch &amp; Sip</p>
+            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Series · ${targetCityName}</p>
           </div>
 
           <!-- Main Elevated Card -->
@@ -272,7 +272,7 @@ export async function POST(req: Request) {
             <!-- Greeting Header -->
             <div style="text-align: center; border-bottom: 1px solid #EFEAD8; padding-bottom: 20px; margin-bottom: 24px;">
               <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #C8643F; display: block; margin-bottom: 6px;">
-                ${targetCityName.toUpperCase()} · RSVP CONFIRMED
+                ${targetCityName.toUpperCase()} · PREFERENCES RECEIVED
               </span>
               <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; margin: 0; line-height: 1.25;">
                 Thanks for your input, ${trimmedName}! 🌿
@@ -324,7 +324,7 @@ export async function POST(req: Request) {
                 What happens next?
               </h4>
               <p style="margin: 0; font-size: 13px; color: #6A6253; line-height: 1.45;">
-                Once survey responses close, we'll tally the winning date and email you an official invite details &amp; ticket RSVP link!
+                We&apos;ve logged your preferences and will follow up with the locked activity, venue, and date once voting closes!
               </p>
             </div>
 
@@ -386,7 +386,7 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually, Let's\nStretch & Sip\n---\n${targetCityName} · RSVP CONFIRMED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nAdd to Google Calendar placeholder:\n${calData.googleCalendarUrl}\n\nWhat happens next?\nOnce survey responses close, we'll tally the winning date and email you an official invite details & ticket RSVP link!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually, Let's\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nAdd to Google Calendar placeholder:\n${calData.googleCalendarUrl}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
     const adminSender = "Actually Let's System <rsvp@actuallylets.com>";
@@ -459,7 +459,7 @@ export async function POST(req: Request) {
           from: primarySender,
           to: [trimmedEmail],
           replyTo: "admin@actuallylets.com",
-          subject: `Got your availability for Actually, Let's Stretch & Sip! 🎉`,
+          subject: `Got your preferences for Actually, Let's ${targetCityName}! 🎉`,
           html: emailHtml,
           text: emailText,
         }),
