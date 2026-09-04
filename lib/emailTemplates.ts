@@ -291,16 +291,6 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
 
           ${ticketSectionHtml}
 
-          <!-- Future Gatherings Promise Box -->
-          <div style="background-color: #FBF7EE; border: 1px solid #E6DEC8; border-radius: 12px; padding: 16px 18px; margin-top: 20px;">
-            <h4 style="font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: bold; color: #4C5A40; margin: 0 0 6px;">
-              You&apos;re at the top of our list! ✨
-            </h4>
-            <p style="margin: 0; font-size: 13px; color: #6A6253; line-height: 1.45;">
-              We have more dates and activities planned throughout the season. We&apos;ll notify you first when the next survey and RSVP list opens!
-            </p>
-          </div>
-
         </div>
 
         <!-- Footer -->
@@ -323,7 +313,7 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
         : `\nWhere: ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}`)
     : "";
 
-  const text = `Actually, Let's — ${city}\nGathering Date Update\n\nHi ${name},\n\nThank you for voting in our survey! The community selected ${winningDate} for our upcoming gathering.\n\nWhen: ${winningDate} (${timeWindow})${whereText}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nDetails & Tickets: ${ticketUrl}\n` : ""}\nWe'll keep you at the top of the list for future gatherings!\n\nActually, Let's • ${city} • rsvp@actuallylets.com`;
+  const text = `Actually, Let's — ${city}\nGathering Date Update\n\nHi ${name},\n\nThank you for voting in our survey! The community selected ${winningDate} for our upcoming gathering.\n\nWhen: ${winningDate} (${timeWindow})${whereText}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nDetails & Tickets: ${ticketUrl}\n` : ""}\nActually, Let's • ${city} • rsvp@actuallylets.com`;
 
   return { subject, html, text };
 }

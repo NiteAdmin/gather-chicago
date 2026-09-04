@@ -62,8 +62,8 @@ export default function AdminDashboard() {
   const [modalStep, setModalStep] = useState<'configure' | 'review'>('configure');
   const [winningDate, setWinningDate] = useState('');
   const [eventTimeWindow, setEventTimeWindow] = useState('10:00 AM – 12:00 PM CDT');
-  const [venueName, setVenueName] = useState('Lincoln Park Conservatory');
-  const [venueAddress, setVenueAddress] = useState('2391 N Stockton Dr, Chicago, IL');
+  const [venueName, setVenueName] = useState('');
+  const [venueAddress, setVenueAddress] = useState('');
   const [eventLink, setEventLink] = useState('');
   const [hostNote, setHostNote] = useState("Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras.");
   const [confirmInput, setConfirmInput] = useState('');
@@ -282,8 +282,8 @@ export default function AdminDashboard() {
     const defaultDate = topDateOption || DATES[0];
     setWinningDate(defaultDate);
     setEventTimeWindow('10:00 AM – 12:00 PM CDT');
-    setVenueName('Lincoln Park Conservatory');
-    setVenueAddress('2391 N Stockton Dr, Chicago, IL');
+    setVenueName('');
+    setVenueAddress('');
     setEventLink('');
     setHostNote("Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras.");
     setModalStep('configure');
@@ -1759,11 +1759,14 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* Step navigation tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'var(--cream-2)', padding: '4px', borderRadius: '10px' }}>
+            {/* Step Tabs Indicator */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'var(--cream-2)', padding: '4px', borderRadius: '12px', border: '1px solid var(--line)' }}>
               <button
                 type="button"
-                onClick={() => setModalStep('configure')}
+                onClick={() => {
+                  setToastMessage(null);
+                  setModalStep('configure');
+                }}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -1772,17 +1775,20 @@ export default function AdminDashboard() {
                   fontSize: '0.84rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  background: modalStep === 'configure' ? 'var(--card)' : 'transparent',
+                  background: modalStep === 'configure' ? '#FFFFFF' : 'transparent',
                   color: modalStep === 'configure' ? 'var(--ink)' : 'var(--ink-soft)',
                   boxShadow: modalStep === 'configure' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
                   transition: 'all 0.15s',
                 }}
               >
-                1. Event Details Form
+                1. Configure Details
               </button>
               <button
                 type="button"
-                onClick={() => setModalStep('review')}
+                onClick={() => {
+                  setToastMessage(null);
+                  setModalStep('review');
+                }}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -1791,7 +1797,7 @@ export default function AdminDashboard() {
                   fontSize: '0.84rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  background: modalStep === 'review' ? 'var(--card)' : 'transparent',
+                  background: modalStep === 'review' ? '#FFFFFF' : 'transparent',
                   color: modalStep === 'review' ? 'var(--ink)' : 'var(--ink-soft)',
                   boxShadow: modalStep === 'review' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
                   transition: 'all 0.15s',
@@ -1936,7 +1942,10 @@ export default function AdminDashboard() {
                     type="button"
                     className="submit"
                     style={{ flex: 2, padding: '12px' }}
-                    onClick={() => setModalStep('review')}
+                    onClick={() => {
+                      setToastMessage(null);
+                      setModalStep('review');
+                    }}
                   >
                     Continue to Review &amp; Preview →
                   </button>
@@ -1954,11 +1963,11 @@ export default function AdminDashboard() {
                     <strong>{selectedDateStr}</strong>
                     <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Time Window:</span>
                     <span>{eventTimeWindow || 'TBD'}</span>
-                    {(venueName?.trim() || venueAddress?.trim()) && (
+                    {Boolean(venueName?.trim() || venueAddress?.trim()) && (
                       <>
                         <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Venue:</span>
                         <span>
-                          {venueName.trim()} {venueAddress.trim() && `(${venueAddress.trim()})`}
+                          {venueName?.trim()} {venueAddress?.trim() ? `(${venueAddress.trim()})` : ''}
                         </span>
                       </>
                     )}
@@ -2157,7 +2166,10 @@ export default function AdminDashboard() {
                     type="button"
                     className="ghost"
                     style={{ flex: 1 }}
-                    onClick={() => setModalStep('configure')}
+                    onClick={() => {
+                      setToastMessage(null);
+                      setModalStep('configure');
+                    }}
                     disabled={isDispatching}
                   >
                     ← Back to Details
