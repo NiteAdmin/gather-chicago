@@ -100,8 +100,8 @@ export async function POST(req: Request) {
       cityName: targetCityName,
       winningDate: broadcast.winningDate,
       timeWindow: broadcast.timeWindow,
-      venueName: broadcast.venueName || "Venue TBD",
-      venueAddress: broadcast.venueAddress || targetCityName,
+      venueName: broadcast.venueName || undefined,
+      venueAddress: broadcast.venueAddress || undefined,
       ticketUrl: broadcast.ticketUrl,
       customNote: broadcast.customNote,
     };

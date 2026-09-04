@@ -16,9 +16,10 @@ interface AnnounceDateRequestBody {
   city?: string;
   winningDate: string;
   timeWindow?: string;
-  venueName: string;
-  venueAddress: string;
+  venueName?: string | null;
+  venueAddress?: string | null;
   ticketUrl?: string;
+  eventUrl?: string;
   customNote?: string;
   isDryRun?: boolean;
   testEmail?: string;
@@ -64,12 +65,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!venueName || !venueName.trim() || !venueAddress || !venueAddress.trim()) {
-      return NextResponse.json(
-        { error: "Venue name and address are required" },
-        { status: 400 }
-      );
-    }
+    // Venue name and address are strictly optional
+    const cleanVenueName = venueName?.trim() || "";
+    const cleanVenueAddress = venueAddress?.trim() || "";
 
     const rawGroupA = Array.isArray(groupARecipients) ? groupARecipients : [];
     const rawGroupB = Array.isArray(groupBRecipients) ? groupBRecipients : [];
@@ -116,8 +114,8 @@ export async function POST(req: Request) {
         cityName,
         winningDate,
         timeWindow,
-        venueName,
-        venueAddress,
+        venueName: cleanVenueName,
+        venueAddress: cleanVenueAddress,
         ticketUrl,
         customNote,
       });
@@ -127,8 +125,8 @@ export async function POST(req: Request) {
         cityName,
         winningDate,
         timeWindow,
-        venueName,
-        venueAddress,
+        venueName: cleanVenueName,
+        venueAddress: cleanVenueAddress,
         ticketUrl,
         customNote,
       });
@@ -169,8 +167,8 @@ export async function POST(req: Request) {
           cityName,
           winningDate,
           timeWindow,
-          venueName,
-          venueAddress,
+          venueName: cleanVenueName,
+          venueAddress: cleanVenueAddress,
           ticketUrl,
           customNote,
         });
@@ -194,8 +192,8 @@ export async function POST(req: Request) {
           cityName,
           winningDate,
           timeWindow,
-          venueName,
-          venueAddress,
+          venueName: cleanVenueName,
+          venueAddress: cleanVenueAddress,
           ticketUrl,
           customNote,
         });
@@ -249,15 +247,127 @@ export async function POST(req: Request) {
       dispatchedCount = emailsToSend.length;
     }
 
-    // 5. Firestore Broadcast Audit Log (for live runs, or flagged as dry-run)
+    // 5. Admin Confirmation Receipt Dispatch & Local Logging
+    const adminEmail = (process.env.ADMIN_EMAIL || testEmail?.trim() || "admin@actuallylets.com").toLowerCase();
+    const eventTitle = `Actually, Let's — ${cityName} (${winningDate})`;
+    const broadcastTimestamp = new Date().toISOString();
+    const formattedTimestamp = new Date().toLocaleString("en-US", {
+      timeZone: "America/Chicago",
+      dateStyle: "full",
+      timeStyle: "long",
+    });
+
+    const samplePreview = generateWinningDateEmailGroupA({
+      name: "Community Member",
+      cityName,
+      winningDate,
+      timeWindow,
+      venueName: cleanVenueName,
+      venueAddress: cleanVenueAddress,
+      ticketUrl,
+      customNote,
+    });
+
+    const receiptSubject = `[Confirmation] Announcement Dispatched: ${eventTitle}`;
+    const totalRecipientsCount = isTestMode ? 2 : (dispatchedCount || emailsToSend.length);
+
+    const receiptHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; color: #2B271F; background-color: #FBF7EE;">
+        <div style="background-color: #4C5A40; color: #FFFFFF; padding: 18px 22px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700;">✓ Announcement Broadcast Confirmation</h2>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Event: ${eventTitle}</p>
+        </div>
+
+        <div style="background-color: #FFFFFF; border: 1px solid #D8CEBC; border-top: none; padding: 22px; border-radius: 0 0 12px 12px;">
+          <h3 style="margin-top: 0; color: #2B271F; font-size: 15px; border-bottom: 1px solid #EDE4D3; padding-bottom: 8px;">
+            📊 Dispatch Summary
+          </h3>
+          <table style="width: 100%; font-size: 13.5px; border-collapse: collapse; margin-bottom: 18px;">
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253; width: 160px;"><strong>Run Mode:</strong></td>
+              <td style="padding: 6px 0; font-weight: 600; color: ${isTestMode ? '#8C6A18' : '#3B5730'};">
+                ${isTestMode ? '🧪 Test Preview (Dry Run)' : '🚀 Live Broadcast to Attendees'}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Broadcast Timestamp:</strong></td>
+              <td style="padding: 6px 0;">${broadcastTimestamp} (${formattedTimestamp})</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Recipient Count:</strong></td>
+              <td style="padding: 6px 0;">
+                <strong>${totalRecipientsCount}</strong> ${isTestMode ? '(1 Group A test, 1 Group B test)' : `(${validGroupA.length} Group A, ${validGroupB.length} Group B)`}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>City:</strong></td>
+              <td style="padding: 6px 0;">${cityName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Winning Date:</strong></td>
+              <td style="padding: 6px 0; font-weight: 600;">${winningDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Time Window:</strong></td>
+              <td style="padding: 6px 0;">${timeWindow || 'TBD'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Venue / Address:</strong></td>
+              <td style="padding: 6px 0;">${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : (cleanVenueAddress || 'Location TBD')}</td>
+            </tr>
+            ${ticketUrl ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>RSVP Link:</strong></td><td style="padding: 6px 0;"><a href="${ticketUrl}" target="_blank" style="color: #C8643F;">${ticketUrl}</a></td></tr>` : ''}
+            ${customNote ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>Host Note:</strong></td><td style="padding: 6px 0; font-style: italic;">&ldquo;${customNote}&rdquo;</td></tr>` : ''}
+          </table>
+
+          <h3 style="color: #2B271F; font-size: 15px; border-bottom: 1px solid #EDE4D3; padding-bottom: 8px; margin-top: 20px;">
+            📨 Full Announcement Body Content
+          </h3>
+          <div style="background-color: #F4EEE2; border: 1px solid #D8CEBC; border-radius: 8px; padding: 14px; font-size: 13px; color: #2B271F; line-height: 1.5; white-space: pre-wrap; font-family: monospace;">
+${samplePreview.text}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const receiptText = `[Confirmation] Announcement Dispatched: ${eventTitle}\n\n` +
+      `Broadcast Timestamp: ${broadcastTimestamp} (${formattedTimestamp})\n` +
+      `Recipient Count: ${totalRecipientsCount} (${isTestMode ? 'Test Mode' : `${validGroupA.length} Group A, ${validGroupB.length} Group B`})\n` +
+      `City: ${cityName}\n` +
+      `Winning Date: ${winningDate}\n` +
+      `Time Window: ${timeWindow || 'TBD'}\n` +
+      `Venue: ${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : (cleanVenueAddress || 'Location TBD')}\n` +
+      `${ticketUrl ? `RSVP Link: ${ticketUrl}\n` : ''}` +
+      `${customNote ? `Host Note: "${customNote}"\n` : ''}\n` +
+      `==================== FULL ANNOUNCEMENT CONTENT ====================\n\n` +
+      samplePreview.text;
+
+    if (resendApiKey) {
+      try {
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: "Actually Let's <rsvp@actuallylets.com>",
+          to: [adminEmail],
+          replyTo: "admin@actuallylets.com",
+          subject: receiptSubject,
+          html: receiptHtml,
+          text: receiptText,
+        });
+      } catch (receiptErr) {
+        console.error("[EMAIL AUDIT] Failed to dispatch admin confirmation receipt:", receiptErr);
+      }
+    }
+
+    console.log('[EMAIL AUDIT] Admin confirmation receipt dispatched to:', adminEmail);
+
+    // 6. Firestore Broadcast Audit Log (for live runs, or flagged as dry-run)
     let broadcastId = "audit-log-disabled";
     try {
       broadcastId = await logBroadcast({
         city: city || "chicago",
         winningDate,
         timeWindow,
-        venueName,
-        venueAddress,
+        venueName: cleanVenueName || undefined,
+        venueAddress: cleanVenueAddress || undefined,
         ticketUrl,
         customNote: isTestMode ? `[TEST RUN -> ${destinationTestEmail}] ${customNote || ""}`.trim() : customNote,
         groupACount: isTestMode ? 1 : validGroupA.length,

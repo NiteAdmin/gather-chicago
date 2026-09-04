@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
-import { fetchBroadcasts, BroadcastRecord } from '@/lib/firebase';
+import { BroadcastRecord } from '@/lib/firebase';
 
 const GATHERINGS = [
   "Moms Morning",
@@ -108,11 +108,23 @@ export default function AdminDashboard() {
     setResponses(data.responses || []);
   };
 
-  const loadBroadcasts = async (targetCity: string) => {
+  const loadBroadcasts = async (targetCity: string, overridePasscode?: string) => {
     try {
       setLoadingBroadcasts(true);
-      const list = await fetchBroadcasts(targetCity);
-      setBroadcasts(list);
+      const activeSecret = overridePasscode || adminPasscode.trim() || passcode.trim();
+      const res = await fetch(`/api/admin/broadcasts?city=${encodeURIComponent(targetCity)}`, {
+        headers: {
+          'x-admin-secret': activeSecret,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.broadcasts)) {
+          setBroadcasts(data.broadcasts);
+        }
+      } else {
+        console.warn('Failed to load broadcasts from API:', res.status);
+      }
     } catch (err) {
       console.error('Failed to load broadcasts:', err);
     } finally {
@@ -135,7 +147,7 @@ export default function AdminDashboard() {
     try {
       await Promise.all([
         fetchResults(trimmedPasscode, selectedCity),
-        loadBroadcasts(selectedCity),
+        loadBroadcasts(selectedCity, trimmedPasscode),
       ]);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
@@ -152,7 +164,7 @@ export default function AdminDashboard() {
       try {
         await Promise.all([
           fetchResults(passcode, newCity),
-          loadBroadcasts(newCity),
+          loadBroadcasts(newCity, passcode),
         ]);
       } catch (err: any) {
         console.error('Failed to update city filter:', err);
@@ -302,9 +314,10 @@ export default function AdminDashboard() {
           city: selectedCity,
           winningDate: selectedDateStr,
           timeWindow: eventTimeWindow,
-          venueName,
-          venueAddress,
+          venueName: venueName.trim() || undefined,
+          venueAddress: venueAddress.trim() || undefined,
           ticketUrl: eventLink.trim() || undefined,
+          eventUrl: eventLink.trim() || undefined,
           customNote: hostNote.trim() || undefined,
           isDryRun,
           testEmail: testEmail.trim() || undefined,
@@ -1841,25 +1854,25 @@ export default function AdminDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                   <div className="q" style={{ margin: 0 }}>
                     <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
-                      📍 Venue Name
+                      📍 Venue Name <span style={{ fontSize: '0.76rem', fontWeight: 400, color: 'var(--ink-soft)' }}>(Optional)</span>
                     </div>
                     <input
                       type="text"
                       value={venueName}
                       onChange={(e) => setVenueName(e.target.value)}
-                      placeholder="e.g. Lincoln Park Conservatory"
+                      placeholder="e.g. Lincoln Park Conservatory (Optional)"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
                     />
                   </div>
                   <div className="q" style={{ margin: 0 }}>
                     <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
-                      🗺️ Venue Address
+                      🗺️ Venue Address <span style={{ fontSize: '0.76rem', fontWeight: 400, color: 'var(--ink-soft)' }}>(Optional)</span>
                     </div>
                     <input
                       type="text"
                       value={venueAddress}
                       onChange={(e) => setVenueAddress(e.target.value)}
-                      placeholder="e.g. 2391 N Stockton Dr, Chicago, IL"
+                      placeholder="e.g. 2391 N Stockton Dr, Chicago, IL (Optional)"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
                     />
                   </div>
@@ -1868,13 +1881,13 @@ export default function AdminDashboard() {
                 {/* 4. Ticket / RSVP Link */}
                 <div className="q" style={{ marginBottom: '14px' }}>
                   <div className="q-label" style={{ fontSize: '0.88rem', marginBottom: '4px' }}>
-                    🎟️ Ticket / RSVP Link (Optional)
+                    🎟️ External RSVP / Ticket URL (Partiful, Eventbrite, Luma)
                   </div>
                   <input
                     type="text"
                     value={eventLink}
                     onChange={(e) => setEventLink(e.target.value)}
-                    placeholder="https://partiful.com/e/... or https://luma.com/..."
+                    placeholder="https://partiful.com/e/... or https://eventbrite.com/..."
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid var(--line)', background: 'var(--card)' }}
                   />
                 </div>
@@ -1940,7 +1953,7 @@ export default function AdminDashboard() {
                     <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Time Window:</span>
                     <span>{eventTimeWindow || 'TBD'}</span>
                     <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Venue:</span>
-                    <span>{venueName} {venueAddress ? `(${venueAddress})` : ''}</span>
+                    <span>{venueName.trim() ? (venueAddress.trim() ? `${venueName.trim()} (${venueAddress.trim()})` : venueName.trim()) : (venueAddress.trim() || 'Location TBD')}</span>
                     {eventLink && (
                       <>
                         <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>RSVP Link:</span>

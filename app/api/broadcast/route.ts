@@ -120,6 +120,42 @@ export async function POST(req: Request) {
       );
     }
 
+    // Admin Confirmation Receipt Dispatch & Local Logging
+    const adminEmail = (process.env.ADMIN_EMAIL || "admin@actuallylets.com").toLowerCase();
+    const eventTitle = `Actually, Let's — ${typeof city === "string" ? (city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()) : "Community"} (${winningDate})`;
+    const broadcastTimestamp = new Date().toISOString();
+
+    try {
+      await resend.emails.send({
+        from: primarySender,
+        to: [adminEmail],
+        replyTo: "admin@actuallylets.com",
+        subject: `[Confirmation] Announcement Dispatched: ${eventTitle}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #2B271F;">
+            <div style="background-color: #4C5A40; color: #FFFFFF; padding: 16px 20px; border-radius: 10px 10px 0 0;">
+              <h2 style="margin: 0; font-size: 18px;">✓ Announcement Dispatch Confirmation</h2>
+              <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Event: ${eventTitle}</p>
+            </div>
+            <div style="background-color: #FBF7EE; border: 1px solid #D8CEBC; border-top: none; padding: 20px; border-radius: 0 0 10px 10px;">
+              <p><strong>Broadcast Timestamp:</strong> ${broadcastTimestamp}</p>
+              <p><strong>Recipients:</strong> ${successful.length} sent (${failed.length} failed, ${emails.length} total)</p>
+              <hr style="border: 0; border-top: 1px solid #D8CEBC; margin: 16px 0;" />
+              <h3>Email Body Preview:</h3>
+              <div style="background-color: #FFFFFF; border: 1px solid #E6DEC8; border-radius: 8px; padding: 14px;">
+                ${emailHtml}
+              </div>
+            </div>
+          </div>
+        `,
+        text: `[Confirmation] Announcement Dispatched: ${eventTitle}\nBroadcast Timestamp: ${broadcastTimestamp}\nRecipient Count: ${successful.length} sent (${failed.length} failed, ${emails.length} total)\n\nEvent Details:\n${eventDetails}${eventLink ? `\nEvent Link: ${eventLink}` : ''}`,
+      });
+    } catch (receiptErr) {
+      console.error("[EMAIL AUDIT] Failed to dispatch admin confirmation receipt in /api/broadcast:", receiptErr);
+    }
+
+    console.log('[EMAIL AUDIT] Admin confirmation receipt dispatched to:', adminEmail);
+
     return NextResponse.json({
       success: true,
       recipientCount: emails.length,
