@@ -1127,19 +1127,21 @@ export default function AdminDashboard() {
                     </h3>
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '0.88rem', color: '#5A5243' }}>
                       <span>⏰ {broadcasts[0].timeWindow || '10:00 AM – 12:00 PM CDT'}</span>
-                      <span>
-                        📍 <strong>{broadcasts[0].venueName}</strong>
-                        {broadcasts[0].venueAddress && (
-                          <a
-                            href={`https://maps.google.com/?q=${encodeURIComponent(`${broadcasts[0].venueName} ${broadcasts[0].venueAddress}`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: '#C8643F', textDecoration: 'underline', marginLeft: '5px' }}
-                          >
-                            ({broadcasts[0].venueAddress}) ↗
-                          </a>
-                        )}
-                      </span>
+                      {(broadcasts[0].venueName || broadcasts[0].venueAddress) && (
+                        <span>
+                          📍 <strong>{broadcasts[0].venueName}</strong>
+                          {broadcasts[0].venueAddress && (
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(`${broadcasts[0].venueName || ''} ${broadcasts[0].venueAddress}`.trim())}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#C8643F', textDecoration: 'underline', marginLeft: '5px' }}
+                            >
+                              ({broadcasts[0].venueAddress}) ↗
+                            </a>
+                          )}
+                        </span>
+                      )}
                     </div>
                     {broadcasts[0].customNote && (
                       <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#6A6253', fontStyle: 'italic', background: 'rgba(255,255,255,0.6)', padding: '6px 12px', borderRadius: '8px', border: '1px solid #E6DEC8' }}>
@@ -1952,8 +1954,14 @@ export default function AdminDashboard() {
                     <strong>{selectedDateStr}</strong>
                     <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Time Window:</span>
                     <span>{eventTimeWindow || 'TBD'}</span>
-                    <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Venue:</span>
-                    <span>{venueName.trim() ? (venueAddress.trim() ? `${venueName.trim()} (${venueAddress.trim()})` : venueName.trim()) : (venueAddress.trim() || 'Location TBD')}</span>
+                    {(venueName?.trim() || venueAddress?.trim()) && (
+                      <>
+                        <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>Venue:</span>
+                        <span>
+                          {venueName.trim()} {venueAddress.trim() && `(${venueAddress.trim()})`}
+                        </span>
+                      </>
+                    )}
                     {eventLink && (
                       <>
                         <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>RSVP Link:</span>
@@ -2303,19 +2311,21 @@ export default function AdminDashboard() {
 
                       <div style={{ fontSize: '0.84rem', color: '#5A5243', marginBottom: '8px', lineHeight: 1.4 }}>
                         <div>⏰ {b.timeWindow || '10:00 AM – 12:00 PM CDT'}</div>
-                        <div>
-                          📍 <strong>{b.venueName}</strong>{' '}
-                          {b.venueAddress && (
-                            <a
-                              href={`https://maps.google.com/?q=${encodeURIComponent(`${b.venueName} ${b.venueAddress}`)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: 'var(--terra)', textDecoration: 'underline' }}
-                            >
-                              ({b.venueAddress}) ↗
-                            </a>
-                          )}
-                        </div>
+                        {(b.venueName || b.venueAddress) && (
+                          <div>
+                            📍 <strong>{b.venueName}</strong>{' '}
+                            {b.venueAddress && (
+                              <a
+                                href={`https://maps.google.com/?q=${encodeURIComponent(`${b.venueName || ''} ${b.venueAddress}`.trim())}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: 'var(--terra)', textDecoration: 'underline' }}
+                              >
+                                ({b.venueAddress}) ↗
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Delivery Pills */}

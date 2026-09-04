@@ -311,10 +311,11 @@ export async function POST(req: Request) {
               <td style="padding: 6px 0; color: #6A6253;"><strong>Time Window:</strong></td>
               <td style="padding: 6px 0;">${timeWindow || 'TBD'}</td>
             </tr>
+            ${(cleanVenueName || cleanVenueAddress) ? `
             <tr>
               <td style="padding: 6px 0; color: #6A6253;"><strong>Venue / Address:</strong></td>
-              <td style="padding: 6px 0;">${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : (cleanVenueAddress || 'Location TBD')}</td>
-            </tr>
+              <td style="padding: 6px 0;">${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : cleanVenueAddress}</td>
+            </tr>` : ''}
             ${ticketUrl ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>RSVP Link:</strong></td><td style="padding: 6px 0;"><a href="${ticketUrl}" target="_blank" style="color: #C8643F;">${ticketUrl}</a></td></tr>` : ''}
             ${customNote ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>Host Note:</strong></td><td style="padding: 6px 0; font-style: italic;">&ldquo;${customNote}&rdquo;</td></tr>` : ''}
           </table>
@@ -335,7 +336,7 @@ ${samplePreview.text}
       `City: ${cityName}\n` +
       `Winning Date: ${winningDate}\n` +
       `Time Window: ${timeWindow || 'TBD'}\n` +
-      `Venue: ${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : (cleanVenueAddress || 'Location TBD')}\n` +
+      `${(cleanVenueName || cleanVenueAddress) ? `Venue: ${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : cleanVenueAddress}\n` : ''}` +
       `${ticketUrl ? `RSVP Link: ${ticketUrl}\n` : ''}` +
       `${customNote ? `Host Note: "${customNote}"\n` : ''}\n` +
       `==================== FULL ANNOUNCEMENT CONTENT ====================\n\n` +

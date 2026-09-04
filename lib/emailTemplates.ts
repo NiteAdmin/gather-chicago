@@ -18,38 +18,32 @@ export interface EmailTemplateResult {
 }
 
 function renderLocationHtml(venueName: string, venueAddress: string, mapsUrl: string | null): string {
-  if (!venueName && !venueAddress) {
+  const hasVenue = Boolean(venueName?.trim() || venueAddress?.trim());
+  if (!hasVenue) {
+    return "";
+  }
+
+  const cleanVenueName = venueName?.trim();
+  const cleanVenueAddress = venueAddress?.trim();
+
+  if (cleanVenueName && !cleanVenueAddress) {
     return `
-      <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+      <div style="margin-top: 12px; display: flex; align-items: flex-start; gap: 10px;">
         <span style="font-size: 18px;">📍</span>
         <div>
-          <strong style="display: block; font-size: 15px; color: #2B271F;">Location TBD</strong>
-          <span style="font-size: 13px; color: #6A6253;">Venue details will be announced soon.</span>
+          <strong style="display: block; font-size: 15px; color: #2B271F;">${cleanVenueName}</strong>
         </div>
       </div>
     `;
   }
 
-  if (venueName && !venueAddress) {
+  if (!cleanVenueName && cleanVenueAddress) {
     return `
-      <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+      <div style="margin-top: 12px; display: flex; align-items: flex-start; gap: 10px;">
         <span style="font-size: 18px;">📍</span>
         <div>
-          <strong style="display: block; font-size: 15px; color: #2B271F;">${venueName}</strong>
-          <span style="font-size: 13px; color: #6A6253;">Address to be confirmed</span>
-        </div>
-      </div>
-    `;
-  }
-
-  if (!venueName && venueAddress) {
-    return `
-      <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-        <span style="font-size: 18px;">📍</span>
-        <div>
-          <strong style="display: block; font-size: 15px; color: #2B271F;">Location TBD</strong>
           <a href="${mapsUrl || '#'}" target="_blank" style="font-size: 13px; color: #C8643F; text-decoration: underline;">
-            ${venueAddress} &rarr; (Open in Google Maps)
+            ${cleanVenueAddress} &rarr; (Open in Google Maps)
           </a>
         </div>
       </div>
@@ -57,12 +51,12 @@ function renderLocationHtml(venueName: string, venueAddress: string, mapsUrl: st
   }
 
   return `
-    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+    <div style="margin-top: 12px; display: flex; align-items: flex-start; gap: 10px;">
       <span style="font-size: 18px;">📍</span>
       <div>
-        <strong style="display: block; font-size: 15px; color: #2B271F;">${venueName}</strong>
+        <strong style="display: block; font-size: 15px; color: #2B271F;">${cleanVenueName}</strong>
         <a href="${mapsUrl || '#'}" target="_blank" style="font-size: 13px; color: #C8643F; text-decoration: underline;">
-          ${venueAddress} &rarr; (Open in Google Maps)
+          ${cleanVenueAddress} &rarr; (Open in Google Maps)
         </a>
       </div>
     </div>
@@ -79,7 +73,7 @@ export function generateWinningDateEmailGroupA(params: WinningDateEmailParams): 
   const timeWindow = params.timeWindow?.trim() || "10:00 AM – 12:00 PM CDT";
   const venueName = params.venueName?.trim() || "";
   const venueAddress = params.venueAddress?.trim() || "";
-  const venueDisplay = venueName || "Location TBD";
+  const hasVenue = Boolean(params.venueName?.trim() || params.venueAddress?.trim());
   const ticketUrl = params.ticketUrl?.trim();
   const customNote = params.customNote?.trim();
 
@@ -93,13 +87,13 @@ export function generateWinningDateEmailGroupA(params: WinningDateEmailParams): 
     times: [timeWindow],
   });
 
-  const calLocation = venueName
-    ? (venueAddress ? `${venueName}, ${venueAddress}` : venueName)
-    : (venueAddress || "Location TBD");
+  const calLocation = hasVenue
+    ? (venueName ? (venueAddress ? `${venueName}, ${venueAddress}` : venueName) : venueAddress)
+    : city;
 
   const googleCalUrl = generateGoogleCalendarUrl({
     title: `Actually, Let's — ${city} Gathering`,
-    description: `Confirmed community gathering at ${venueDisplay}${venueAddress ? ` (${venueAddress})` : ""}.${customNote ? `\n\nHost Note: "${customNote}"` : ""}${ticketUrl ? `\n\nTicket / RSVP Link: ${ticketUrl}` : ""}`,
+    description: `Confirmed community gathering in ${city}.${hasVenue ? `\nLocation: ${venueName ? (venueAddress ? `${venueName} (${venueAddress})` : venueName) : venueAddress}` : ""}${customNote ? `\n\nHost Note: "${customNote}"` : ""}${ticketUrl ? `\n\nTicket / RSVP Link: ${ticketUrl}` : ""}`,
     location: calLocation,
     startIso,
     endIso,
@@ -155,7 +149,7 @@ export function generateWinningDateEmailGroupA(params: WinningDateEmailParams): 
 
           <!-- Event Details Elevated Card -->
           <div style="background-color: #F4EEE2; border: 1.5px solid #D8CEBC; border-radius: 14px; padding: 20px; margin-bottom: 20px;">
-            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
               <span style="font-size: 18px;">📅</span>
               <div>
                 <strong style="display: block; font-size: 15px; color: #2B271F;">${winningDate}</strong>
@@ -204,11 +198,13 @@ export function generateWinningDateEmailGroupA(params: WinningDateEmailParams): 
     </div>
   `;
 
-  const textLocation = venueName
-    ? (venueAddress ? `${venueName} - ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : `${venueName} (Address TBD)`)
-    : (venueAddress ? `Location TBD (${venueAddress})${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : "Location TBD");
+  const whereText = hasVenue
+    ? (venueName
+        ? (venueAddress ? `\nWhere: ${venueName} - ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : `\nWhere: ${venueName}`)
+        : `\nWhere: ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}`)
+    : "";
 
-  const text = `Actually, Let's — ${city}\nWinning Date Confirmed!\n\nHi ${name},\n\nWe've locked in the date for our upcoming gathering!\n\nWhen: ${winningDate} (${timeWindow})\nWhere: ${textLocation}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nRSVP / Tickets: ${ticketUrl}\n` : ""}\nAdd to Google Calendar:\n${googleCalUrl}\n\nActually, Let's • ${city} • rsvp@actuallylets.com`;
+  const text = `Actually, Let's — ${city}\nWinning Date Confirmed!\n\nHi ${name},\n\nWe've locked in the date for our upcoming gathering!\n\nWhen: ${winningDate} (${timeWindow})${whereText}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nRSVP / Tickets: ${ticketUrl}\n` : ""}\nAdd to Google Calendar:\n${googleCalUrl}\n\nActually, Let's • ${city} • rsvp@actuallylets.com`;
 
   return { subject, html, text };
 }
@@ -223,6 +219,7 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
   const timeWindow = params.timeWindow?.trim() || "10:00 AM – 12:00 PM CDT";
   const venueName = params.venueName?.trim() || "";
   const venueAddress = params.venueAddress?.trim() || "";
+  const hasVenue = Boolean(params.venueName?.trim() || params.venueAddress?.trim());
   const ticketUrl = params.ticketUrl?.trim();
   const customNote = params.customNote?.trim();
 
@@ -279,7 +276,7 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
 
           <!-- Event Details Elevated Card -->
           <div style="background-color: #F4EEE2; border: 1.5px solid #D8CEBC; border-radius: 14px; padding: 20px; margin-bottom: 20px;">
-            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
               <span style="font-size: 18px;">📅</span>
               <div>
                 <strong style="display: block; font-size: 15px; color: #2B271F;">${winningDate}</strong>
@@ -320,11 +317,13 @@ export function generateWinningDateEmailGroupB(params: WinningDateEmailParams): 
     </div>
   `;
 
-  const textLocation = venueName
-    ? (venueAddress ? `${venueName} - ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : `${venueName} (Address TBD)`)
-    : (venueAddress ? `Location TBD (${venueAddress})${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : "Location TBD");
+  const whereText = hasVenue
+    ? (venueName
+        ? (venueAddress ? `\nWhere: ${venueName} - ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}` : `\nWhere: ${venueName}`)
+        : `\nWhere: ${venueAddress}${mapsUrl ? `\nGoogle Maps: ${mapsUrl}` : ''}`)
+    : "";
 
-  const text = `Actually, Let's — ${city}\nGathering Date Update\n\nHi ${name},\n\nThank you for voting in our survey! The community selected ${winningDate} for our upcoming gathering.\n\nWhen: ${winningDate} (${timeWindow})\nWhere: ${textLocation}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nDetails & Tickets: ${ticketUrl}\n` : ""}\nWe'll keep you at the top of the list for future gatherings!\n\nActually, Let's • ${city} • rsvp@actuallylets.com`;
+  const text = `Actually, Let's — ${city}\nGathering Date Update\n\nHi ${name},\n\nThank you for voting in our survey! The community selected ${winningDate} for our upcoming gathering.\n\nWhen: ${winningDate} (${timeWindow})${whereText}\n${customNote ? `\nHost Note: "${customNote}"\n` : ""}${ticketUrl ? `\nDetails & Tickets: ${ticketUrl}\n` : ""}\nWe'll keep you at the top of the list for future gatherings!\n\nActually, Let's • ${city} • rsvp@actuallylets.com`;
 
   return { subject, html, text };
 }
