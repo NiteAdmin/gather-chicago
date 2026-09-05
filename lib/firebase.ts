@@ -5,8 +5,10 @@ import {
   doc,
   getDoc,
   addDoc,
+  updateDoc,
   getDocs,
   query,
+  where,
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
@@ -25,13 +27,17 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 
 export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt">): Promise<string> {
+  const emailLower = data.email ? data.email.trim().toLowerCase() : "";
+  const citySlug = (data.city || "chicago").toLowerCase();
+
   const sanitizedPayload = {
-    city: data.city || "chicago",
-    cityName: data.cityName || "Chicago",
+    city: citySlug,
+    cityName: data.cityName || (citySlug.charAt(0).toUpperCase() + citySlug.slice(1)),
     name: data.name ? data.name.trim() : "",
-    email: data.email ? data.email.trim().toLowerCase() : "",
+    email: emailLower,
     phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : null,
     smsOptIn: Boolean(data.smsOptIn),
+    quarterlyReminder: typeof data.quarterlyReminder === "boolean" ? data.quarterlyReminder : true,
     gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
     customGathering: data.customGathering ? data.customGathering.trim() : null,
     dates: Array.isArray(data.dates) ? data.dates : [],
@@ -42,10 +48,34 @@ export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt"
     guests: data.guests ? data.guests.trim() : null,
     drink: data.drink ? data.drink.trim() : null,
     notes: data.notes ? data.notes.trim() : null,
-    createdAt: serverTimestamp(),
   };
 
-  const docRef = await addDoc(collection(db, "responses"), sanitizedPayload);
+  // Idempotent Check: If response already exists for (email, city), update existing doc
+  if (emailLower) {
+    try {
+      const q = query(
+        collection(db, "responses"),
+        where("email", "==", emailLower),
+        where("city", "==", citySlug)
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const existingDoc = querySnapshot.docs[0];
+        await updateDoc(doc(db, "responses", existingDoc.id), {
+          ...sanitizedPayload,
+          updatedAt: serverTimestamp(),
+        });
+        return existingDoc.id;
+      }
+    } catch (checkErr) {
+      console.warn("Idempotent check query failed, falling back to new doc creation:", checkErr);
+    }
+  }
+
+  const docRef = await addDoc(collection(db, "responses"), {
+    ...sanitizedPayload,
+    createdAt: serverTimestamp(),
+  });
   return docRef.id;
 }
 
@@ -79,10 +109,12 @@ export interface BroadcastLogData {
   venueName?: string;
   venueAddress?: string;
   ticketUrl?: string;
+  eventUrl?: string;
   customNote?: string;
   groupACount: number;
   groupBCount: number;
   totalDispatched: number;
+  forceResend?: boolean;
 }
 
 export interface BroadcastRecord extends BroadcastLogData {
@@ -151,6 +183,21 @@ export async function getBroadcastById(id: string): Promise<BroadcastRecord | nu
     return null;
   }
 }
+
+export async function getResponseById(id: string): Promise<SurveyResponse | null> {
+  try {
+    const docRef = doc(db, "responses", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as SurveyResponse;
+    }
+    return null;
+  } catch (err) {
+    console.error("Error fetching response by ID:", err);
+    return null;
+  }
+}
+
 
 
 

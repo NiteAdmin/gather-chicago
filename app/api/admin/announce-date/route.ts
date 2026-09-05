@@ -6,6 +6,13 @@ import {
   generateWinningDateEmailGroupB,
 } from "@/lib/emailTemplates";
 
+// Enforce 60s execution ceiling for serverless environments (e.g. Vercel)
+export const maxDuration = 60;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SENDER_IDENTITY = "Actually, Let's <rsvp@actuallylets.com>";
+const REPLY_TO_ADDRESS = "admin@actuallylets.com";
+
 interface RecipientInput {
   name?: string;
   email?: string;
@@ -23,6 +30,8 @@ interface AnnounceDateRequestBody {
   customNote?: string;
   isDryRun?: boolean;
   testEmail?: string;
+  forceResend?: boolean;
+  totalSurveysFound?: number;
   groupARecipients: RecipientInput[];
   groupBRecipients?: RecipientInput[];
 }
@@ -41,6 +50,8 @@ export async function POST(req: Request) {
       customNote,
       isDryRun,
       testEmail,
+      forceResend,
+      totalSurveysFound,
       groupARecipients,
       groupBRecipients,
     } = body;
@@ -72,32 +83,45 @@ export async function POST(req: Request) {
     const rawGroupA = Array.isArray(groupARecipients) ? groupARecipients : [];
     const rawGroupB = Array.isArray(groupBRecipients) ? groupBRecipients : [];
 
-    // Filter valid email recipients (deduplicate within group)
+    // 3. Strict Pre-Batch Validation, Sanitization & Deduplication
+    const failures: Array<{ email: string; reason: string }> = [];
     const seenEmails = new Set<string>();
 
-    const validGroupA = rawGroupA.filter((r) => {
-      const email = r.email?.trim().toLowerCase();
-      if (email && email.includes("@") && !seenEmails.has(email)) {
-        seenEmails.add(email);
-        return true;
-      }
-      return false;
-    });
+    const sanitizeAndValidate = (list: RecipientInput[], groupLabel: string) => {
+      const validList: Array<{ name: string; email: string }> = [];
+      for (const r of list) {
+        const rawEmail = r.email ? String(r.email).trim().toLowerCase() : "";
+        const name = r.name?.trim() || "there";
 
-    const validGroupB = rawGroupB.filter((r) => {
-      const email = r.email?.trim().toLowerCase();
-      if (email && email.includes("@") && !seenEmails.has(email)) {
-        seenEmails.add(email);
-        return true;
+        if (!rawEmail) {
+          failures.push({ email: "(empty)", reason: `Missing email address in ${groupLabel}` });
+          continue;
+        }
+
+        if (!EMAIL_REGEX.test(rawEmail)) {
+          failures.push({ email: rawEmail, reason: `Malformed email format in ${groupLabel}` });
+          continue;
+        }
+
+        if (seenEmails.has(rawEmail)) {
+          // Skip duplicates across or within groups
+          continue;
+        }
+
+        seenEmails.add(rawEmail);
+        validList.push({ name, email: rawEmail });
       }
-      return false;
-    });
+      return validList;
+    };
+
+    const validGroupA = sanitizeAndValidate(rawGroupA, "Group A");
+    const validGroupB = sanitizeAndValidate(rawGroupB, "Group B");
 
     const cityName = city ? (city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()) : "Chicago";
     const isTestMode = Boolean(isDryRun);
     const destinationTestEmail = (testEmail?.trim() || "admin@actuallylets.com").toLowerCase();
 
-    // 3. Construct email objects
+    // 4. Construct email objects
     const emailsToSend: Array<{
       from: string;
       to: string[];
@@ -108,7 +132,7 @@ export async function POST(req: Request) {
     }> = [];
 
     if (isTestMode) {
-      // DRY RUN MODE: Send exactly 1 Group A and 1 Group B sample email to test address
+      // DRY RUN / TEST PREVIEW: Deliver sample Group A & Group B previews to dual test recipients
       const sampleA = generateWinningDateEmailGroupA({
         name: "Admin (Test Preview - Group A)",
         cityName,
@@ -131,39 +155,56 @@ export async function POST(req: Request) {
         customNote,
       });
 
-      emailsToSend.push({
-        from: "Actually Let's <rsvp@actuallylets.com>",
-        to: [destinationTestEmail],
-        replyTo: "admin@actuallylets.com",
-        subject: `[TEST PREVIEW - GROUP A] ${sampleA.subject}`,
-        html: sampleA.html,
-        text: sampleA.text,
-      });
+      // Target BOTH dual admins and any custom testEmail provided
+      const targetTestEmails = Array.from(
+        new Set(
+          [
+            destinationTestEmail,
+            "admin@actuallylets.com",
+            "ademola@actuallylets.com",
+          ]
+            .filter(Boolean)
+            .map((e) => e.trim().toLowerCase())
+            .filter((e) => EMAIL_REGEX.test(e))
+        )
+      );
 
-      emailsToSend.push({
-        from: "Actually Let's <rsvp@actuallylets.com>",
-        to: [destinationTestEmail],
-        replyTo: "admin@actuallylets.com",
-        subject: `[TEST PREVIEW - GROUP B] ${sampleB.subject}`,
-        html: sampleB.html,
-        text: sampleB.text,
-      });
+      for (const testAddr of targetTestEmails) {
+        emailsToSend.push({
+          from: SENDER_IDENTITY,
+          to: [testAddr],
+          replyTo: REPLY_TO_ADDRESS,
+          subject: `[TEST PREVIEW - GROUP A] ${sampleA.subject}`,
+          html: sampleA.html,
+          text: sampleA.text,
+        });
+
+        emailsToSend.push({
+          from: SENDER_IDENTITY,
+          to: [testAddr],
+          replyTo: REPLY_TO_ADDRESS,
+          subject: `[TEST PREVIEW - GROUP B] ${sampleB.subject}`,
+          html: sampleB.html,
+          text: sampleB.text,
+        });
+      }
     } else {
-      // LIVE RUN MODE: Send to all real recipients
+      // LIVE RUN MODE: Send to all real, validated recipients
       const totalRecipientCount = validGroupA.length + validGroupB.length;
       if (totalRecipientCount === 0) {
         return NextResponse.json(
-          { error: "No valid recipient email addresses provided" },
+          {
+            error: "No valid recipient email addresses provided after sanitization",
+            failures,
+          },
           { status: 400 }
         );
       }
 
       // Construct Group A (Available) emails
       for (const recipient of validGroupA) {
-        const email = recipient.email!.trim().toLowerCase();
-        const name = recipient.name?.trim() || "there";
         const template = generateWinningDateEmailGroupA({
-          name,
+          name: recipient.name,
           cityName,
           winningDate,
           timeWindow,
@@ -174,9 +215,9 @@ export async function POST(req: Request) {
         });
 
         emailsToSend.push({
-          from: "Actually Let's <rsvp@actuallylets.com>",
-          to: [email],
-          replyTo: "admin@actuallylets.com",
+          from: SENDER_IDENTITY,
+          to: [recipient.email],
+          replyTo: REPLY_TO_ADDRESS,
           subject: template.subject,
           html: template.html,
           text: template.text,
@@ -185,10 +226,8 @@ export async function POST(req: Request) {
 
       // Construct Group B (Alternate Dates) emails
       for (const recipient of validGroupB) {
-        const email = recipient.email!.trim().toLowerCase();
-        const name = recipient.name?.trim() || "there";
         const template = generateWinningDateEmailGroupB({
-          name,
+          name: recipient.name,
           cityName,
           winningDate,
           timeWindow,
@@ -199,9 +238,9 @@ export async function POST(req: Request) {
         });
 
         emailsToSend.push({
-          from: "Actually Let's <rsvp@actuallylets.com>",
-          to: [email],
-          replyTo: "admin@actuallylets.com",
+          from: SENDER_IDENTITY,
+          to: [recipient.email],
+          replyTo: REPLY_TO_ADDRESS,
           subject: template.subject,
           html: template.html,
           text: template.text,
@@ -209,7 +248,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Chunk emails into batches of maximum 100 items
+    // 5. Chunk emails into batches of maximum 100 items
     const BATCH_SIZE = 100;
     const batches: typeof emailsToSend[] = [];
     for (let i = 0; i < emailsToSend.length; i += BATCH_SIZE) {
@@ -218,6 +257,7 @@ export async function POST(req: Request) {
 
     const resendApiKey = process.env.RESEND_API_KEY;
     let dispatchedCount = 0;
+    let batchesDispatched = 0;
 
     if (resendApiKey) {
       const resend = new Resend(resendApiKey);
@@ -227,11 +267,21 @@ export async function POST(req: Request) {
           const res = await resend.batch.send(batch);
           if (res.error) {
             console.error(`[Resend Batch Error - Batch ${index + 1}]:`, res.error);
+            batch.forEach((item) => {
+              item.to.forEach((addr) =>
+                failures.push({ email: addr, reason: res.error?.message || "Batch rejected by Resend" })
+              );
+            });
             return { success: false, error: res.error, count: 0 };
           }
           return { success: true, data: res.data, count: batch.length };
-        } catch (batchErr) {
+        } catch (batchErr: any) {
           console.error(`[Resend Batch Exception - Batch ${index + 1}]:`, batchErr);
+          batch.forEach((item) => {
+            item.to.forEach((addr) =>
+              failures.push({ email: addr, reason: batchErr?.message || "Batch dispatch network error" })
+            );
+          });
           return { success: false, error: batchErr, count: 0 };
         }
       });
@@ -240,15 +290,16 @@ export async function POST(req: Request) {
       settledResults.forEach((result) => {
         if (result.status === "fulfilled" && result.value.success) {
           dispatchedCount += result.value.count;
+          batchesDispatched += 1;
         }
       });
     } else {
       console.warn("[ANNOUNCE_DATE] RESEND_API_KEY not configured. Mocking dispatch for", emailsToSend.length, "recipients.");
       dispatchedCount = emailsToSend.length;
+      batchesDispatched = batches.length;
     }
 
-    // 5. Admin Confirmation Receipt Dispatch & Local Logging
-    const adminEmail = (process.env.ADMIN_EMAIL || testEmail?.trim() || "admin@actuallylets.com").toLowerCase();
+    // 6. Isolated Dual Admin Confirmation Receipts
     const eventTitle = `Actually, Let's — ${cityName} (${winningDate})`;
     const broadcastTimestamp = new Date().toISOString();
     const formattedTimestamp = new Date().toLocaleString("en-US", {
@@ -269,7 +320,7 @@ export async function POST(req: Request) {
     });
 
     const receiptSubject = `[Confirmation] Announcement Dispatched: ${eventTitle}`;
-    const totalRecipientsCount = isTestMode ? 2 : (dispatchedCount || emailsToSend.length);
+    const totalRecipientsCount = isTestMode ? emailsToSend.length : (dispatchedCount || emailsToSend.length);
 
     const receiptHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; color: #2B271F; background-color: #FBF7EE;">
@@ -296,7 +347,7 @@ export async function POST(req: Request) {
             <tr>
               <td style="padding: 6px 0; color: #6A6253;"><strong>Recipient Count:</strong></td>
               <td style="padding: 6px 0;">
-                <strong>${totalRecipientsCount}</strong> ${isTestMode ? '(1 Group A test, 1 Group B test)' : `(${validGroupA.length} Group A, ${validGroupB.length} Group B)`}
+                <strong>${totalRecipientsCount}</strong> ${isTestMode ? `(${emailsToSend.length} sample previews sent)` : `(${validGroupA.length} Group A, ${validGroupB.length} Group B)`}
               </td>
             </tr>
             <tr>
@@ -318,6 +369,10 @@ export async function POST(req: Request) {
             </tr>` : ''}
             ${ticketUrl ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>RSVP Link:</strong></td><td style="padding: 6px 0;"><a href="${ticketUrl}" target="_blank" style="color: #C8643F;">${ticketUrl}</a></td></tr>` : ''}
             ${customNote ? `<tr><td style="padding: 6px 0; color: #6A6253;"><strong>Host Note:</strong></td><td style="padding: 6px 0; font-style: italic;">&ldquo;${customNote}&rdquo;</td></tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; color: #6A6253;"><strong>Re-Announcement Flag:</strong></td>
+              <td style="padding: 6px 0;">${forceResend ? 'Yes (forceResend: true)' : 'Standard'}</td>
+            </tr>
           </table>
 
           <h3 style="color: #2B271F; font-size: 15px; border-bottom: 1px solid #EDE4D3; padding-bottom: 8px; margin-top: 20px;">
@@ -339,28 +394,84 @@ ${samplePreview.text}
       `${(cleanVenueName || cleanVenueAddress) ? `Venue: ${cleanVenueName ? (cleanVenueAddress ? `${cleanVenueName} (${cleanVenueAddress})` : cleanVenueName) : cleanVenueAddress}\n` : ''}` +
       `${ticketUrl ? `RSVP Link: ${ticketUrl}\n` : ''}` +
       `${customNote ? `Host Note: "${customNote}"\n` : ''}\n` +
+      `Re-Announcement Flag: ${forceResend ? 'Yes (forceResend: true)' : 'Standard'}\n\n` +
       `==================== FULL ANNOUNCEMENT CONTENT ====================\n\n` +
       samplePreview.text;
 
+    // Dual-admin recipient list: guaranteed delivery to both admin@actuallylets.com and ademola@actuallylets.com
+    const dualAdminList = Array.from(
+      new Set(
+        [
+          "admin@actuallylets.com",
+          "ademola@actuallylets.com",
+          process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.trim().toLowerCase() : "",
+        ]
+          .filter(Boolean)
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => EMAIL_REGEX.test(e))
+      )
+    );
+
+    const adminConfirmations: Array<{
+      email: string;
+      status: "sent" | "failed";
+      id?: string;
+      error?: string;
+    }> = [];
+
     if (resendApiKey) {
-      try {
-        const resend = new Resend(resendApiKey);
-        await resend.emails.send({
-          from: "Actually Let's <rsvp@actuallylets.com>",
-          to: [adminEmail],
-          replyTo: "admin@actuallylets.com",
-          subject: receiptSubject,
-          html: receiptHtml,
-          text: receiptText,
+      const resend = new Resend(resendApiKey);
+
+      // Send isolated individual dispatches to each admin mailbox
+      await Promise.allSettled(
+        dualAdminList.map(async (adminAddr) => {
+          try {
+            const receiptRes = await resend.emails.send({
+              from: SENDER_IDENTITY,
+              to: [adminAddr],
+              replyTo: REPLY_TO_ADDRESS,
+              subject: receiptSubject,
+              html: receiptHtml,
+              text: receiptText,
+            });
+
+            if (receiptRes.error) {
+              console.error(`[EMAIL AUDIT] Failed to dispatch admin confirmation receipt to ${adminAddr}:`, receiptRes.error);
+              adminConfirmations.push({
+                email: adminAddr,
+                status: "failed",
+                error: receiptRes.error.message || "Failed to send confirmation receipt",
+              });
+            } else {
+              const resendId = receiptRes.data?.id;
+              console.log(`[EMAIL AUDIT] Admin confirmation receipt dispatched to ${adminAddr} (ID: ${resendId})`);
+              adminConfirmations.push({
+                email: adminAddr,
+                status: "sent",
+                id: resendId,
+              });
+            }
+          } catch (receiptErr: any) {
+            console.error(`[EMAIL AUDIT] Exception dispatching admin confirmation receipt to ${adminAddr}:`, receiptErr);
+            adminConfirmations.push({
+              email: adminAddr,
+              status: "failed",
+              error: receiptErr?.message || "Exception during admin receipt dispatch",
+            });
+          }
+        })
+      );
+    } else {
+      dualAdminList.forEach((email) => {
+        adminConfirmations.push({
+          email,
+          status: "sent",
+          id: "mock-admin-receipt-id",
         });
-      } catch (receiptErr) {
-        console.error("[EMAIL AUDIT] Failed to dispatch admin confirmation receipt:", receiptErr);
-      }
+      });
     }
 
-    console.log('[EMAIL AUDIT] Admin confirmation receipt dispatched to:', adminEmail);
-
-    // 6. Firestore Broadcast Audit Log (for live runs, or flagged as dry-run)
+    // 7. Firestore Broadcast Audit Log
     let broadcastId = "audit-log-disabled";
     try {
       broadcastId = await logBroadcast({
@@ -371,22 +482,29 @@ ${samplePreview.text}
         venueAddress: cleanVenueAddress || undefined,
         ticketUrl,
         customNote: isTestMode ? `[TEST RUN -> ${destinationTestEmail}] ${customNote || ""}`.trim() : customNote,
-        groupACount: isTestMode ? 1 : validGroupA.length,
-        groupBCount: isTestMode ? 1 : validGroupB.length,
+        groupACount: isTestMode ? (emailsToSend.length / 2) : validGroupA.length,
+        groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
         totalDispatched: dispatchedCount || emailsToSend.length,
+        forceResend: Boolean(forceResend),
       });
     } catch (dbErr) {
       console.error("[Firestore Broadcast Log Error]:", dbErr);
     }
 
+    // 8. Granular API Response Telemetry
     return NextResponse.json({
       success: true,
       isDryRun: isTestMode,
-      testEmail: isTestMode ? destinationTestEmail : undefined,
+      forceResend: Boolean(forceResend),
+      totalSurveysFound: totalSurveysFound ?? (rawGroupA.length + rawGroupB.length),
+      validUniqueRecipients: validGroupA.length + validGroupB.length,
+      groupACount: isTestMode ? (emailsToSend.length / 2) : validGroupA.length,
+      groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
+      batchesDispatched,
       totalSent: dispatchedCount || emailsToSend.length,
       broadcastId,
-      groupACount: isTestMode ? 1 : validGroupA.length,
-      groupBCount: isTestMode ? 1 : validGroupB.length,
+      adminConfirmations,
+      failures,
     });
   } catch (error: any) {
     console.error("[Announce Date Route Error]:", error);

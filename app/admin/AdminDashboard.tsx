@@ -69,6 +69,7 @@ export default function AdminDashboard() {
   const [confirmInput, setConfirmInput] = useState('');
   const [expandedGroup, setExpandedGroup] = useState<'groupA' | 'groupB' | null>(null);
   const [isDryRun, setIsDryRun] = useState(true);
+  const [forceResend, setForceResend] = useState(true);
   const [testEmail, setTestEmail] = useState('admin@actuallylets.com');
   const [isDispatching, setIsDispatching] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -261,22 +262,50 @@ export default function AdminDashboard() {
   });
 
   const selectedDateStr = winningDate || (topDateOption || DATES[0]);
+  const cleanSelectedDate = (selectedDateStr || '').trim().toLowerCase();
 
   // Group A (Available): Contacts who voted for the selected date or selected "Any date"
-  const groupA = responses.filter((r) => {
+  // Deduplicate within Group A by lowercase email
+  const seenGroupAEmails = new Set<string>();
+  const groupA: SurveyResponse[] = [];
+  for (const r of responses) {
     const rDates = Array.isArray(r.dates) ? r.dates : [];
-    const customDate = (r.customDate || '').toLowerCase();
-    const hasWinningDate = rDates.includes(selectedDateStr);
-    const hasAnyDate = rDates.some((d) => d.toLowerCase().includes('any date')) || customDate.includes('any date');
-    const customMatch = customDate.includes(selectedDateStr.toLowerCase());
-    return hasWinningDate || hasAnyDate || customMatch;
-  });
+    const customDate = (r.customDate || '').trim().toLowerCase();
+    const hasWinningDate = rDates.some((d) => (d || '').trim().toLowerCase() === cleanSelectedDate);
+    const hasAnyDate = rDates.some((d) => (d || '').toLowerCase().includes('any date')) || customDate.includes('any date');
+    const customMatch = Boolean(cleanSelectedDate && customDate.includes(cleanSelectedDate));
 
-  // Group B (Unavailable): Contacts who voted only for other dates
-  const groupB = responses.filter((r) => {
-    const inA = groupA.some((a) => (a.id && r.id && a.id === r.id) || (a.email && r.email && a.email.toLowerCase() === r.email.toLowerCase()));
-    return !inA;
-  });
+    if (hasWinningDate || hasAnyDate || customMatch) {
+      const emailLower = (r.email || '').trim().toLowerCase();
+      if (emailLower) {
+        if (!seenGroupAEmails.has(emailLower)) {
+          seenGroupAEmails.add(emailLower);
+          groupA.push(r);
+        }
+      } else {
+        groupA.push(r);
+      }
+    }
+  }
+
+  // Group B (Unavailable / Alternate Dates): Contacts who voted only for other dates
+  const groupAIds = new Set(groupA.map((a) => a.id).filter(Boolean));
+  const seenGroupBEmails = new Set<string>();
+  const groupB: SurveyResponse[] = [];
+  for (const r of responses) {
+    const emailLower = (r.email || '').trim().toLowerCase();
+    if (emailLower && seenGroupAEmails.has(emailLower)) continue;
+    if (r.id && groupAIds.has(r.id)) continue;
+
+    if (emailLower) {
+      if (!seenGroupBEmails.has(emailLower)) {
+        seenGroupBEmails.add(emailLower);
+        groupB.push(r);
+      }
+    } else {
+      groupB.push(r);
+    }
+  }
 
   const handleOpenAdminModal = () => {
     const defaultDate = topDateOption || DATES[0];
@@ -321,6 +350,8 @@ export default function AdminDashboard() {
           customNote: hostNote.trim() || undefined,
           isDryRun,
           testEmail: testEmail.trim() || undefined,
+          forceResend: Boolean(forceResend),
+          totalSurveysFound: responses.length,
           groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
           groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
         }),
@@ -333,14 +364,17 @@ export default function AdminDashboard() {
       }
 
       if (data.isDryRun) {
+        const dualAdmins = data.adminConfirmations?.map((a: any) => a.email).join(', ') || 'admin@actuallylets.com & ademola@actuallylets.com';
         setToastMessage({
           type: 'success',
-          text: `🧪 Test mode success! Sent 2 sample preview emails (Group A & Group B) directly to ${data.testEmail || 'admin@actuallylets.com'}.`,
+          text: `🧪 Test mode success! Sample previews & dual admin confirmation receipts dispatched to ${dualAdmins}.`,
         });
       } else {
+        const skippedInfo = data.failures?.length ? ` (${data.failures.length} invalid skipped)` : '';
+        const adminReceipts = data.adminConfirmations?.filter((a: any) => a.status === 'sent').map((a: any) => a.email).join(', ') || 'both admins';
         setToastMessage({
           type: 'success',
-          text: `🎉 Success! Live announcement broadcast sent to ${data.totalSent} attendees (${data.groupACount} Group A, ${data.groupBCount} Group B)!`,
+          text: `🎉 Success! Live announcement broadcast dispatched to ${data.totalSent} attendees (${data.groupACount} Group A, ${data.groupBCount} Group B)${skippedInfo}. Dual confirmation receipts sent to ${adminReceipts}!`,
         });
       }
 
@@ -2129,6 +2163,25 @@ export default function AdminDashboard() {
                       ⚠️ <strong>Live Mode Active:</strong> This will dispatch live announcements to all {groupA.length + groupB.length} contacts ({groupA.length} Group A, {groupB.length} Group B).
                     </p>
                   )}
+                </div>
+
+                {/* Re-Announcement Safety (forceResend) Toggle */}
+                <div style={{
+                  background: '#FBF7EE',
+                  border: '1.5px solid #D8CEBC',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  marginBottom: '16px',
+                }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: 'var(--ink)' }}>
+                    <input
+                      type="checkbox"
+                      checked={forceResend}
+                      onChange={(e) => setForceResend(e.target.checked)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#4C5A40' }}
+                    />
+                    <span>🔄 Re-Announcement Safety (forceResend: dispatch to all active survey respondents regardless of prior logs)</span>
+                  </label>
                 </div>
 
                 {/* Safety Guard & Confirmation Text Lock */}
