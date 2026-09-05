@@ -1,6 +1,7 @@
 export interface SurveyResponse {
   id?: string;
   createdAt?: any;
+  updatedAt?: any;
   city?: string;
   cityName?: string;
   name: string;
@@ -17,6 +18,7 @@ export interface SurveyResponse {
   dayPref?: string | null;
   guests?: string | null;
   drink?: string | null;
+  quarterlyReminder?: boolean;
 }
 
 export interface BroadcastPayload {

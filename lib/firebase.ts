@@ -13,6 +13,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { SurveyResponse } from "@/types/survey";
+export type { SurveyResponse };
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -37,7 +38,7 @@ export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt"
     email: emailLower,
     phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : null,
     smsOptIn: Boolean(data.smsOptIn),
-    quarterlyReminder: typeof data.quarterlyReminder === "boolean" ? data.quarterlyReminder : true,
+    quarterlyReminder: typeof data.quarterlyReminder === "boolean" ? data.quarterlyReminder : false,
     gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
     customGathering: data.customGathering ? data.customGathering.trim() : null,
     dates: Array.isArray(data.dates) ? data.dates : [],
