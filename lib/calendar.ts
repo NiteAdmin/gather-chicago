@@ -35,7 +35,9 @@ export function parseEventDates(options: CalendarEventOptions): {
   startIso: string;
   endIso: string;
 } {
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed (0 = Jan, 11 = Dec)
   let targetDate: Date | null = null;
 
   // Try to parse the first selected date (e.g. "Sat, Sep 26", "Sun, Sep 27", etc.)
@@ -49,7 +51,10 @@ export function parseEventDates(options: CalendarEventOptions): {
       const monthIndex = monthNames.indexOf(monthStr.slice(0, 3));
       const day = parseInt(match[1], 10);
       if (monthIndex !== -1 && !isNaN(day)) {
-        targetDate = new Date(currentYear, monthIndex, day);
+        // Automatic Year-Boundary Rollover:
+        // If event month is earlier in calendar than current month (e.g. parsing Jan in Dec), roll to next year.
+        const year = monthIndex < currentMonth ? currentYear + 1 : currentYear;
+        targetDate = new Date(year, monthIndex, day);
       }
     }
   }

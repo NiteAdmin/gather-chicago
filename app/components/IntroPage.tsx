@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import UserNavButton from '@/components/nav/UserNavButton';
 
 export default function IntroPage() {
-  // Cycler text state for Hero headline (9 phrases in exact sequence)
+  // Cycler text state for Hero headline
   const heroPhrases = [
     'toasting mimosas',
     'in child’s pose',
@@ -82,10 +83,10 @@ export default function IntroPage() {
         }
       `}</style>
 
-      {/* TOP NAVIGATION BAR (UPDATED BRAND LOGO: Actually, Let’s) */}
-      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-3 sm:px-8 py-3 sm:py-4 font-sans-hanken">
-        <Link href="/" className="group flex items-center gap-1.5 sm:gap-2 text-decoration-none shrink-0">
-          <span className="font-serif-fraunces text-lg sm:text-xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
+      {/* TOP NAVIGATION BAR */}
+      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 sm:px-8 py-3.5 sm:py-4 font-sans-hanken">
+        <Link href="/" className="group flex items-center gap-2 text-decoration-none shrink-0">
+          <span className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
             Actually, Let’s
           </span>
           <span className="rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
@@ -93,41 +94,42 @@ export default function IntroPage() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-2 sm:gap-6 text-xs sm:text-sm font-medium text-[#6A6253]">
+        <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-medium text-[#6A6253]">
           <a
             href="#cities"
             className="hover:text-[#2B271F] transition-colors hidden md:inline whitespace-nowrap"
           >
             Cities
           </a>
-          <a
-            href="#how-it-works"
+          <Link
+            href="/host"
             className="hover:text-[#2B271F] transition-colors whitespace-nowrap"
           >
-            How It Works
-          </a>
+            Become a Host
+          </Link>
           <Link
             href="/chicago"
-            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-[11px] sm:text-xs px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
+            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-[11px] sm:text-xs px-3 sm:px-4 py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
           >
-            Chicago RSVP →
+            Chicago Poll →
           </Link>
+          <UserNavButton />
         </nav>
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
-        {/* 1. HERO SECTION (CARD DECK STYLE) */}
+        {/* 1. HERO SECTION */}
         <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
           {/* Eyebrow Badge */}
           <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6 shadow-sm">
             <span>✦</span>
-            <span>CONSENSUS-DRIVEN COMMUNITY</span>
+            <span>CONSENSUS-DRIVEN COMMUNITY GATHERINGS</span>
           </div>
 
-          {/* Headline with Text Cycler ("We’re" prefix + 8 animated phrases) */}
+          {/* Headline with Text Cycler */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
-            We’re{' '}
+            Actually, Let’s{' '}
             <span className="inline-block text-[#C8643F] transition-all duration-300 font-serif-fraunces underline decoration-[#E08A63]/50 decoration-wavy underline-offset-8">
               {heroPhrases[activityIndex]}
             </span>
@@ -135,79 +137,107 @@ export default function IntroPage() {
 
           {/* Subtext */}
           <p className="mt-6 text-base sm:text-lg text-[#6A6253] max-w-2xl mx-auto leading-relaxed">
-            We replace guesswork with community consensus. Vote on your preferred gatherings and dates, and we&apos;ll coordinate the rest.
+            Coordinating effortless, recurring local gatherings without group-chat chaos.
           </p>
 
-          {/* City Cards Row */}
-          <div id="cities" className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+          {/* Active & Upcoming City Chapters Row - 4-Column Horizontal Grid */}
+          <div id="cities" className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-5xl mx-auto text-left">
             {/* Chicago Active Card */}
             <Link
               href="/chicago"
-              className="bg-[#FBF7EE] hover:bg-white border-2 border-[#C8643F] p-5 rounded-2xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 group"
+              className="bg-[#FBF7EE] hover:bg-white border-2 border-[#C8643F] p-4 rounded-2xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 group flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
-                  Chicago
-                </span>
-                <span className="w-2.5 h-2.5 rounded-full bg-[#6E7F5E] animate-pulse" />
+              <div>
+                <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                  <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
+                    Chicago
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-50 text-emerald-800 border border-emerald-200/80 whitespace-nowrap shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ACTIVE POLL
+                  </span>
+                </div>
+                <p className="text-xs text-[#6A6253] leading-relaxed">
+                  Community availability poll live. Pick dates and vibes for our upcoming gathering.
+                </p>
               </div>
-              <p className="text-xs text-[#6A6253] mb-3 leading-relaxed">
-                Fall Series survey open. Voting in progress across Chicago and outside the city.
-              </p>
-              <div className="text-xs font-bold text-[#C8643F] flex items-center gap-1 group-hover:gap-2 transition-all">
-                <span>Enter RSVP</span>
+              <div className="text-xs font-bold text-[#C8643F] flex items-center gap-1 group-hover:gap-2 transition-all mt-auto pt-3">
+                <span>Cast Your Vote</span>
                 <span>→</span>
               </div>
             </Link>
 
             {/* Austin Teaser Card */}
-            <div className="bg-[#EDE4D3]/60 border border-[#D8CEBC] p-5 rounded-2xl opacity-80">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
-                  Austin
-                </span>
-                <span className="text-[10px] bg-[#D8CEBC] text-[#6A6253] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                  SOON
-                </span>
+            <div className="bg-[#EDE4D3]/60 border border-[#D8CEBC] p-4 rounded-2xl opacity-90 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                  <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
+                    Austin
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide bg-stone-100 text-stone-600 border border-stone-200/80 whitespace-nowrap shrink-0">
+                    <span className="text-[10px]">⏳</span>
+                    SOON
+                  </span>
+                </div>
+                <p className="text-xs text-[#6A6253] leading-relaxed">
+                  Casual dinners, outdoor hangs, and neighborhood meetups across Austin.
+                </p>
               </div>
-              <p className="text-xs text-[#6A6253] leading-relaxed">
-                Waitlist opening soon for Austin and surrounding areas.
-              </p>
+              <div className="mt-auto pt-3 text-[11px] text-[#8C8270] font-medium">
+                Waitlist opening shortly
+              </div>
             </div>
 
             {/* New York Teaser Card */}
-            <div className="bg-[#EDE4D3]/60 border border-[#D8CEBC] p-5 rounded-2xl opacity-80">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
-                  New York
-                </span>
-                <span className="text-[10px] bg-[#D8CEBC] text-[#6A6253] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                  2027
-                </span>
+            <div className="bg-[#EDE4D3]/60 border border-[#D8CEBC] p-4 rounded-2xl opacity-90 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                  <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
+                    New York
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide bg-stone-100 text-stone-600 border border-stone-200/80 whitespace-nowrap shrink-0">
+                    <span className="text-[10px]">⏳</span>
+                    SOON
+                  </span>
+                </div>
+                <p className="text-xs text-[#6A6253] leading-relaxed">
+                  Curated dinners, socials, and creative meetups across the boroughs.
+                </p>
               </div>
-              <p className="text-xs text-[#6A6253] leading-relaxed">
-                Waitlist opening soon for New York City and surrounding areas.
-              </p>
+              <div className="mt-auto pt-3 text-[11px] text-[#8C8270] font-medium">
+                Waitlist opening shortly
+              </div>
             </div>
-          </div>
 
-          {/* Smooth Scroll Indicator */}
-          <div className="mt-10">
-            <a
-              href="#how-it-works"
-              className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-[#6A6253] hover:text-[#2B271F] transition-colors py-2 px-4 rounded-full border border-transparent hover:border-[#D8CEBC]"
-            >
-              <span>Explore how it works</span>
-              <span className="text-base animate-bounce">↓</span>
-            </a>
+            {/* San Francisco Teaser Card */}
+            <div className="bg-[#EDE4D3]/60 border border-[#D8CEBC] p-4 rounded-2xl opacity-90 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                  <span className="font-serif-fraunces font-bold text-lg text-[#2B271F]">
+                    San Francisco
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide bg-stone-100 text-stone-600 border border-stone-200/80 whitespace-nowrap shrink-0">
+                    <span className="text-[10px]">⏳</span>
+                    SOON
+                  </span>
+                </div>
+                <p className="text-xs text-[#6A6253] leading-relaxed">
+                  Social gatherings, park meetups, and casual dining around the Bay.
+                </p>
+              </div>
+              <div className="mt-auto pt-3 text-[11px] text-[#8C8270] font-medium">
+                Waitlist opening shortly
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* 2. HOW IT WORKS SECTION (CARD DECK STYLE FULL-WIDTH STACK) */}
-        <section id="how-it-works" className="pt-14 sm:pt-16 pb-12 animate-fade-in-delayed">
-          <div className="text-center mb-10">
+
+        {/* 2. HOW IT WORKS SECTION */}
+        <section id="how-it-works" className="pt-10 sm:pt-14 pb-12 animate-fade-in-delayed">
+          <div className="text-center mb-8">
             <span className="text-xs uppercase tracking-widest font-bold text-[#4C5A40]">
-              THE EXPERIENCE DECK
+              THE EXPERIENCE
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
               How It Works
@@ -216,75 +246,89 @@ export default function IntroPage() {
 
           <div className="space-y-4">
             {/* Card 1 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 1
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
                   Vote on vibes &amp; dates
                 </h3>
                 <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  Pick the gatherings you&apos;d actually show up for — yoga mornings, mimosa brunches, ladies&apos; nights, couples dates — and mark the days and times that fit your real calendar.
+                  Pick the gatherings you&apos;d actually show up for — yoga mornings, mimosa brunches, ladies&apos; nights, date nights — and mark the dates that fit your real calendar.
                 </p>
               </div>
             </div>
 
             {/* Card 2 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 2
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
-                  We find the winning time
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
+                  We tally consensus &amp; sync your calendar
                 </h3>
                 <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  We tally everyone&apos;s availability and lock in the slot that works for the most people. No more &lsquo;when&apos;s good for you?&rsquo; bouncing around a group chat for three weeks.
+                  We lock in the winning slot that works for the most people. Your live calendar feed updates automatically as details are finalized.
                 </p>
               </div>
             </div>
 
             {/* Card 3 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#6E7F5E] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#6E7F5E] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 3
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold font-serif-fraunces text-[#2B271F]">
-                  Watch for your invite
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
+                  Show up and connect
                 </h3>
                 <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  Once the date&apos;s set, keep an eye on your inbox — we&apos;ll email you the event details, plus how to sign up and grab your ticket. A portion of every ticket supports local community and sustainability nonprofits, so a good time does a little good, too.
+                  We send you the venue details and ticket link. A portion of every gathering supports local community initiatives.
                 </p>
               </div>
             </div>
           </div>
-        </section>
 
-        {/* 3. BOTTOM CTA ELEVATED CARD */}
-        <section className="mt-8 bg-gradient-to-br from-[#FBF7EE] to-[#EDE4D3] border border-[#D8CEBC] rounded-3xl p-8 sm:p-12 text-center shadow-md animate-fade-in-delayed-2">
-          <span className="text-xs uppercase tracking-wider font-bold text-[#C8643F]">
-            READY TO BEGIN?
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-2">
-            Shape Chicago&apos;s Next Gathering
-          </h2>
-          <p className="text-sm sm:text-base text-[#6A6253] max-w-md mx-auto mt-2">
-            Takes just a minute to cast your dates and preferences.
-          </p>
-          <div className="mt-7">
+          {/* How It Works CTA */}
+          <div className="mt-8 text-center">
             <Link
-              href="/chicago"
-              className="inline-flex items-center gap-2.5 bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] hover:text-white px-8 py-4 rounded-full font-semibold text-sm tracking-wide shadow-md hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+              href="/host"
+              className="inline-flex items-center gap-2 bg-[#FBF7EE] hover:bg-[#EDE4D3] text-[#2B271F] border border-[#D8CEBC] text-xs sm:text-sm font-bold px-5 py-3 rounded-full transition-all shadow-xs hover:shadow hover:scale-102"
             >
-              <span>Ready to begin? RSVP Chicago</span>
-              <span>→</span>
+              <span>Want to lead gatherings in your city?</span>
+              <span className="text-[#C8643F]">Become a Host →</span>
             </Link>
           </div>
-          <p className="mt-4 text-xs text-[#6A6253]">
-            Free to submit · Instant confirmation with preferred dates &amp; times
-          </p>
+        </section>
+
+        {/* 3. HOST APPLICATION TEASER CARD */}
+        <section id="host" className="mt-8 bg-[#FBF7EE] border-2 border-[#D8CEBC] rounded-3xl p-6 sm:p-10 shadow-lg animate-fade-in-delayed-2">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs uppercase tracking-widest font-bold text-[#C8643F]">
+              LEAD YOUR COMMUNITY
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-2 leading-tight">
+              Launch Actually, Let&apos;s in Your City — Become a Host Admin
+            </h2>
+            <p className="text-sm sm:text-base text-[#6A6253] mt-3 leading-relaxed">
+              Turn messy group chats into effortless gatherings. Apply to lead your city chapter or unlock your own Host Admin workspace to coordinate private events, social clubs, or community meetups.
+            </p>
+
+            <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+              <Link
+                href="/host"
+                className="w-full sm:w-auto bg-[#C8643F] hover:bg-[#b05230] text-white py-3.5 px-8 rounded-xl font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 text-center"
+              >
+                Apply for Host Admin Workspace →
+              </Link>
+            </div>
+
+            <p className="text-[11px] text-[#8C8270] text-center pt-4 leading-relaxed">
+              ✦ Host Admin Beta includes automated calendar availability polling, broadcast alerts, and dynamic event feeds.
+            </p>
+          </div>
         </section>
       </main>
 
@@ -296,6 +340,10 @@ export default function IntroPage() {
               Chicago Series
             </Link>
             <span>▪</span>
+            <Link href="/host" className="hover:text-[#2B271F] transition-colors">
+              Host Application
+            </Link>
+            <span>▪</span>
             <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
               Privacy Policy
             </Link>
@@ -304,19 +352,15 @@ export default function IntroPage() {
               Terms of Service
             </Link>
             <span>▪</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = 'mailto:admin@actuallylets.com';
-              }}
-              className="underline hover:text-stone-800 transition-colors bg-transparent border-0 p-0 inline cursor-pointer text-inherit font-inherit"
+            <a
+              href="mailto:admin@actuallylets.com"
+              className="underline hover:text-stone-800 transition-colors"
             >
-              rsvp@actuallylets.com
-            </button>
+              admin@actuallylets.com
+            </a>
           </div>
           <p className="text-[11px] sm:text-xs">
-            <strong>Actually, Let’s</strong> &bull; Chicago, IL &bull; A portion of every ticket supports local community and sustainability nonprofits.
+            <strong>Actually, Let’s</strong> &bull; Consensus-driven community gatherings &bull; A portion of every ticket supports local community initiatives.
           </p>
         </div>
       </footer>

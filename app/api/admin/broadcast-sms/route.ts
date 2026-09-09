@@ -16,18 +16,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate SMS message length (max 160 characters)
-    const trimmedMessage = typeof message === "string" ? message.trim() : "";
+    // Validate SMS message text
+    let trimmedMessage = typeof message === "string" ? message.trim() : "";
+    const rawEventUrl = typeof (body.eventUrl || body.ticketUrl) === "string" ? (body.eventUrl || body.ticketUrl).trim() : "";
+    if (rawEventUrl && !trimmedMessage.includes(rawEventUrl)) {
+      trimmedMessage = `${trimmedMessage}\n\nRSVP / details: ${rawEventUrl}`;
+    }
+
     if (!trimmedMessage) {
       return NextResponse.json(
         { error: "SMS message text is required." },
-        { status: 400 }
-      );
-    }
-
-    if (trimmedMessage.length > 160) {
-      return NextResponse.json(
-        { error: "SMS message exceeds maximum length of 160 characters." },
         { status: 400 }
       );
     }

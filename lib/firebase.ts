@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -26,6 +27,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
 export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt">): Promise<string> {
   const emailLower = data.email ? data.email.trim().toLowerCase() : "";

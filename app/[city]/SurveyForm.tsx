@@ -1,11 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
-import { saveResponse } from '@/lib/firebase';
+import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { Turnstile } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
+import PostRsvpAuthModal from '@/components/survey/PostRsvpAuthModal';
+import {
+  parseIcsBusyIntervals,
+  getCandidateSlotIntervals,
+  getSurveyDateBounds,
+  evaluateSlotConflicts,
+  fetchGoogleFreeBusy,
+} from '@/lib/smartCalendar';
 
 const GATHERINGS = [
   "Moms Morning",
@@ -77,18 +85,29 @@ export default function SurveyForm({
   const [selectedGuests, setSelectedGuests] = useState<string>('');
   const [selectedDrink, setSelectedDrink] = useState<string>('');
 
+  // Smart Calendar Availability State
+  const [checkingCalendar, setCheckingCalendar] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState<'google' | 'ics' | null>(null);
+  const [slotStatusMap, setSlotStatusMap] = useState<Record<string, 'free' | 'busy'>>({});
+  const [calendarScanMessage, setCalendarScanMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [customDate, setCustomDate] = useState('');
   const [customTime, setCustomTime] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [responseId, setResponseId] = useState('');
+  const [showPostRsvpModal, setShowPostRsvpModal] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
@@ -97,6 +116,143 @@ export default function SurveyForm({
       setList(list.filter((i) => i !== item));
     } else {
       setList([...list, item]);
+    }
+  };
+
+  const applyAvailabilityResults = (busyIntervals: { start: Date; end: Date }[], source: 'google' | 'ics') => {
+    const candidateSlots = getCandidateSlotIntervals(DATES);
+    const conflicts = evaluateSlotConflicts(candidateSlots, busyIntervals);
+
+    const newStatusMap: Record<string, 'free' | 'busy'> = {};
+    const autoSelectDates: string[] = [];
+
+    conflicts.forEach((c) => {
+      if (c.hasConflict) {
+        newStatusMap[c.label] = 'busy';
+      } else {
+        newStatusMap[c.label] = 'free';
+        if (!selectedDates.includes(c.label)) {
+          autoSelectDates.push(c.label);
+        }
+      }
+    });
+
+    setSlotStatusMap(newStatusMap);
+    setCalendarConnected(source);
+
+    if (autoSelectDates.length > 0) {
+      setSelectedDates((prev) => Array.from(new Set([...prev, ...autoSelectDates])));
+    }
+
+    const freeCount = Object.values(newStatusMap).filter((s) => s === 'free').length;
+    setCalendarScanMessage(
+      `✓ Scanned ${source === 'google' ? 'Google Calendar' : '.ics file'}: ${freeCount} slot${freeCount === 1 ? '' : 's'} free & auto-selected!`
+    );
+    setCheckingCalendar(false);
+  };
+
+  const handleIcsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCheckingCalendar(true);
+    setCalendarScanMessage(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const busyIntervals = parseIcsBusyIntervals(content);
+        applyAvailabilityResults(busyIntervals, 'ics');
+      } catch (err) {
+        console.error('Error reading .ics file:', err);
+        setCalendarScanMessage('Could not parse .ics file. Please check the file.');
+        setCheckingCalendar(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConnectGoogleCalendar = async () => {
+    setCheckingCalendar(true);
+    setCalendarScanMessage(null);
+
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+    if (!googleClientId) {
+      setCalendarScanMessage("Google 1-click sync is awaiting OAuth credentials. Use 'Drop / Pick .ics File' to check your availability instantly.");
+      setCheckingCalendar(false);
+      return;
+    }
+
+    try {
+      if (typeof window !== 'undefined' && !(window as any).google?.accounts?.oauth2) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Google Identity script'));
+          document.head.appendChild(script);
+        });
+      }
+
+      if (typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2) {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: googleClientId,
+          scope: 'https://www.googleapis.com/auth/calendar.freebusy',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.error) {
+              console.warn('GIS token error:', tokenResponse.error);
+              if (tokenResponse.error === 'popup_closed_by_user' || tokenResponse.error === 'access_denied') {
+                setCalendarScanMessage("Sign-in cancelled. You can pick dates manually or use .ics drop.");
+              } else {
+                setCalendarScanMessage(`Google sign-in was unable to complete (${tokenResponse.error}). You can pick dates manually or use .ics drop.`);
+              }
+              setCheckingCalendar(false);
+              return;
+            }
+
+            const token = tokenResponse?.access_token;
+            if (token) {
+              try {
+                const candidateSlots = getCandidateSlotIntervals(DATES);
+                const { timeMin, timeMax } = getSurveyDateBounds(candidateSlots);
+                const busyIntervals = await fetchGoogleFreeBusy(token, timeMin, timeMax);
+                applyAvailabilityResults(busyIntervals, 'google');
+
+                // Zero-Trust Token Lifecycle: Revoke ephemeral token immediately after single read query
+                if (typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2?.revoke) {
+                  try {
+                    (window as any).google.accounts.oauth2.revoke(token, () => {
+                      // Token revoked cleanly
+                    });
+                  } catch (revokeErr) {
+                    console.warn('Non-fatal error during token revocation:', revokeErr);
+                  }
+                }
+              } catch (fetchErr: any) {
+                console.error('Error in Google FreeBusy call:', fetchErr);
+                setCalendarScanMessage('Unable to retrieve Google Calendar busy intervals. Please drop an .ics file instead.');
+              } finally {
+                setCheckingCalendar(false);
+              }
+            } else {
+              setCheckingCalendar(false);
+            }
+          },
+          error_callback: (err: any) => {
+            console.warn('Google OAuth error or cancelled:', err);
+            setCalendarScanMessage("Sign-in cancelled. You can pick dates manually or use .ics drop.");
+            setCheckingCalendar(false);
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      }
+    } catch (err: any) {
+      console.error('Google token client initialization error:', err);
+      setCalendarScanMessage('Google authentication unavailable. You can drop an .ics file instead.');
+      setCheckingCalendar(false);
     }
   };
 
@@ -152,6 +308,7 @@ export default function SurveyForm({
         email: trimmedEmail,
         phoneNumber: sanitizedPhone ? sanitizedPhone : null,
         smsOptIn: Boolean(hasSmsOptIn),
+        quarterlyReminder: Boolean(quarterlyReminder),
         dates: Array.isArray(selectedDates) ? selectedDates : [],
         gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
         customGathering: trimmedCustomGathering || null,
@@ -179,7 +336,18 @@ export default function SurveyForm({
         return;
       }
 
+      if (confirmData.responseId) {
+        setResponseId(confirmData.responseId);
+      }
+
       setSubmitted(true);
+      setSubmittedEmail(trimmedEmail);
+
+      // Secure-first: Once the RSVP write to Firestore responses collection resolves,
+      // activate the PostRsvpAuthModal if the user is not already logged in.
+      if (!auth.currentUser) {
+        setShowPostRsvpModal(true);
+      }
     } catch (err: any) {
       console.error("Error submitting response:", err);
       setFormError('Something went wrong submitting your RSVP. Please try again.');
@@ -339,6 +507,125 @@ export default function SurveyForm({
           border-color: var(--terra);
         }
 
+        .status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          padding: 2px 7px;
+          border-radius: 8px;
+          margin-left: 6px;
+          vertical-align: middle;
+          letter-spacing: 0.02em;
+        }
+
+        .status-pill.free {
+          background: #EAF0E6;
+          color: #3B5730;
+          border: 1px solid #BACFB2;
+        }
+
+        .chip.date.on .status-pill.free {
+          background: rgba(255, 255, 255, 0.25);
+          color: #FFFFFF;
+          border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .status-pill.busy {
+          background: #FEF9E7;
+          color: #8C6A18;
+          border: 1px solid #E8D395;
+        }
+
+        .chip.date.on .status-pill.busy {
+          background: rgba(0, 0, 0, 0.15);
+          color: #FFF9E6;
+          border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .smart-connect-bar {
+          background: linear-gradient(135deg, #F6F1E7 0%, #EDE4D3 100%);
+          border: 1.5px solid var(--line);
+          border-radius: 14px;
+          padding: 14px 16px;
+          margin: 12px 0 14px;
+        }
+
+        .smart-connect-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+
+        .smart-connect-title {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: var(--ink);
+          font-family: 'Fraunces', serif;
+        }
+
+        .smart-connect-badge {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: var(--sage-deep);
+          background: #EAF0E6;
+          padding: 2px 8px;
+          border-radius: 10px;
+          border: 1px solid #BACFB2;
+        }
+
+        .smart-connect-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .connect-btn {
+          appearance: none;
+          background: #FFFFFF;
+          border: 1.5px solid var(--line);
+          border-radius: 10px;
+          padding: 8px 14px;
+          font-family: inherit;
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: var(--ink);
+          cursor: pointer;
+          transition: all 0.16s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .connect-btn:hover {
+          border-color: var(--terra);
+          color: var(--terra);
+          transform: translateY(-1px);
+        }
+
+        .connect-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .smart-connect-msg {
+          margin-top: 8px;
+          font-size: 0.8rem;
+          color: #3B5730;
+          font-weight: 600;
+          background: rgba(234, 240, 230, 0.8);
+          padding: 6px 10px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
         input[type='text'],
         input[type='email'],
         input[type='tel'],
@@ -470,8 +757,10 @@ export default function SurveyForm({
             customTime={customTime}
             selectedDrink={selectedDrink}
             selectedGuests={selectedGuests}
+            responseId={responseId}
             onReset={() => {
               setSubmitted(false);
+              setResponseId('');
               setSelectedGatherings([]);
               setCustomGathering('');
               setSelectedDates([]);
@@ -482,6 +771,12 @@ export default function SurveyForm({
               setCustomDate('');
               setCustomTime('');
               setNotes('');
+              setQuarterlyReminder(true);
+              setSlotStatusMap({});
+              setCalendarConnected(null);
+              setCalendarScanMessage(null);
+              setShowPostRsvpModal(false);
+              setSubmittedEmail('');
             }}
           />
         ) : (
@@ -526,6 +821,74 @@ export default function SurveyForm({
 
               <div className="q">
                 <div className="q-label">Which dates could you make?</div>
+                <div className="q-help">Tap any dates that work for you, or auto-detect free slots above.</div>
+
+                {/* Smart Calendar Availability Action Bar */}
+                <div className="smart-connect-bar">
+                  <div className="smart-connect-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="smart-connect-title">⚡ Auto-Check My Availability</span>
+                      <span className="text-[11px] font-semibold text-[#6E7F5E] bg-[#6E7F5E]/10 border border-[#6E7F5E]/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                        ✨ Set It &amp; Forget It
+                      </span>
+                    </div>
+                    <span className="smart-connect-badge">100% Private · Free/Busy Only</span>
+                  </div>
+
+                  <div className="smart-connect-actions">
+                    <button
+                      type="button"
+                      className="connect-btn google"
+                      onClick={handleConnectGoogleCalendar}
+                      disabled={checkingCalendar}
+                    >
+                      <span>{checkingCalendar && calendarConnected === 'google' ? '⏳ Checking...' : '📅 Connect Google Calendar'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="connect-btn ics"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={checkingCalendar}
+                    >
+                      <span>{checkingCalendar && calendarConnected === 'ics' ? '⏳ Reading...' : '📎 Drop / Pick .ics File'}</span>
+                    </button>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".ics,text/calendar"
+                      style={{ display: 'none' }}
+                      onChange={handleIcsUpload}
+                    />
+                  </div>
+
+                  <p style={{ fontSize: '0.78rem', color: '#6A6253', marginTop: '8px', marginBottom: '0', lineHeight: 1.4 }}>
+                    Set it once—automatically checks free/busy slots across your events without manual date picking.
+                  </p>
+
+                  {calendarScanMessage && (
+                    <div className="smart-connect-msg" style={{ marginTop: '8px' }}>
+                      <span>{calendarScanMessage}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSlotStatusMap({});
+                          setCalendarConnected(null);
+                          setCalendarScanMessage(null);
+                        }}
+                        style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#6A6253', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.76rem' }}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-stone-400 font-medium text-center my-2 uppercase tracking-wider">
+                  — or select dates manually below —
+                </div>
+
                 <div className="chips">
                   {DATES.map((d) => (
                     <button
@@ -534,17 +897,16 @@ export default function SurveyForm({
                       className={`chip date ${selectedDates.includes(d) ? 'on' : ''}`}
                       onClick={() => toggleChip(selectedDates, setSelectedDates, d)}
                     >
-                      {d}
+                      <span>{d}</span>
+                      {calendarConnected && slotStatusMap[d] === 'free' && (
+                        <span className="status-pill free">🟢 Free</span>
+                      )}
+                      {calendarConnected && slotStatusMap[d] === 'busy' && (
+                        <span className="status-pill busy">🟡 Busy</span>
+                      )}
                     </button>
                   ))}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Another date that works for you? Type it here…"
-                  style={{ marginTop: '11px' }}
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                />
               </div>
 
               <div className="q">
@@ -725,6 +1087,17 @@ export default function SurveyForm({
                 />
               </div>
 
+              {/* 3-Month Quarterly Availability Reminder Checkbox */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.82rem', color: '#6A6253', cursor: 'pointer', marginBottom: '14px', textAlign: 'left', lineHeight: 1.4 }}>
+                <input 
+                  type="checkbox" 
+                  checked={quarterlyReminder} 
+                  onChange={(e) => setQuarterlyReminder(e.target.checked)} 
+                  style={{ marginTop: '2px', accentColor: '#C8643F' }}
+                />
+                <span>Keep my availability active — remind me to update my schedule every 3 months.</span>
+              </label>
+
               <button className="submit" type="submit" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
@@ -760,6 +1133,16 @@ export default function SurveyForm({
               </div>
             </div>
           </form>
+        )}
+
+        {/* Post-RSVP Account Creation Interception Modal */}
+        {showPostRsvpModal && (
+          <PostRsvpAuthModal
+            isOpen={showPostRsvpModal}
+            email={submittedEmail || email}
+            name={name}
+            onDismissGuest={() => setShowPostRsvpModal(false)}
+          />
         )}
       </div>
     </>

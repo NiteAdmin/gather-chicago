@@ -142,8 +142,9 @@ export async function POST(req: Request) {
     }
 
     // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
+    let savedResponseId: string | null = null;
     try {
-      await saveResponse({
+      savedResponseId = await saveResponse({
         city: typeof city === "string" ? city : "chicago",
         cityName: typeof cityName === "string" ? cityName : "Chicago",
         name: trimmedName,
@@ -160,6 +161,7 @@ export async function POST(req: Request) {
         guests: typeof body.guests === "string" ? body.guests.trim() : null,
         drink: typeof body.drink === "string" ? body.drink.trim() : null,
         notes: typeof body.notes === "string" ? body.notes.trim() : null,
+        quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
       });
     } catch (dbErr) {
       console.error("Firestore server-side save error:", dbErr);
@@ -523,6 +525,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
+      responseId: savedResponseId,
       resendId: resendId,
       adminResendId: adminResendId,
       sender: primarySender,

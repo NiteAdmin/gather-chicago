@@ -12,6 +12,8 @@
     "@marsidev/react-turnstile": "^1.5.4",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.2.0",
+    "framer-motion": "^13.1.1",
+    "lucide-react": "^1.37.0",
     "next": "^16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
