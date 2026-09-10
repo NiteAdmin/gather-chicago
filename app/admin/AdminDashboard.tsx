@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { BroadcastRecord } from '@/lib/firebase';
+import { CommunityEvent, getEventsForCity, fetchHydratedEvents } from '@/lib/eventsConfig';
+import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
 import {
   Users,
   UserCheck,
@@ -89,6 +91,11 @@ export default function AdminDashboard() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [users, setUsers] = useState<RegisteredUser[]>([]);
+
+  // Multi-Event Engine State
+  const [events, setEvents] = useState<CommunityEvent[]>(() => getEventsForCity('chicago'));
+  const [selectedEventId, setSelectedEventId] = useState<string>('chi-sep-26-gathering');
 
   // Announce Winning Date Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -106,6 +113,8 @@ export default function AdminDashboard() {
   const [testEmail, setTestEmail] = useState('admin@actuallylets.com');
   const [isDispatching, setIsDispatching] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeModalEventId, setActiveModalEventId] = useState<string | null>(null);
+  const [activeModalEventTitle, setActiveModalEventTitle] = useState<string | null>(null);
 
   // Admin SMS Broadcast state
   const [smsMessage, setSmsMessage] = useState('');
@@ -122,9 +131,22 @@ export default function AdminDashboard() {
 
   // Contact list search and filter controls state
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterAttendance, setFilterAttendance] = useState<'all' | 'attending' | 'survey_only'>('all');
   const [filterGathering, setFilterGathering] = useState('all');
   const [filterTime, setFilterTime] = useState('all');
   const [filterDate, setFilterDate] = useState('all');
+
+  const loadChapterEvents = async (targetCity: string) => {
+    try {
+      const citySlug = targetCity === 'all' ? 'chicago' : targetCity;
+      const hydrated = await fetchHydratedEvents(citySlug);
+      if (hydrated && hydrated.length > 0) {
+        setEvents(hydrated);
+      }
+    } catch (e) {
+      console.warn('loadChapterEvents error:', e);
+    }
+  };
 
   const fetchResults = async (targetPasscode: string, targetCity: string) => {
     const res = await fetch('/api/admin/results', {
@@ -140,6 +162,13 @@ export default function AdminDashboard() {
     }
 
     setResponses(data.responses || []);
+    if (Array.isArray(data.users)) {
+      setUsers(data.users);
+    } else {
+      fetchAllUsers().then((u) => {
+        if (u.length > 0) setUsers(u);
+      }).catch((e) => console.warn('fetchAllUsers fallback error:', e));
+    }
   };
 
   const loadBroadcasts = async (targetCity: string, overridePasscode?: string) => {
@@ -182,6 +211,7 @@ export default function AdminDashboard() {
       await Promise.all([
         fetchResults(trimmedPasscode, selectedCity),
         loadBroadcasts(selectedCity, trimmedPasscode),
+        loadChapterEvents(selectedCity),
       ]);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
@@ -199,6 +229,7 @@ export default function AdminDashboard() {
         await Promise.all([
           fetchResults(passcode, newCity),
           loadBroadcasts(newCity, passcode),
+          loadChapterEvents(newCity),
         ]);
       } catch (err: any) {
         console.error('Failed to update city filter:', err);
@@ -246,8 +277,47 @@ export default function AdminDashboard() {
   const smsOptedInResponses = responses.filter(
     (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
   );
+  const smsReachRate = responses.length > 0 ? Math.round((smsOptedInResponses.length / responses.length) * 100) : 0;
+
+  const selectedEvent: CommunityEvent =
+    events.find((e) => e.id === selectedEventId) ||
+    events[0] || {
+      id: 'chi-sep-26-gathering',
+      city: 'chicago',
+      title: 'Actually, Let’s Stretch & Sip — Moksha Yoga',
+      date: '2026-09-26',
+      displayDate: 'Sat, Sep 26',
+      timeWindow: '10:30 AM (10:00 AM – 12:00 PM CDT)',
+      category: 'wellness',
+      categoryLabel: 'WELLNESS & MOVEMENT',
+      icon: '🧘',
+      venueName: 'Moksha Yoga Center',
+      venueAddress: '2528 W Armitage Ave, Chicago, IL',
+      description: 'Join us for a morning yoga session at Moksha Yoga Center.',
+      status: 'confirmed',
+      capacity: 30,
+    };
+
+  const eventAttendance = calculateEventAttendance(selectedEvent, users, responses);
+  const eventCapacity = selectedEvent.capacity;
+  const spotsLeft = eventCapacity !== undefined ? Math.max(0, eventCapacity - eventAttendance.confirmedCount) : null;
+  const capacityPercent =
+    eventCapacity && eventCapacity > 0
+      ? Math.min(100, Math.round((eventAttendance.confirmedCount / eventCapacity) * 100))
+      : 0;
 
   const filteredResponses = responses.filter((r) => {
+    // 0. Event Attendance filter
+    if (filterAttendance === 'attending') {
+      if (!isContactAttendingEvent(r, selectedEvent, users)) {
+        return false;
+      }
+    } else if (filterAttendance === 'survey_only') {
+      if (isContactAttendingEvent(r, selectedEvent, users)) {
+        return false;
+      }
+    }
+
     // 1. Search Query filter across Name, Email, Phone
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -339,14 +409,21 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleOpenAdminModal = () => {
-    const defaultDate = topDateOption || DATES[0];
+  const handleOpenAdminModal = (targetEvent?: CommunityEvent | React.MouseEvent) => {
+    const ev = targetEvent && 'id' in targetEvent ? targetEvent : selectedEvent;
+    const defaultDate = ev?.displayDate || topDateOption || DATES[0];
     setWinningDate(defaultDate);
-    setEventTimeWindow('10:00 AM – 12:00 PM CDT');
-    setVenueName('');
-    setVenueAddress('');
-    setEventLink('');
-    setHostNote("Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras.");
+    setEventTimeWindow(ev?.timeWindow || '10:00 AM – 12:00 PM CDT');
+    setVenueName(ev?.venueName || '');
+    setVenueAddress(ev?.venueAddress || '');
+    setEventLink(ev?.partifulUrl || ev?.externalUrl || '');
+    setHostNote(
+      ev?.hostAnnouncement ||
+      ev?.description ||
+      "Can't wait to gather, stretch, and connect with everyone! Bring a mat if you have one, but we'll have extras."
+    );
+    setActiveModalEventId(ev?.id || null);
+    setActiveModalEventTitle(ev?.title || null);
     setModalStep('configure');
     setConfirmInput('');
     setToastMessage(null);
@@ -386,6 +463,8 @@ export default function AdminDashboard() {
           totalSurveysFound: responses.length,
           groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
           groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
+          eventId: activeModalEventId || selectedEvent?.id,
+          eventTitle: activeModalEventTitle || selectedEvent?.title,
         }),
       });
 
@@ -803,128 +882,291 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* CONFIRMED GATHERING BANNER (If broadcast exists) */}
-          {broadcasts.length > 0 && (
-            <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="inline-flex items-center gap-1.5 bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
+          {/* SECTION 1: CONFIRMED / UPCOMING GATHERING CARD WITH DYNAMIC EVENT SWITCHER */}
+          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#EBE3D5]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    selectedEvent.status === 'confirmed'
+                      ? 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]'
+                      : 'bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F]'
+                  }`}
+                >
+                  {selectedEvent.status === 'confirmed' ? (
                     <Sparkles className="w-3.5 h-3.5 text-[#3D6B42]" />
-                    <span>Confirmed Gathering · {formatCityName(broadcasts[0].city || selectedCity)}</span>
+                  ) : (
+                    <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
+                  )}
+                  <span>
+                    {selectedEvent.status === 'confirmed' ? 'Confirmed Gathering' : 'Upcoming Gathering'} · {formatCityName(selectedEvent.city || selectedCity)}
+                  </span>
+                </div>
+                {selectedEvent.categoryLabel && (
+                  <span className="text-[11px] font-semibold text-[#8C827A] px-2 py-0.5 rounded-md bg-[#EDE4D3]/50">
+                    {selectedEvent.categoryLabel}
+                  </span>
+                )}
+              </div>
+
+              {/* Active Gathering Dropdown Switcher */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="admin-gathering-switcher" className="text-xs font-bold uppercase tracking-wider text-[#6A6253] shrink-0">
+                  Active Gathering:
+                </label>
+                <div className="relative">
+                  <select
+                    id="admin-gathering-switcher"
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className="bg-white border border-[#D8CEBC] text-[#2B271F] text-xs font-semibold rounded-xl px-3 py-2 pr-8 focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none"
+                  >
+                    <optgroup label="Upcoming Chapter Gatherings">
+                      {events
+                        .filter((ev) => ev.id !== 'chi-legacy-polled-sep-26')
+                        .map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.displayDate} — {ev.title}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Legacy / Polled Gathering">
+                      {events
+                        .filter((ev) => ev.id === 'chi-legacy-polled-sep-26')
+                        .map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.displayDate} — {ev.title}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#8C827A]">
+                    <ChevronDown className="w-3.5 h-3.5" />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
-                    {broadcasts[0].winningDate}
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#6A6253]">
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Pill Switcher for Chapter Gatherings */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-bold text-[#8C827A] uppercase tracking-wider shrink-0">
+                Quick Toggle:
+              </span>
+              {events.map((ev) => {
+                const isSelected = ev.id === selectedEvent.id;
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEventId(ev.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#C8643F] text-white shadow-xs'
+                        : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
+                    }`}
+                  >
+                    {ev.icon ? `${ev.icon} ` : ''}
+                    {ev.displayDate}: {ev.title.length > 24 ? `${ev.title.slice(0, 24)}…` : ev.title}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Main Gathering Info & Actions Row */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
+                  {selectedEvent.title}
+                </h2>
+                <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#6A6253]">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-[#2B271F]">
+                    <CalendarDays className="w-4 h-4 text-[#C8643F]" />
+                    {selectedEvent.displayDate} ({selectedEvent.date})
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#8C827A]" />
+                    {selectedEvent.timeWindow}
+                  </span>
+                  {(selectedEvent.venueName || selectedEvent.venueAddress) && (
                     <span className="inline-flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-[#8C827A]" />
-                      {broadcasts[0].timeWindow || '10:00 AM – 12:00 PM CDT'}
+                      <MapPin className="w-4 h-4 text-[#E07A5F]" />
+                      <strong>{selectedEvent.venueName}</strong>
+                      {selectedEvent.venueAddress && (
+                        <a
+                          href={`https://maps.google.com/?q=${encodeURIComponent(`${selectedEvent.venueName || ''} ${selectedEvent.venueAddress}`.trim())}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#C8643F] underline inline-flex items-center gap-0.5 ml-1"
+                        >
+                          ({selectedEvent.venueAddress})
+                          <ExternalLink className="w-3 h-3 inline" />
+                        </a>
+                      )}
                     </span>
-                    {(broadcasts[0].venueName || broadcasts[0].venueAddress) && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-[#E07A5F]" />
-                        <strong>{broadcasts[0].venueName}</strong>
-                        {broadcasts[0].venueAddress && (
-                          <a
-                            href={`https://maps.google.com/?q=${encodeURIComponent(`${broadcasts[0].venueName || ''} ${broadcasts[0].venueAddress}`.trim())}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#C8643F] underline inline-flex items-center gap-0.5 ml-1"
-                          >
-                            ({broadcasts[0].venueAddress})
-                            <ExternalLink className="w-3 h-3 inline" />
-                          </a>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  {broadcasts[0].customNote && (
-                    <p className="text-xs text-[#6A6253] italic bg-white/70 border border-[#EBE3D5] rounded-xl p-2.5 mt-2">
-                      &ldquo;{broadcasts[0].customNote}&rdquo;
-                    </p>
+                  )}
+                  {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
+                    <a
+                      href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#C8643F] hover:underline inline-flex items-center gap-1 font-semibold"
+                    >
+                      <Ticket className="w-3.5 h-3.5" />
+                      <span>{selectedEvent.externalUrlLabel || 'RSVP / Ticket Page'}</span>
+                      <ExternalLink className="w-3 h-3 inline" />
+                    </a>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 shrink-0">
-                  <div className="flex gap-2 text-xs">
-                    <span className="bg-[#EDF5EE] border border-[#BACFB2] text-[#3B5730] px-2.5 py-1 rounded-lg font-semibold">
-                      Group A: {broadcasts[0].groupACount}
-                    </span>
-                    <span className="bg-[#F4EEE2] border border-[#D8CEBC] text-[#6A6253] px-2.5 py-1 rounded-lg font-semibold">
-                      Group B: {broadcasts[0].groupBCount}
-                    </span>
-                    <span className="bg-[#EDE4D3] border border-[#D8CEBC] text-[#2B271F] px-2.5 py-1 rounded-lg font-bold">
-                      Total: {broadcasts[0].totalDispatched} Notified
-                    </span>
+                {selectedEvent.hostAnnouncement ? (
+                  <p className="text-xs text-[#6A6253] italic bg-white/70 border border-[#EBE3D5] rounded-xl p-2.5 mt-2">
+                    &ldquo;{selectedEvent.hostAnnouncement}&rdquo;
+                  </p>
+                ) : selectedEvent.description ? (
+                  <p className="text-xs text-[#6A6253] bg-white/50 border border-[#EBE3D5] rounded-xl p-2.5 mt-2">
+                    {selectedEvent.description}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Dynamic Event Stats, Capacity Gauge & Action Controls */}
+              <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 shrink-0">
+                {/* Status Badges & Capacity Gauge Progress Bar */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <div className="bg-[#EDF5EE] border border-[#BACFB2] text-[#3B5730] px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs">
+                    <UserCheck className="w-3.5 h-3.5 text-[#3D6B42]" />
+                    <span>Confirmed RSVPs: {eventAttendance.confirmedCount}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowHistoryDrawer(true)}
-                      className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs"
-                    >
-                      <History className="w-3.5 h-3.5 text-[#8C827A]" />
-                      <span>Broadcast History ({broadcasts.length})</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleOpenAdminModal}
-                      className="inline-flex items-center gap-1.5 bg-[#C8643F] hover:bg-[#B25532] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs"
-                    >
-                      <Megaphone className="w-3.5 h-3.5" />
-                      <span>Update Announcement</span>
-                    </button>
+
+                  {/* Inline Capacity Gauge */}
+                  <div className="bg-[#FAF7F2] border border-[#D8CEBC] px-3 py-1.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
+                    <Users className="w-3.5 h-3.5 text-[#8C827A] shrink-0" />
+                    {selectedEvent.capacity ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-36 bg-[#EBE3D5] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#5F7A60] rounded-full transition-all duration-500"
+                            style={{ width: `${capacityPercent}%` }}
+                          />
+                        </div>
+                        <span className="font-semibold text-[#6A6253] whitespace-nowrap text-xs">
+                          {eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled ({capacityPercent}%)
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="font-semibold text-[#6A6253] text-xs">Capacity: Open</span>
+                    )}
                   </div>
+
+                  {broadcasts.length > 0 && (
+                    <div className="bg-[#EDE4D3] border border-[#D8CEBC] text-[#2B271F] px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs">
+                      <Megaphone className="w-3.5 h-3.5 text-[#E07A5F]" />
+                      <span>{broadcasts[0].totalDispatched} Broadcasted</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* SECTION 2: KPI GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* KPI 1: Responses */}
-            <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Responses</span>
-                <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{responses.length}</div>
-                <span className="text-[11px] text-[#8C827A] mt-0.5 block">Verified survey submissions</span>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#FDF2F0] border border-[#F5C2BA] flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-[#E07A5F]" />
-              </div>
-            </div>
-
-            {/* KPI 2: Projected Attendance */}
-            <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Projected Attendance</span>
-                <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{totalEstimatedGuests}</div>
-                <span className="text-[11px] text-[#8C827A] mt-0.5 block">Including RSVPs + guest headcounts</span>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#EDF5EE] border border-[#D4E8D6] flex items-center justify-center shrink-0">
-                <UserCheck className="w-5 h-5 text-[#5F7A60]" />
-              </div>
-            </div>
-
-            {/* KPI 3: Leading Day */}
-            <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Leading Day</span>
-                <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
-                  {topDateOption ? topDateOption.split(',')[0] : '—'}
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowHistoryDrawer(true)}
+                    className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                  >
+                    <History className="w-3.5 h-3.5 text-[#8C827A]" />
+                    <span>Broadcast History ({broadcasts.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAdminModal(selectedEvent)}
+                    className="inline-flex items-center gap-1.5 bg-[#C8643F] hover:bg-[#B25532] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                  >
+                    <Megaphone className="w-3.5 h-3.5" />
+                    <span>Update Announcement</span>
+                  </button>
                 </div>
-                <span className="text-[11px] text-[#8C827A] mt-0.5 block">Highest consensus date</span>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#FAF0EB] border border-[#EED4C8] flex items-center justify-center shrink-0">
-                <CalendarDays className="w-5 h-5 text-[#C8643F]" />
               </div>
             </div>
           </div>
 
-          {/* SECTION 2: 12-COLUMN ANALYTICS SUITE */}
+          {/* SECTION 2: MACRO INTAKE & SURVEY POLLING */}
+          <div className="space-y-4 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 border-b border-[#EBE3D5]">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#6E7F5E]">
+                    MACRO INTAKE ANALYTICS
+                  </span>
+                  <span className="text-[#D8CEBC]">·</span>
+                  <span className="text-xs text-[#8C827A]">Chapter-Wide Consensus</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
+                  Chapter Intake &amp; Survey Polling
+                </h2>
+                <p className="text-xs text-[#6A6253] mt-0.5">
+                  Aggregate community survey intake ({responses.length} responses, {totalEstimatedGuests} projected attendees) reflecting chapter-wide consensus and demand, distinct from active event RSVP headcounts.
+                </p>
+              </div>
+            </div>
+
+            {/* KPI GRID - 4 BALANCED METRIC CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Metric 1: Intake Responses */}
+              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Intake Responses</span>
+                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{responses.length}</div>
+                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Verified survey submissions</span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-[#FDF2F0] border border-[#F5C2BA] flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-[#E07A5F]" />
+                </div>
+              </div>
+
+              {/* Metric 2: Projected Attendance */}
+              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Projected Attendance</span>
+                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{totalEstimatedGuests}</div>
+                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Survey signups + guests</span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-[#EDF5EE] border border-[#D4E8D6] flex items-center justify-center shrink-0">
+                  <UserCheck className="w-5 h-5 text-[#5F7A60]" />
+                </div>
+              </div>
+
+              {/* Metric 3: SMS Reach */}
+              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">SMS Reach</span>
+                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{smsReachRate}%</div>
+                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">{smsOptedInResponses.length} opted-in numbers</span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-[#EDF5EE] border border-[#D4E8D6] flex items-center justify-center shrink-0">
+                  <MessageSquare className="w-5 h-5 text-[#5F7A60]" />
+                </div>
+              </div>
+
+              {/* Metric 4: Leading Day */}
+              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Leading Day</span>
+                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+                    {topDateOption ? topDateOption.split(',')[0] : '—'}
+                  </div>
+                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Top polled chapter date</span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-[#FAF0EB] border border-[#EED4C8] flex items-center justify-center shrink-0">
+                  <CalendarDays className="w-5 h-5 text-[#C8643F]" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: 12-COLUMN ANALYTICS SUITE */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Col (Span 7) */}
-            <div className="lg:col-span-7 space-y-6">
+            {/* Left Col (col-span-12 lg:col-span-6): Date Polling, Write-In Demands, Time Preferences & Quick Splits */}
+            <div className="col-span-12 lg:col-span-6 space-y-6">
               {/* Date Polling Results */}
               <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
                 <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-[#EBE3D5]">
@@ -936,7 +1178,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={handleOpenAdminModal}
+                    onClick={() => handleOpenAdminModal(selectedEvent)}
                     className="bg-[#C8643F] hover:bg-[#B25532] text-white rounded-xl px-4 py-2 text-sm font-medium inline-flex items-center gap-2 shadow-xs cursor-pointer transition-colors"
                   >
                     <Megaphone className="w-4 h-4" />
@@ -946,13 +1188,13 @@ export default function AdminDashboard() {
                 {renderBars(dateTally)}
               </div>
 
-              {/* Write-In Requests */}
+              {/* Write-In Demands & Requests */}
               {(writeInGatherings.length > 0 || writeInDates.length > 0 || writeInTimes.length > 0) && (
                 <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs space-y-4">
                   <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                     <PenLine className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                      Write-In Requests
+                      Write-In Demands &amp; Requests
                     </h3>
                   </div>
                   {writeInGatherings.length > 0 && (
@@ -993,10 +1235,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
               )}
-            </div>
 
-            {/* Right Col (Span 5) */}
-            <div className="lg:col-span-5 space-y-6">
               {/* Time Preferences */}
               <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
@@ -1006,17 +1245,6 @@ export default function AdminDashboard() {
                   </h3>
                 </div>
                 {renderBars(timeTally)}
-              </div>
-
-              {/* Gathering Demand */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
-                  <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                    Gathering Demand
-                  </h3>
-                </div>
-                {renderBars(gathTally)}
               </div>
 
               {/* Quick Splits */}
@@ -1041,6 +1269,20 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Right Col (col-span-12 lg:col-span-6): Gathering Demand */}
+            <div className="col-span-12 lg:col-span-6 space-y-6">
+              {/* Gathering Demand */}
+              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
+                <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
+                  <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
+                    Gathering Demand
+                  </h3>
+                </div>
+                {renderBars(gathTally)}
+              </div>
+            </div>
           </div>
 
           {/* SECTION 4: CONTACT ROSTER DATA TABLE */}
@@ -1052,7 +1294,11 @@ export default function AdminDashboard() {
                 </h3>
                 <p className="text-xs text-[#6A6253] mt-0.5">
                   Showing <strong>{filteredResponses.length}</strong> of <strong>{responses.length}</strong> contacts
-                  {(searchQuery || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') && ' (Filtered)'}
+                  {(searchQuery || filterAttendance !== 'all' || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') && (
+                    <span className="text-[#C8643F] font-semibold ml-1">
+                      (Filtered{filterAttendance === 'attending' ? ` · Attending ${selectedEvent.title}` : filterAttendance === 'survey_only' ? ' · Survey Only' : ''})
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -1069,7 +1315,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Filter Toolbar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-[#F5EFE6]/60 border border-[#EBE3D5] rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 bg-[#F5EFE6]/60 border border-[#EBE3D5] rounded-xl">
               {/* Search Bar */}
               <div>
                 <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
@@ -1083,6 +1329,25 @@ export default function AdminDashboard() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-white border border-[#D8CEBC] rounded-lg px-3 py-2 text-xs text-[#2B271F] focus:outline-none focus:border-[#C8643F]"
                 />
+              </div>
+
+              {/* Event Attendance Filter */}
+              <div>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-[#8C827A]" />
+                  <span>Attending Event</span>
+                </label>
+                <select
+                  value={filterAttendance}
+                  onChange={(e) => setFilterAttendance(e.target.value as any)}
+                  className="w-full bg-white border border-[#D8CEBC] rounded-lg px-3 py-2 text-xs text-[#2B271F] font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer"
+                >
+                  <option value="all">All Contacts ({responses.length})</option>
+                  <option value="attending">
+                    Attending: {selectedEvent.title.length > 20 ? `${selectedEvent.title.slice(0, 20)}…` : selectedEvent.title}
+                  </option>
+                  <option value="survey_only">Survey Only (Not RSVP&apos;d)</option>
+                </select>
               </div>
 
               {/* Interest Filter */}
@@ -1145,11 +1410,12 @@ export default function AdminDashboard() {
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setFilterAttendance('all');
                     setFilterGathering('all');
                     setFilterTime('all');
                     setFilterDate('all');
                   }}
-                  disabled={!searchQuery && filterGathering === 'all' && filterTime === 'all' && filterDate === 'all'}
+                  disabled={!searchQuery && filterAttendance === 'all' && filterGathering === 'all' && filterTime === 'all' && filterDate === 'all'}
                   className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-white border-[#D8CEBC] text-[#6A6253] hover:border-[#C8643F] hover:text-[#C8643F]"
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1" />
@@ -1386,7 +1652,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F]">
-                    Announce Winning Date
+                    {activeModalEventTitle ? `Announce Gathering · ${activeModalEventTitle}` : 'Announce Winning Date'}
                   </h3>
                   <p className="text-xs text-[#6A6253] mt-0.5">
                     {formatCityName(selectedCity)} Chapter · Configure details and preview audience segmentation before dispatching.
@@ -1439,18 +1705,39 @@ export default function AdminDashboard() {
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
                     <Trophy className="w-4 h-4 text-[#D97706]" />
-                    <span>Select Winning Date *</span>
+                    <span>Select Gathering / Date *</span>
                   </label>
                   <select
                     value={winningDate}
-                    onChange={(e) => setWinningDate(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setWinningDate(val);
+                      const matched = events.find((ev) => ev.displayDate === val || ev.date === val);
+                      if (matched) {
+                        setEventTimeWindow(matched.timeWindow);
+                        setVenueName(matched.venueName || '');
+                        setVenueAddress(matched.venueAddress || '');
+                        setEventLink(matched.partifulUrl || matched.externalUrl || '');
+                        setActiveModalEventId(matched.id);
+                        setActiveModalEventTitle(matched.title);
+                      }
+                    }}
                     className="w-full bg-white border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer"
                   >
-                    {DATES.map((d) => (
-                      <option key={d} value={d}>
-                        {d} {topDateOption === d ? '(Top Poll Winner)' : ''}
-                      </option>
-                    ))}
+                    <optgroup label="Chapter Gatherings">
+                      {events.map((ev) => (
+                        <option key={ev.id} value={ev.displayDate}>
+                          {ev.displayDate} — {ev.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Survey Poll Dates">
+                      {DATES.map((d) => (
+                        <option key={d} value={d}>
+                          {d} {topDateOption === d ? '(Top Poll Winner)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 
@@ -1573,6 +1860,14 @@ export default function AdminDashboard() {
                     <span>Announcement Summary</span>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 pt-1 text-[#2B271F]">
+                    {Boolean(activeModalEventTitle || selectedEvent?.title) && (
+                      <>
+                        <span className="text-[#6A6253]">Target Gathering:</span>
+                        <span className="col-span-2 font-bold text-[#C8643F]">
+                          {activeModalEventTitle || selectedEvent?.title}
+                        </span>
+                      </>
+                    )}
                     <span className="text-[#6A6253]">Winning Date:</span>
                     <span className="col-span-2 font-bold">{selectedDateStr}</span>
                     <span className="text-[#6A6253]">Time Window:</span>
