@@ -46,8 +46,8 @@ const GUESTS = ["Just me", "2", "3", "4+"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
-  "Sat, Sep 26",
-  "Sun, Sep 27",
+  "Fri, Oct 9: Family Night — Pizza",
+  "Sat, Oct 17: Morning Walk",
   "Any date",
 ];
 

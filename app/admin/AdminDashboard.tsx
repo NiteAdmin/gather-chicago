@@ -70,9 +70,11 @@ const DAYPREF = ["Weekend", "Weekday", "Either works"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
+  "Fri, Oct 9: Family Night — Pizza",
+  "Sat, Oct 17: Morning Walk",
+  "Any date",
   "Sat, Sep 26",
   "Sun, Sep 27",
-  "Any date",
 ];
 
 function formatCityName(slug: string): string {
