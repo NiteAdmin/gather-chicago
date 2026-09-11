@@ -8,6 +8,16 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
 import PostRsvpAuthModal from '@/components/survey/PostRsvpAuthModal';
 import {
+  Calendar,
+  UploadCloud,
+  Sparkles,
+  ShieldCheck,
+  Check,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from 'lucide-react';
+import {
   parseIcsBusyIntervals,
   getCandidateSlotIntervals,
   getSurveyDateBounds,
@@ -402,13 +412,15 @@ export default function SurveyForm({
         }
 
         .eyebrow {
-          font-size: 0.72rem;
+          font-size: 0.75rem;
           letter-spacing: 0.22em;
           text-transform: uppercase;
           color: var(--terra);
           font-weight: 700;
           margin-bottom: 10px;
-          display: inline-block;
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
           text-decoration: none;
           transition: opacity 0.2s;
           cursor: pointer;
@@ -545,11 +557,12 @@ export default function SurveyForm({
         }
 
         .smart-connect-bar {
-          background: linear-gradient(135deg, #F6F1E7 0%, #EDE4D3 100%);
+          background: linear-gradient(135deg, #FBF7EE 0%, #F5EDE0 100%);
           border: 1.5px solid var(--line);
-          border-radius: 14px;
-          padding: 14px 16px;
-          margin: 12px 0 14px;
+          border-radius: 16px;
+          padding: 16px 18px;
+          margin: 0 0 6px;
+          box-shadow: 0 2px 8px -2px rgba(43, 39, 31, 0.05);
         }
 
         .smart-connect-header {
@@ -557,8 +570,8 @@ export default function SurveyForm({
           justify-content: space-between;
           align-items: center;
           flex-wrap: wrap;
-          gap: 6px;
-          margin-bottom: 10px;
+          gap: 8px;
+          margin-bottom: 8px;
         }
 
         .smart-connect-title {
@@ -570,11 +583,24 @@ export default function SurveyForm({
 
         .smart-connect-badge {
           font-size: 0.72rem;
-          font-weight: 600;
-          color: var(--sage-deep);
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 3px 10px;
+          border-radius: 20px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .smart-connect-badge.fast-pass {
+          color: var(--terra);
+          background: rgba(200, 100, 63, 0.08);
+          border: 1px solid rgba(200, 100, 63, 0.22);
+        }
+
+        .smart-connect-badge.privacy {
+          color: #2D5A30;
           background: #EAF0E6;
-          padding: 2px 8px;
-          border-radius: 10px;
           border: 1px solid #BACFB2;
         }
 
@@ -589,7 +615,7 @@ export default function SurveyForm({
           background: #FFFFFF;
           border: 1.5px solid var(--line);
           border-radius: 10px;
-          padding: 8px 14px;
+          padding: 9px 14px;
           font-family: inherit;
           font-size: 0.82rem;
           font-weight: 600;
@@ -598,7 +624,7 @@ export default function SurveyForm({
           transition: all 0.16s ease;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
 
@@ -611,6 +637,7 @@ export default function SurveyForm({
         .connect-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+          transform: none;
         }
 
         .smart-connect-msg {
@@ -618,12 +645,41 @@ export default function SurveyForm({
           font-size: 0.8rem;
           color: #3B5730;
           font-weight: 600;
-          background: rgba(234, 240, 230, 0.8);
-          padding: 6px 10px;
+          background: rgba(234, 240, 230, 0.85);
+          padding: 7px 11px;
           border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: space-between;
+        }
+
+        .manual-divider-wrap {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 22px 0 20px;
+        }
+
+        .manual-divider-line {
+          flex: 1;
+          height: 1px;
+          background: var(--line);
+        }
+
+        .manual-divider-text {
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #8C8270;
+          white-space: nowrap;
+        }
+
+        @media (max-width: 480px) {
+          .manual-divider-text {
+            font-size: 0.63rem;
+            letter-spacing: 0.06em;
+          }
         }
 
         input[type='text'],
@@ -722,11 +778,12 @@ export default function SurveyForm({
 
       <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
-          <Link href="/" className="eyebrow" style={{ display: 'inline-block', minHeight: '1.2rem' }}>
-            ACTUALLY · {cityName.toUpperCase()}
+          <Link href="/" className="eyebrow" style={{ minHeight: '1.2rem' }}>
+            <span>Actually, Let&apos;s</span>
+            <sup style={{ fontSize: '0.68em', fontWeight: 'bold' }}>TM</sup>
           </Link>
           <h1 style={{ minHeight: '3.2rem' }}>
-            Let's find the <em>right time</em> to gather in {cityName}.
+            Let&apos;s find the <em>right time</em> to gather in {cityName}.
           </h1>
           <p className="sub">
             A rotating community series — yoga, mimosas, and good company in {cityName}. Tell us what activities you'd attend and when you're free. Takes about a minute.
@@ -796,6 +853,135 @@ export default function SurveyForm({
             </div>
 
             <div className="card">
+              {/* Top Section: Fast Pass Auto-Availability */}
+              <div className="smart-connect-bar">
+                <div className="smart-connect-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="smart-connect-badge fast-pass">
+                      <Sparkles className="w-3.5 h-3.5 text-[var(--terra)]" />
+                      <span>FAST PASS &bull; SET IT &amp; FORGET IT</span>
+                    </span>
+                  </div>
+                  <span className="smart-connect-badge privacy">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>100% Private &bull; Free/Busy Only</span>
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: '#5A5243', marginTop: '4px', marginBottom: '12px', lineHeight: 1.45 }}>
+                  Skip manual selection. Connect once to automatically match open slots across upcoming {cityName} gatherings.
+                </p>
+
+                <div className="smart-connect-actions">
+                  <button
+                    type="button"
+                    className="connect-btn google"
+                    onClick={handleConnectGoogleCalendar}
+                    disabled={checkingCalendar}
+                  >
+                    {checkingCalendar && calendarConnected === 'google' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[var(--terra)]" />
+                        <span>Checking Google Calendar...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-4 h-4 text-[#4285F4]" />
+                        <span>Connect Google Calendar</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="connect-btn ics"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={checkingCalendar}
+                  >
+                    {checkingCalendar && calendarConnected === 'ics' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[var(--terra)]" />
+                        <span>Reading .ics File...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-4 h-4 text-[#6E7F5E]" />
+                        <span>Drop / Pick .ics File</span>
+                      </>
+                    )}
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".ics,text/calendar"
+                    style={{ display: 'none' }}
+                    onChange={handleIcsUpload}
+                  />
+                </div>
+
+                {calendarScanMessage && (
+                  <div className="smart-connect-msg" style={{ marginTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 className="w-4 h-4 text-[#3B5730] shrink-0" />
+                      <span>{calendarScanMessage}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSlotStatusMap({});
+                        setCalendarConnected(null);
+                        setCalendarScanMessage(null);
+                      }}
+                      style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#6A6253', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.76rem' }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Clean Section Transition Separator */}
+              <div className="manual-divider-wrap">
+                <div className="manual-divider-line" />
+                <span className="manual-divider-text">
+                  &mdash; OR CHOOSE DATES &amp; ACTIVITIES MANUALLY &mdash;
+                </span>
+                <div className="manual-divider-line" />
+              </div>
+
+              {/* Step 1: Dates */}
+              <div className="q">
+                <div className="q-label">Which dates could you make?</div>
+                <div className="q-help">Tap any dates that work for you, or auto-detect free slots above.</div>
+
+                <div className="chips">
+                  {DATES.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`chip date ${selectedDates.includes(d) ? 'on' : ''}`}
+                      onClick={() => toggleChip(selectedDates, setSelectedDates, d)}
+                    >
+                      <span>{d}</span>
+                      {calendarConnected && slotStatusMap[d] === 'free' && (
+                        <span className="status-pill free">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Free</span>
+                        </span>
+                      )}
+                      {calendarConnected && slotStatusMap[d] === 'busy' && (
+                        <span className="status-pill busy">
+                          <AlertCircle className="w-3 h-3 text-amber-600" />
+                          <span>Busy</span>
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 2: Gatherings */}
               <div className="q">
                 <div className="q-label">Which gatherings would you attend?</div>
                 <div className="chips">
@@ -817,96 +1003,6 @@ export default function SurveyForm({
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
                 />
-              </div>
-
-              <div className="q">
-                <div className="q-label">Which dates could you make?</div>
-                <div className="q-help">Tap any dates that work for you, or auto-detect free slots above.</div>
-
-                {/* Smart Calendar Availability Action Bar */}
-                <div className="smart-connect-bar">
-                  <div className="smart-connect-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span className="smart-connect-title">⚡ Auto-Check My Availability</span>
-                      <span className="text-[11px] font-semibold text-[#6E7F5E] bg-[#6E7F5E]/10 border border-[#6E7F5E]/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                        ✨ Set It &amp; Forget It
-                      </span>
-                    </div>
-                    <span className="smart-connect-badge">100% Private · Free/Busy Only</span>
-                  </div>
-
-                  <div className="smart-connect-actions">
-                    <button
-                      type="button"
-                      className="connect-btn google"
-                      onClick={handleConnectGoogleCalendar}
-                      disabled={checkingCalendar}
-                    >
-                      <span>{checkingCalendar && calendarConnected === 'google' ? '⏳ Checking...' : '📅 Connect Google Calendar'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="connect-btn ics"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={checkingCalendar}
-                    >
-                      <span>{checkingCalendar && calendarConnected === 'ics' ? '⏳ Reading...' : '📎 Drop / Pick .ics File'}</span>
-                    </button>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".ics,text/calendar"
-                      style={{ display: 'none' }}
-                      onChange={handleIcsUpload}
-                    />
-                  </div>
-
-                  <p style={{ fontSize: '0.78rem', color: '#6A6253', marginTop: '8px', marginBottom: '0', lineHeight: 1.4 }}>
-                    Set it once—automatically checks free/busy slots across your events without manual date picking.
-                  </p>
-
-                  {calendarScanMessage && (
-                    <div className="smart-connect-msg" style={{ marginTop: '8px' }}>
-                      <span>{calendarScanMessage}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSlotStatusMap({});
-                          setCalendarConnected(null);
-                          setCalendarScanMessage(null);
-                        }}
-                        style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#6A6253', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.76rem' }}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-[11px] text-stone-400 font-medium text-center my-2 uppercase tracking-wider">
-                  — or select dates manually below —
-                </div>
-
-                <div className="chips">
-                  {DATES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      className={`chip date ${selectedDates.includes(d) ? 'on' : ''}`}
-                      onClick={() => toggleChip(selectedDates, setSelectedDates, d)}
-                    >
-                      <span>{d}</span>
-                      {calendarConnected && slotStatusMap[d] === 'free' && (
-                        <span className="status-pill free">🟢 Free</span>
-                      )}
-                      {calendarConnected && slotStatusMap[d] === 'busy' && (
-                        <span className="status-pill busy">🟡 Busy</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div className="q">
