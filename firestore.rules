@@ -3,10 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Survey responses: public can create (submit surveys) and read aggregated/status
-    // Updates and deletions are strictly disabled (immutable record log)
+    // Updates allowed if authenticated or if email matches (idempotent survey updates)
     match /responses/{responseId} {
       allow create, read: if true;
-      allow update, delete: if false;
+      allow update: if request.auth != null || resource.data.email == request.resource.data.email;
+      allow delete: if false;
     }
 
     // Broadcast logs: public can read confirmed announcements

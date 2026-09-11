@@ -156,10 +156,11 @@ async function handleCronReminders(request: NextRequest) {
       const chunk = batchEmails.slice(i, i + chunkSize);
       try {
         const result = await resend.batch.send(chunk);
-        if (result?.data?.data) {
+        if (result?.error) {
+          console.error('[CRON RESEND ERROR]:', result.error);
+          errors.push(result.error);
+        } else if (result?.data?.data) {
           successfulCount += result.data.data.length;
-        } else {
-          successfulCount += chunk.length;
         }
       } catch (chunkErr) {
         console.error("Batch dispatch error in cron reminders:", chunkErr);

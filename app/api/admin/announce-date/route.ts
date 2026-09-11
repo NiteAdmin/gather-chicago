@@ -324,7 +324,7 @@ export async function POST(req: Request) {
     });
 
     const receiptSubject = `[Confirmation] Announcement Dispatched: ${effectiveEventTitle}`;
-    const totalRecipientsCount = isTestMode ? emailsToSend.length : (dispatchedCount || emailsToSend.length);
+    const totalRecipientsCount = isTestMode ? emailsToSend.length : (dispatchedCount ?? 0);
 
     const receiptHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; color: #2B271F; background-color: #FBF7EE;">
@@ -488,7 +488,7 @@ ${samplePreview.text}
         customNote: isTestMode ? `[TEST RUN -> ${destinationTestEmail}] ${customNote || ""}`.trim() : customNote,
         groupACount: isTestMode ? (emailsToSend.length / 2) : validGroupA.length,
         groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
-        totalDispatched: dispatchedCount || emailsToSend.length,
+        totalDispatched: dispatchedCount ?? 0,
         forceResend: Boolean(forceResend),
         eventId: eventId || undefined,
         eventTitle: eventTitle || undefined,
@@ -507,7 +507,7 @@ ${samplePreview.text}
       groupACount: isTestMode ? (emailsToSend.length / 2) : validGroupA.length,
       groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
       batchesDispatched,
-      totalSent: dispatchedCount || emailsToSend.length,
+      totalSent: dispatchedCount ?? 0,
       broadcastId,
       adminConfirmations,
       failures,

@@ -172,14 +172,8 @@ export async function POST(req: Request) {
 
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error('[RESEND CONFIG ERROR]: RESEND_API_KEY is not configured in environment variables');
-      return NextResponse.json(
-        { success: false, error: "Server error: RESEND_API_KEY is not configured" },
-        { status: 500 }
-      );
+      console.warn('[RESEND CONFIG WARNING]: RESEND_API_KEY is not configured in environment variables. Email delivery will be skipped.');
     }
-
-    const resend = new Resend(resendApiKey);
 
     const customGatheringHtml =
       body.customGathering && typeof body.customGathering === "string" && body.customGathering.trim()
@@ -456,54 +450,61 @@ export async function POST(req: Request) {
 
     let resendId: string | undefined = undefined;
     let adminResendId: string | undefined = undefined;
+    let emailError: string | undefined = !resendApiKey ? "RESEND_API_KEY is not configured" : undefined;
 
-    try {
-      console.log(`[EMAIL DISPATCH] Triggering attendee confirmation (${trimmedEmail}) & admin alert...`);
-      const [attendeeResult, adminResult] = await Promise.allSettled([
-        resend.emails.send({
-          from: primarySender,
-          to: [trimmedEmail],
-          replyTo: "admin@actuallylets.com",
-          subject: `Got your preferences for Actually, Let's ${targetCityName}! 🎉`,
-          html: emailHtml,
-          text: emailText,
-        }),
-        resend.emails.send({
-          from: adminSender,
-          to: ["admin@actuallylets.com"],
-          replyTo: trimmedEmail,
-          subject: `[New RSVP] ${trimmedName} - ${targetCityName} Gathering Availability`,
-          html: adminEmailHtml,
-        }),
-      ]);
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+      try {
+        console.log(`[EMAIL DISPATCH] Triggering attendee confirmation (${trimmedEmail}) & admin alert...`);
+        const [attendeeResult, adminResult] = await Promise.allSettled([
+          resend.emails.send({
+            from: primarySender,
+            to: [trimmedEmail],
+            replyTo: "admin@actuallylets.com",
+            subject: `Got your preferences for Actually, Let's ${targetCityName}! 🎉`,
+            html: emailHtml,
+            text: emailText,
+          }),
+          resend.emails.send({
+            from: adminSender,
+            to: ["admin@actuallylets.com"],
+            replyTo: trimmedEmail,
+            subject: `[New RSVP] ${trimmedName} - ${targetCityName} Gathering Availability`,
+            html: adminEmailHtml,
+          }),
+        ]);
 
-      if (attendeeResult.status === "fulfilled") {
-        const emailResponse = attendeeResult.value;
-        console.log("Attendee Resend API Result:", emailResponse);
-        if (emailResponse.error) {
-          console.error('[ATTENDEE RESEND ERROR]:', emailResponse.error);
+        if (attendeeResult.status === "fulfilled") {
+          const emailResponse = attendeeResult.value;
+          console.log("Attendee Resend API Result:", emailResponse);
+          if (emailResponse.error) {
+            console.error('[ATTENDEE RESEND ERROR]:', emailResponse.error);
+            emailError = emailResponse.error.message || "Failed to send confirmation email";
+          } else {
+            console.log('[ATTENDEE RESEND SUCCESS]:', emailResponse.data);
+            resendId = emailResponse.data?.id;
+          }
         } else {
-          console.log('[ATTENDEE RESEND SUCCESS]:', emailResponse.data);
-          resendId = emailResponse.data?.id;
+          console.error('[ATTENDEE RESEND REJECTION]:', attendeeResult.reason);
+          emailError = attendeeResult.reason?.message || "Attendee email dispatch rejected";
         }
-      } else {
-        console.error('[ATTENDEE RESEND REJECTION]:', attendeeResult.reason);
-      }
 
-      if (adminResult.status === "fulfilled") {
-        const adminResponse = adminResult.value;
-        console.log("Admin Alert Resend API Result:", adminResponse);
-        if (adminResponse.error) {
-          console.error('[ADMIN ALERT RESEND ERROR]:', adminResponse.error);
+        if (adminResult.status === "fulfilled") {
+          const adminResponse = adminResult.value;
+          console.log("Admin Alert Resend API Result:", adminResponse);
+          if (adminResponse.error) {
+            console.error('[ADMIN ALERT RESEND ERROR]:', adminResponse.error);
+          } else {
+            console.log('[ADMIN ALERT RESEND SUCCESS]:', adminResponse.data);
+            adminResendId = adminResponse.data?.id;
+          }
         } else {
-          console.log('[ADMIN ALERT RESEND SUCCESS]:', adminResponse.data);
-          adminResendId = adminResponse.data?.id;
+          console.error('[ADMIN ALERT RESEND REJECTION]:', adminResult.reason);
         }
-      } else {
-        console.error('[ADMIN ALERT RESEND REJECTION]:', adminResult.reason);
+      } catch (resendErr: any) {
+        console.error('[RESEND DISPATCH EXCEPTION]:', resendErr);
+        emailError = resendErr?.message || "Resend dispatch exception";
       }
-    } catch (resendErr: any) {
-      console.error('[RESEND DISPATCH EXCEPTION]:', resendErr);
     }
 
     // Send automated Twilio SMS if user opted in and provided a valid 10-digit phone number
@@ -531,6 +532,8 @@ export async function POST(req: Request) {
       responseId: savedResponseId,
       resendId: resendId,
       adminResendId: adminResendId,
+      emailDelivered: Boolean(resendId),
+      emailError: emailError || undefined,
       sender: primarySender,
     });
   } catch (error: any) {
