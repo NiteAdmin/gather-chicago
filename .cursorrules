@@ -1,0 +1,26 @@
+# Actually, Let's™ — Agent & Coding Invariants
+
+You are working on the Actually, Let's™ repository. Strict adherence to architecture and brand invariants is required.
+
+## Permanent Rules
+1. **Brand Standards**: Always read `BRAND_STANDARDS.md` before generating or modifying UI code.
+2. **Brand Name & Trademark Formatting**:
+   - The brand name is strictly `Actually, Let's™`.
+   - Never omit the trademark superscript: `Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>`.
+   - The brand mark must ALWAYS sit isolated on its own line or eyebrow badge.
+   - NEVER concatenate inline with descriptive copy or event titles.
+   - Use clean midpoint bullets (`·` / `&middot;`), NEVER square boxes (`▪`) or heavy unstyled bullets.
+3. **Mobile Layout & Stacking Invariants**:
+   - Header container: Must have `relative z-50` (or higher) with NO parent `overflow-hidden` or `overflow-x-hidden` that clips child dropdowns.
+   - User Nav Popover: Set explicitly to `absolute right-0 top-full mt-2 z-[9999] shadow-2xl` with mobile bounds `w-[calc(100vw-2rem)] max-w-xs sm:w-72`.
+   - Hero / Main Wrapper: Must use `relative z-0` so CSS transform animations do not create rival stacking contexts in Chromium.
+   - Zero horizontal overflow: Ensure `document.documentElement.scrollWidth === window.innerWidth` across 360px, 375px, and 390px.
+4. **Intake Flow & Iconography**:
+   - Fast Pass Google Calendar GIS + .ics uploader card must sit at the VERY TOP of the survey card (`/[city]`).
+   - Pure Lucide React vector SVGs only (`<Users/>`, `<Sparkles/>`, `<Calendar/>`, `<UploadCloud/>`, `<ShieldCheck/>`). No raw emojis in headers, badges, or buttons.
+5. **Zero-Hallucination Audit Protocol**:
+   - When asked to audit or suggest improvements, check strictly against established invariants.
+   - NEVER propose arbitrary cosmetic refactors or restyling without explicit approval.
+   - Always verify proposed CSS changes against Chromium mobile stacking and 360px viewports.
+6. **Build Verification**:
+   - Always verify changes with `npm run build` (0 compilation errors required).

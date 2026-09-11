@@ -11,6 +11,9 @@ const MAX_REQUESTS_PER_WINDOW = 3;
 const ipRequestMap = new Map<string, number[]>();
 
 function checkRateLimit(ip: string): boolean {
+  if (process.env.NODE_ENV === "development" || ip === "127.0.0.1" || ip === "::1" || ip === "localhost") {
+    return false;
+  }
   const now = Date.now();
   const timestamps = (ipRequestMap.get(ip) || []).filter(
     (t) => now - t < RATE_LIMIT_WINDOW_MS
