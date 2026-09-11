@@ -181,7 +181,7 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
         <div
           role="menu"
           aria-label="Member Account Menu"
-          className="lg:hidden absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 shadow-2xl z-50 animate-fade-in"
+          className="lg:hidden absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 shadow-2xl z-50 animate-fade-in"
         >
           {/* Avatar & Email */}
           <div className="flex items-center gap-3.5 mb-4">

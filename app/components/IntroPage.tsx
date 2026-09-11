@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import UserNavButton from '@/components/nav/UserNavButton';
+import Navbar from '@/components/Navbar';
 
 export default function IntroPage() {
   // Cycler text state for Hero headline
@@ -27,7 +27,7 @@ export default function IntroPage() {
   }, [heroPhrases.length]);
 
   return (
-    <div className="min-h-screen bg-[#F4EEE2] text-[#2B271F] selection:bg-[#E08A63]/30">
+    <div className="min-h-screen bg-[#F4EEE2] text-[#2B271F] selection:bg-[#E08A63]/30 w-full max-w-full overflow-x-hidden">
       {/* Dynamic Keyframes & Brand CSS Variables */}
       <style jsx global>{`
         :root {
@@ -84,45 +84,14 @@ export default function IntroPage() {
       `}</style>
 
       {/* TOP NAVIGATION BAR */}
-      <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 sm:px-8 py-3.5 sm:py-4 font-sans-hanken">
-        <Link href="/" className="group flex items-center gap-2 text-decoration-none shrink-0">
-          <span className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
-            Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
-          </span>
-          <span className="rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
-            SERIES
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-medium text-[#6A6253]">
-          <a
-            href="#cities"
-            className="hover:text-[#2B271F] transition-colors hidden md:inline whitespace-nowrap"
-          >
-            Cities
-          </a>
-          <Link
-            href="/host"
-            className="hover:text-[#2B271F] transition-colors whitespace-nowrap"
-          >
-            Become a Host
-          </Link>
-          <Link
-            href="/chicago"
-            className="bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-[11px] sm:text-xs px-3 sm:px-4 py-2 rounded-full font-semibold tracking-wide transition-all shadow-sm hover:shadow whitespace-nowrap shrink-0"
-          >
-            Chicago Poll →
-          </Link>
-          <UserNavButton />
-        </nav>
-      </header>
+      <Navbar />
 
       {/* MAIN CONTENT CONTAINER */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
         {/* 1. HERO SECTION */}
         <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
           {/* Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6 shadow-sm">
+          <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest px-3 sm:px-4 py-1.5 rounded-full mb-6 shadow-sm max-w-full text-center">
             <span>✦</span>
             <span>CONSENSUS-DRIVEN COMMUNITY GATHERINGS</span>
           </div>
@@ -295,7 +264,7 @@ export default function IntroPage() {
           <div className="mt-8 text-center">
             <Link
               href="/host"
-              className="inline-flex items-center gap-2 bg-[#FBF7EE] hover:bg-[#EDE4D3] text-[#2B271F] border border-[#D8CEBC] text-xs sm:text-sm font-bold px-5 py-3 rounded-full transition-all shadow-xs hover:shadow hover:scale-102"
+              className="inline-flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 bg-[#FBF7EE] hover:bg-[#EDE4D3] text-[#2B271F] border border-[#D8CEBC] text-xs sm:text-sm font-bold px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-full transition-all shadow-xs hover:shadow hover:scale-102 max-w-full text-center"
             >
               <span>Want to lead gatherings in your city?</span>
               <span className="text-[#C8643F]">Become a Host →</span>

@@ -38,7 +38,7 @@ export default function RootLayout({
       className={`${fraunces.variable} ${hankenGrotesk.variable} h-full antialiased bg-[#F4EEE2]`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-[#F4EEE2]">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#F4EEE2] w-full max-w-full overflow-x-hidden">{children}</body>
     </html>
   );
 }
