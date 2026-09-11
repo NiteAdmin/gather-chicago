@@ -55,16 +55,18 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
 
   // Close dropdown on outside click
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
       }
     }
     if (showDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [showDropdown]);
 
@@ -181,25 +183,35 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
         <div
           role="menu"
           aria-label="Member Account Menu"
-          className="lg:hidden absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 shadow-2xl z-50 animate-fade-in"
+          className="lg:hidden absolute right-0 sm:right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-72 bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 shadow-2xl z-[9999] animate-fade-in"
         >
-          {/* Avatar & Email */}
-          <div className="flex items-center gap-3.5 mb-4">
-            <div
-              role="img"
-              aria-label={`Member avatar for ${user.email || "Chicago Member"}`}
-              className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] flex items-center justify-center font-bold text-lg font-serif-fraunces shadow-inner shrink-0"
+          {/* Avatar & Email + Close Button */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div
+                role="img"
+                aria-label={`Member avatar for ${user.email || "Chicago Member"}`}
+                className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] flex items-center justify-center font-bold text-lg font-serif-fraunces shadow-inner shrink-0"
+              >
+                <span>{user.email ? user.email.charAt(0).toUpperCase() : "M"}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EEF5EB] text-[#3D5634] border border-[#C5DEC0] px-2 py-0.5 rounded-full inline-block mb-1">
+                  VERIFIED MEMBER
+                </span>
+                <h3 className="text-sm font-bold text-[#2B271F] truncate" title={user.email || ""}>
+                  {user.email}
+                </h3>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDropdown(false)}
+              aria-label="Close menu"
+              className="p-1.5 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 shrink-0 ml-1 cursor-pointer"
             >
-              <span>{user.email ? user.email.charAt(0).toUpperCase() : "M"}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EEF5EB] text-[#3D5634] border border-[#C5DEC0] px-2 py-0.5 rounded-full inline-block mb-1">
-                VERIFIED MEMBER
-              </span>
-              <h3 className="text-sm font-bold text-[#2B271F] truncate" title={user.email || ""}>
-                {user.email}
-              </h3>
-            </div>
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Member Metadata */}
@@ -252,7 +264,7 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowModal(false);
           }}

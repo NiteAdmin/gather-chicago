@@ -10,7 +10,7 @@ export interface NavbarProps {
 
 export default function Navbar({ className = '' }: NavbarProps) {
   return (
-    <header className={`w-full max-w-full overflow-x-hidden ${className}`}>
+    <header className={`w-full relative z-50 ${className}`}>
       <div className="w-full max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 font-sans-hanken">
         {/* Brand Mark: Left-aligned with isolated styling and superscript TM */}
         <Link

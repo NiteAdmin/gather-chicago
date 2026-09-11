@@ -754,7 +754,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#2B271F] font-sans antialiased">
+    <div className="min-h-screen bg-[#FDFBF7] text-[#2B271F] font-sans antialiased w-full max-w-full overflow-x-hidden">
       <style jsx global>{`
         .font-serif-fraunces {
           font-family: 'Fraunces', var(--font-fraunces), Georgia, serif;
@@ -817,9 +817,9 @@ export default function AdminDashboard() {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-[#FDFBF7]">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 bg-[#FDFBF7] min-w-0">
           {/* TOP BAR / EXECUTIVE HEADER */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-[#EBE3D5]">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-[#EBE3D5] w-full min-w-0">
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-widest text-[#E07A5F]">
@@ -838,18 +838,18 @@ export default function AdminDashboard() {
                   Live Sync Active
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold font-serif-fraunces tracking-tight text-[#2B271F]">
+              <h1 className="text-2xl sm:text-3xl font-bold font-serif-fraunces tracking-tight text-[#2B271F] break-words">
                 Chapter Operations &amp; Intelligence
               </h1>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full md:w-auto min-w-0">
               {/* City Switcher */}
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-none min-w-0">
                 <select
                   value={selectedCity}
                   onChange={(e) => handleCityChange(e.target.value)}
-                  className="bg-[#FAF7F2] border border-[#EBE3D5] text-[#2B271F] text-xs font-semibold rounded-xl px-3.5 py-2.5 pr-8 focus:outline-none focus:border-[#C8643F] cursor-pointer appearance-none shadow-xs"
+                  className="w-full sm:w-auto min-w-0 bg-[#FAF7F2] border border-[#EBE3D5] text-[#2B271F] text-xs font-semibold rounded-xl px-3.5 py-2.5 pr-8 focus:outline-none focus:border-[#C8643F] cursor-pointer appearance-none shadow-xs"
                 >
                   <option value="all">All Chapter Cities</option>
                   <option value="chicago">Chicago Chapter</option>
@@ -866,7 +866,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => handleCityChange(selectedCity)}
-                className="inline-flex items-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                 title="Refresh latest data"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-[#8C827A]" />
@@ -877,7 +877,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={exportCSV}
-                className="inline-flex items-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-[#8C827A]" />
                 <span>Export CSV</span>
@@ -886,9 +886,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* SECTION 1: CONFIRMED / UPCOMING GATHERING CARD WITH DYNAMIC EVENT SWITCHER */}
-          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#EBE3D5]">
-              <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 overflow-hidden min-w-0 w-full">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b border-[#EBE3D5] min-w-0 w-full">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <div
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                     selectedEvent.status === 'confirmed'
@@ -913,16 +913,16 @@ export default function AdminDashboard() {
               </div>
 
               {/* Active Gathering Dropdown Switcher */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full lg:w-auto min-w-0">
                 <label htmlFor="admin-gathering-switcher" className="text-xs font-bold uppercase tracking-wider text-[#6A6253] shrink-0">
                   Active Gathering:
                 </label>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto min-w-0 max-w-full">
                   <select
                     id="admin-gathering-switcher"
                     value={selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
-                    className="bg-white border border-[#D8CEBC] text-[#2B271F] text-xs font-semibold rounded-xl px-3 py-2 pr-8 focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none"
+                    className="w-full sm:w-auto max-w-full min-w-0 truncate text-ellipsis bg-white border border-[#e5dfd8] text-[#2B271F] rounded-xl px-3 py-2 pr-8 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none"
                   >
                     <optgroup label="Upcoming Chapter Gatherings">
                       {events
@@ -951,7 +951,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Quick Pill Switcher for Chapter Gatherings */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <div className="flex flex-wrap items-center gap-2 w-full min-w-0 py-1 text-xs">
               <span className="text-[11px] font-bold text-[#8C827A] uppercase tracking-wider shrink-0">
                 Quick Toggle:
               </span>
@@ -963,7 +963,7 @@ export default function AdminDashboard() {
                     key={ev.id}
                     type="button"
                     onClick={() => setSelectedEventId(ev.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer max-w-full truncate shrink-0 ${
                       isSelected
                         ? 'bg-[#C8643F] text-white shadow-xs'
                         : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
@@ -1177,7 +1177,7 @@ export default function AdminDashboard() {
             <div className="col-span-12 lg:col-span-6 space-y-6">
               {/* Date Polling Results */}
               <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-[#EBE3D5]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-5 border-b border-[#EBE3D5] w-full min-w-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -1187,7 +1187,7 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => handleOpenAdminModal(selectedEvent)}
-                    className="bg-[#C8643F] hover:bg-[#B25532] text-white rounded-xl px-4 py-2 text-sm font-medium inline-flex items-center gap-2 shadow-xs cursor-pointer transition-colors"
+                    className="bg-[#C8643F] hover:bg-[#B25532] text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors w-full sm:w-auto"
                   >
                     <Megaphone className="w-4 h-4" />
                     <span>Announce Winning Date</span>

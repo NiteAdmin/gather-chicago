@@ -87,7 +87,7 @@ export default function IntroPage() {
       <Navbar />
 
       {/* MAIN CONTENT CONTAINER */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
+      <main className="relative z-0 max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
         {/* 1. HERO SECTION */}
         <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
           {/* Eyebrow Badge */}
