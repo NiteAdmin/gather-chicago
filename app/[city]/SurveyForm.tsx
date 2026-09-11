@@ -859,8 +859,8 @@ export default function SurveyForm({
                   <h3 className="font-serif text-xl sm:text-2xl font-normal text-[#2B271F] tracking-tight mb-1">
                     Which dates could you make?
                   </h3>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-stone-600">
-                    <span>Tap any dates that work for you, or auto-detect from your calendar:</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-stone-600 mb-3">
+                    <span>Auto-detect free weekends — set it and forget it for upcoming gatherings:</span>
                     <span className="text-[11px] font-serif italic text-stone-500">
                       Free/busy only · 100% private
                     </span>
