@@ -196,6 +196,34 @@ function checkEventVibeMatch(eventId: string, gatherings: string[]): { isMatch: 
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
+
+    // 6. Board Games & Brews (Social / Games)
+    if (eventId.includes("board-games")) {
+      if (g.includes("community") || g.includes("happy hour") || g.includes("all ages") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 7. Morning Trail Walk & Coffee (Outdoor / Active / Mornings)
+    if (eventId.includes("trail-coffee")) {
+      if (g.includes("outdoor") || g.includes("hiking") || g.includes("city walk") || g.includes("coffee") || g.includes("morning")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 8. Friendsgiving Potluck Warmup (Food / Dinner / Community)
+    if (eventId.includes("friendsgiving")) {
+      if (g.includes("family") || g.includes("couples") || g.includes("date night") || g.includes("community") || g.includes("all ages")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 9. Low-Key Book Swap & Chill (Culture / Social / Coffee)
+    if (eventId.includes("book-swap")) {
+      if (g.includes("community") || g.includes("all ages") || g.includes("coffee") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
   }
 
   return { isMatch: false };
@@ -260,7 +288,11 @@ export function resolveUserAttendance(
         }
 
         // Special handling for Chicago Sep 26 Inaugural gathering:
-        if (event.id === "chi-sep-26-gathering" || event.date === "2026-09-26") {
+        if (
+          event.id === "chi-sep-26-gathering" ||
+          event.id === "chi-legacy-polled-sep-26" ||
+          event.date === "2026-09-26"
+        ) {
           const userDates = Array.isArray(res.dates)
             ? res.dates
             : typeof res.dates === "string"
@@ -315,13 +347,20 @@ export function partitionUpcomingEvents(
 } {
   const upcoming = [...events]
     .filter((e) => e.date >= currentDateThreshold)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => {
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      // Ensure flagship chapter gathering takes precedence over legacy polled gathering
+      if (a.id.includes("legacy") && !b.id.includes("legacy")) return 1;
+      if (!a.id.includes("legacy") && b.id.includes("legacy")) return -1;
+      return 0;
+    });
 
   const upcomingAttending = upcoming.filter((e) => e.attendanceStatus === "attending");
   const upcomingOpen = upcoming.filter((e) => e.attendanceStatus === "open");
 
   // Priority 1: Earliest upcoming event user is confirmed for (attending)
-  // Fallback: Earliest upcoming open chapter gathering
+  // Fallback: Earliest flagship upcoming open chapter gathering
   const spotlightEvent = upcomingAttending[0] || upcomingOpen[0] || upcoming[0] || null;
 
   return {
@@ -331,4 +370,109 @@ export function partitionUpcomingEvents(
     spotlightEvent,
   };
 }
+
+export interface RegisteredUser {
+  id: string;
+  name?: string;
+  email?: string;
+  rsvpEventIds?: string[];
+  vibes?: string[];
+  [key: string]: any;
+}
+
+/**
+ * Fetch all registered users from Firestore users collection
+ */
+export async function fetchAllUsers(): Promise<RegisteredUser[]> {
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    return snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as RegisteredUser[];
+  } catch (err) {
+    console.warn("fetchAllUsers error:", err);
+    return [];
+  }
+}
+
+/**
+ * Calculates active confirmed RSVPs for a given event, combining:
+ * 1. Explicit rsvpEventIds from registered user profiles in users/{uid}
+ * 2. Survey responses that match the event date/vibe criteria (via resolveUserAttendance)
+ * Returns deduplicated headcount and attendee records.
+ */
+export function calculateEventAttendance(
+  event: CommunityEvent,
+  users: RegisteredUser[] = [],
+  responses: SurveyResponse[] = []
+): {
+  confirmedCount: number;
+  attendingEmails: Set<string>;
+  userRsvpCount: number;
+  surveyMatchedCount: number;
+} {
+  const attendingEmails = new Set<string>();
+
+  // 1. Registered users with explicit RSVP
+  let userRsvpCount = 0;
+  users.forEach((u) => {
+    if (Array.isArray(u.rsvpEventIds) && u.rsvpEventIds.includes(event.id)) {
+      userRsvpCount++;
+      const email = (u.email || "").trim().toLowerCase();
+      if (email) attendingEmails.add(email);
+    }
+  });
+
+  // 2. Survey responses matched to this event
+  let surveyMatchedCount = 0;
+  responses.forEach((r) => {
+    const userEmail = (r.email || "").trim().toLowerCase();
+    const resolved = resolveUserAttendance([event], [r], undefined, []);
+    if (resolved[0]?.attendanceStatus === "attending") {
+      surveyMatchedCount++;
+      if (userEmail) attendingEmails.add(userEmail);
+    }
+  });
+
+  // Confirmed count: unique attending emails, or maximum of user RSVPs and unique attendees
+  const confirmedCount = Math.max(attendingEmails.size, userRsvpCount);
+
+  return {
+    confirmedCount,
+    attendingEmails,
+    userRsvpCount,
+    surveyMatchedCount,
+  };
+}
+
+/**
+ * Checks whether a contact from the survey responses list is attending a specific event.
+ */
+export function isContactAttendingEvent(
+  contact: SurveyResponse,
+  event: CommunityEvent,
+  users: RegisteredUser[] = []
+): boolean {
+  const email = (contact.email || "").trim().toLowerCase();
+
+  // Check 1: User profile has saved RSVP for this event
+  if (email) {
+    const matchingUser = users.find(
+      (u) => (u.email || "").trim().toLowerCase() === email
+    );
+    if (
+      matchingUser &&
+      Array.isArray(matchingUser.rsvpEventIds) &&
+      matchingUser.rsvpEventIds.includes(event.id)
+    ) {
+      return true;
+    }
+  }
+
+  // Check 2: Survey date / vibe resolution
+  const resolved = resolveUserAttendance([event], [contact], undefined, []);
+  return resolved[0]?.attendanceStatus === "attending";
+}
+
 

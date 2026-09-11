@@ -2,6 +2,7 @@
 
 import React, { useState, useId } from "react";
 import { ResolvedEvent } from "@/lib/userEvents";
+import { splitEventTitle } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import {
   Calendar as CalendarIcon,
@@ -29,17 +30,38 @@ export default function MemberCalendar({
   className = "",
 }: MemberCalendarProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedMonth, setSelectedMonth] = useState<"2026-10" | "2026-11">("2026-10");
+  const [agendaMonthFilter, setAgendaMonthFilter] = useState<"all" | "2026-10" | "2026-11">("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "attending" | "open">("all");
   const [activePopoverEvent, setActivePopoverEvent] = useState<ResolvedEvent | null>(null);
 
-  // October 2026 Calendar calculations
-  // Oct 1, 2026 = Thursday (index 4 in 0=Sun..6=Sat)
-  const daysInMonth = 31;
-  const startDayOfWeek = 4; // Thursday
+  // Month Configurations for Fall 2026
+  const monthConfigs = {
+    "2026-10": {
+      key: "2026-10" as const,
+      name: "October 2026",
+      shortName: "Oct 2026",
+      badgeLabel: "OCTOBER 2026 LINEUP",
+      daysInMonth: 31,
+      startDayOfWeek: 4, // Thursday (Oct 1, 2026)
+    },
+    "2026-11": {
+      key: "2026-11" as const,
+      name: "November 2026",
+      shortName: "Nov 2026",
+      badgeLabel: "NOVEMBER 2026 LINEUP",
+      daysInMonth: 30,
+      startDayOfWeek: 0, // Sunday (Nov 1, 2026)
+    },
+  };
+
+  const currentMonthConfig = monthConfigs[selectedMonth];
+  const { daysInMonth, startDayOfWeek } = currentMonthConfig;
+  const trailingEmptySlots = (7 - ((startDayOfWeek + daysInMonth) % 7)) % 7;
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // Filter events
+  // Filter events by status and category
   const filteredEvents = events.filter((e) => {
     if (filterStatus === "attending" && e.attendanceStatus !== "attending") return false;
     if (filterStatus === "open" && e.attendanceStatus !== "open") return false;
@@ -47,10 +69,10 @@ export default function MemberCalendar({
     return true;
   });
 
-  // Map events by day number for October 2026 (1..31)
+  // Map events by day number for the selected month
   const eventsByDay: Record<number, ResolvedEvent[]> = {};
   filteredEvents.forEach((ev) => {
-    if (ev.date.startsWith("2026-10")) {
+    if (ev.date.startsWith(selectedMonth)) {
       const day = parseInt(ev.date.split("-")[2], 10);
       if (!eventsByDay[day]) eventsByDay[day] = [];
       eventsByDay[day].push(ev);
@@ -75,6 +97,22 @@ export default function MemberCalendar({
           badgeBg: "bg-[#E2EEDD]",
           label: "Outdoor & Active",
         };
+      case "wellness":
+        return {
+          bg: "bg-[#F4EFFB]",
+          border: "border-[#DCCCF2]",
+          text: "text-[#624099]",
+          badgeBg: "bg-[#EDE4F8]",
+          label: "Wellness & Movement",
+        };
+      case "culture":
+        return {
+          bg: "bg-[#FFF8E7]",
+          border: "border-[#EAD39E]",
+          text: "text-[#8A6218]",
+          badgeBg: "bg-[#F7EDD5]",
+          label: "Culture & Arts",
+        };
       case "social":
       default:
         return {
@@ -97,7 +135,7 @@ export default function MemberCalendar({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full">
-              OCTOBER 2026 LINEUP
+              {viewMode === "grid" ? currentMonthConfig.badgeLabel : "FALL 2026 LINEUP"}
             </span>
             <span className="text-xs text-[#6A6253]">Chicago Chapter</span>
           </div>
@@ -110,7 +148,73 @@ export default function MemberCalendar({
         </div>
 
         {/* View Mode & Month Controls */}
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          {/* Month Switcher (Oct / Nov) */}
+          <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+            <button
+              type="button"
+              aria-label="Previous month"
+              disabled={selectedMonth === "2026-10"}
+              onClick={() => {
+                setSelectedMonth("2026-10");
+                setAgendaMonthFilter("2026-10");
+              }}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedMonth === "2026-10"
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:text-[#2B271F] hover:bg-white/60"
+              }`}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Select October 2026"
+              onClick={() => {
+                setSelectedMonth("2026-10");
+                setAgendaMonthFilter("2026-10");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                selectedMonth === "2026-10"
+                  ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
+                  : "hover:text-[#2B271F]"
+              }`}
+            >
+              Oct 2026
+            </button>
+            <button
+              type="button"
+              aria-label="Select November 2026"
+              onClick={() => {
+                setSelectedMonth("2026-11");
+                setAgendaMonthFilter("2026-11");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                selectedMonth === "2026-11"
+                  ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
+                  : "hover:text-[#2B271F]"
+              }`}
+            >
+              Nov 2026
+            </button>
+            <button
+              type="button"
+              aria-label="Next month"
+              disabled={selectedMonth === "2026-11"}
+              onClick={() => {
+                setSelectedMonth("2026-11");
+                setAgendaMonthFilter("2026-11");
+              }}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedMonth === "2026-11"
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:text-[#2B271F] hover:bg-white/60"
+              }`}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Grid / List View Toggle */}
           <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
             <button
@@ -137,7 +241,7 @@ export default function MemberCalendar({
               }`}
             >
               <List className="w-3.5 h-3.5" />
-              <span>Agenda List</span>
+              <span className="hidden sm:inline">Agenda List</span>
             </button>
           </div>
         </div>
@@ -235,6 +339,19 @@ export default function MemberCalendar({
       {/* MONTH GRID VIEW */}
       {viewMode === "grid" ? (
         <div className="mt-3 sm:mt-4">
+          {/* Active Month Banner */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#D8CEBC]/50">
+            <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] flex items-center gap-2">
+              <span>{currentMonthConfig.name}</span>
+              <span className="text-xs font-normal font-sans-hanken text-[#8C8270]">
+                ({Object.values(eventsByDay).flat().length} {Object.values(eventsByDay).flat().length === 1 ? 'gathering' : 'gatherings'})
+              </span>
+            </h3>
+            <span className="text-[11px] font-semibold text-[#8C8270] hidden sm:inline">
+              Chicago Chapter Series
+            </span>
+          </div>
+
           {/* Day of week headers */}
           <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-1.5 text-center text-[11px] font-bold text-[#8C8270] uppercase tracking-wider">
             {dayNames.map((d, i) => (
@@ -251,7 +368,7 @@ export default function MemberCalendar({
 
           {/* Calendar Day Cells */}
           <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
-            {/* Empty slots before Thursday Oct 1 */}
+            {/* Empty slots before month start */}
             {Array.from({ length: startDayOfWeek }).map((_, index) => (
               <div
                 key={`empty-${index}`}
@@ -259,7 +376,7 @@ export default function MemberCalendar({
               />
             ))}
 
-            {/* Days 1 through 31 */}
+            {/* Days 1 through daysInMonth */}
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((dayNum) => {
               const dayEvents = eventsByDay[dayNum] || [];
               const hasEvents = dayEvents.length > 0;
@@ -303,10 +420,10 @@ export default function MemberCalendar({
                         <div key={ev.id} className="relative group/bubble">
                           <button
                             type="button"
-                            aria-label={`View details for ${ev.title} on ${ev.displayDate}`}
+                            aria-label={`View details for ${splitEventTitle(ev.title, ev.brandPrefix).eventName} on ${ev.displayDate}`}
                             onClick={() => setActivePopoverEvent(ev)}
                             className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight ${style.bg} ${style.border} ${style.text}`}
-                            title={`${ev.title} (${ev.timeWindow})`}
+                            title={`Actually, Let's™ ${splitEventTitle(ev.title, ev.brandPrefix).eventName} (${ev.timeWindow})`}
                           >
                             <span className="truncate flex items-center gap-1.5">
                               <span className="shrink-0 flex items-center">
@@ -318,7 +435,7 @@ export default function MemberCalendar({
                                   className="w-3.5 h-3.5 text-[#C8643F]"
                                 />
                               </span>
-                              <span className="font-bold truncate">{ev.title}</span>
+                              <span className="font-bold truncate">{splitEventTitle(ev.title, ev.brandPrefix).eventName}</span>
                             </span>
                             {isAttending ? (
                               <span
@@ -334,12 +451,64 @@ export default function MemberCalendar({
                 </div>
               );
             })}
+
+            {/* Trailing empty slots to complete the final grid row */}
+            {Array.from({ length: trailingEmptySlots }).map((_, index) => (
+              <div
+                key={`empty-trail-${index}`}
+                className="min-h-[70px] sm:min-h-[78px] p-1 bg-[#F4EEE2]/40 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+              />
+            ))}
           </div>
         </div>
       ) : (
         /* AGENDA LIST VIEW */
-        <div className="mt-6 space-y-3.5">
-          {filteredEvents.length === 0 ? (
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-[#D8CEBC]/50 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[#8C8270] uppercase text-[10.5px] font-bold tracking-wider mr-1">
+                Month:
+              </span>
+              <button
+                type="button"
+                onClick={() => setAgendaMonthFilter("all")}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  agendaMonthFilter === "all"
+                    ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
+                    : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
+                }`}
+              >
+                All Gatherings ({filteredEvents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAgendaMonthFilter("2026-10")}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  agendaMonthFilter === "2026-10"
+                    ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
+                    : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
+                }`}
+              >
+                October 2026 ({filteredEvents.filter((e) => e.date.startsWith("2026-10")).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAgendaMonthFilter("2026-11")}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  agendaMonthFilter === "2026-11"
+                    ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
+                    : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
+                }`}
+              >
+                November 2026 ({filteredEvents.filter((e) => e.date.startsWith("2026-11")).length})
+              </button>
+            </div>
+          </div>
+
+          {filteredEvents.filter((e) => {
+            if (agendaMonthFilter === "all") return true;
+            return e.date.startsWith(agendaMonthFilter);
+          }).length === 0 ? (
             <div className="text-center py-12 text-[#8C8270] bg-white border border-[#D8CEBC] rounded-2xl p-6">
               <Info className="w-6 h-6 mx-auto mb-2 text-[#C8643F]" />
               <p className="text-sm font-semibold">No gatherings found for selected filters.</p>
@@ -348,6 +517,7 @@ export default function MemberCalendar({
                 onClick={() => {
                   setFilterStatus("all");
                   setFilterCategory("all");
+                  setAgendaMonthFilter("all");
                 }}
                 className="mt-3 text-xs text-[#C8643F] underline font-bold"
               >
@@ -355,7 +525,12 @@ export default function MemberCalendar({
               </button>
             </div>
           ) : (
-            filteredEvents.map((ev) => {
+            filteredEvents
+              .filter((e) => {
+                if (agendaMonthFilter === "all") return true;
+                return e.date.startsWith(agendaMonthFilter);
+              })
+              .map((ev) => {
               const style = getCategoryStyles(ev.category);
               const isAttending = ev.attendanceStatus === "attending";
 
@@ -394,9 +569,15 @@ export default function MemberCalendar({
                         )}
                       </div>
 
-                      <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
-                        {ev.title}
-                      </h3>
+                      <div className="mt-1.5">
+                        <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center gap-0.5">
+                          <span>Actually, Let&apos;s</span>
+                          <sup className="text-[7.5px] font-bold">TM</sup>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
+                          {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                        </h3>
+                      </div>
 
                       <p className="text-xs text-[#6A6253] mt-1 leading-relaxed max-w-xl">
                         {ev.description}
@@ -419,7 +600,7 @@ export default function MemberCalendar({
                   <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D8CEBC]/40">
                     <button
                       type="button"
-                      aria-label={`${isAttending ? "Cancel RSVP for" : "RSVP to attend"} ${ev.title}`}
+                      aria-label={`${isAttending ? "Cancel RSVP for" : "RSVP to attend"} ${splitEventTitle(ev.title, ev.brandPrefix).eventName}`}
                       onClick={() => onToggleRSVP && onToggleRSVP(ev.id)}
                       className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isAttending
@@ -489,9 +670,15 @@ export default function MemberCalendar({
                     {activePopoverEvent.category.toUpperCase()}
                   </span>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
-                  {activePopoverEvent.title}
-                </h3>
+                <div className="mt-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center gap-0.5">
+                    <span>Actually, Let&apos;s</span>
+                    <sup className="text-[8px] font-bold">TM</sup>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
+                    {splitEventTitle(activePopoverEvent.title, activePopoverEvent.brandPrefix).eventName}
+                  </h3>
+                </div>
               </div>
             </div>
 

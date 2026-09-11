@@ -28,7 +28,19 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ responses });
+    // Fetch registered users to hydrate active event RSVPs
+    let users: any[] = [];
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      users = usersSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (usersErr) {
+      console.warn('Could not fetch users in admin results route:', usersErr);
+    }
+
+    return NextResponse.json({ responses, users });
   } catch (error: any) {
     console.error('Error fetching admin results:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch results' }, { status: 500 });

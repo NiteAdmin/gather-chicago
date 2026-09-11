@@ -118,6 +118,8 @@ export interface BroadcastLogData {
   groupBCount: number;
   totalDispatched: number;
   forceResend?: boolean;
+  eventId?: string;
+  eventTitle?: string;
 }
 
 export interface BroadcastRecord extends BroadcastLogData {

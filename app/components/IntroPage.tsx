@@ -87,7 +87,7 @@ export default function IntroPage() {
       <header className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 sm:px-8 py-3.5 sm:py-4 font-sans-hanken">
         <Link href="/" className="group flex items-center gap-2 text-decoration-none shrink-0">
           <span className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
-            Actually, Let’s
+            Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
           </span>
           <span className="rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
             SERIES

@@ -34,6 +34,8 @@ interface AnnounceDateRequestBody {
   totalSurveysFound?: number;
   groupARecipients: RecipientInput[];
   groupBRecipients?: RecipientInput[];
+  eventId?: string;
+  eventTitle?: string;
 }
 
 export async function POST(req: Request) {
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
       totalSurveysFound,
       groupARecipients,
       groupBRecipients,
+      eventId,
+      eventTitle,
     } = body;
 
     // 1. Admin Authentication Guard
@@ -300,7 +304,7 @@ export async function POST(req: Request) {
     }
 
     // 6. Isolated Dual Admin Confirmation Receipts
-    const eventTitle = `Actually, Let's — ${cityName} (${winningDate})`;
+    const effectiveEventTitle = eventTitle ? `${eventTitle} (${cityName})` : `Actually, Let's — ${cityName} (${winningDate})`;
     const broadcastTimestamp = new Date().toISOString();
     const formattedTimestamp = new Date().toLocaleString("en-US", {
       timeZone: "America/Chicago",
@@ -319,14 +323,14 @@ export async function POST(req: Request) {
       customNote,
     });
 
-    const receiptSubject = `[Confirmation] Announcement Dispatched: ${eventTitle}`;
+    const receiptSubject = `[Confirmation] Announcement Dispatched: ${effectiveEventTitle}`;
     const totalRecipientsCount = isTestMode ? emailsToSend.length : (dispatchedCount || emailsToSend.length);
 
     const receiptHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; color: #2B271F; background-color: #FBF7EE;">
         <div style="background-color: #4C5A40; color: #FFFFFF; padding: 18px 22px; border-radius: 12px 12px 0 0;">
           <h2 style="margin: 0; font-size: 20px; font-weight: 700;">✓ Announcement Broadcast Confirmation</h2>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Event: ${eventTitle}</p>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Event: ${effectiveEventTitle}</p>
         </div>
 
         <div style="background-color: #FFFFFF; border: 1px solid #D8CEBC; border-top: none; padding: 22px; border-radius: 0 0 12px 12px;">
@@ -385,7 +389,7 @@ ${samplePreview.text}
       </div>
     `;
 
-    const receiptText = `[Confirmation] Announcement Dispatched: ${eventTitle}\n\n` +
+    const receiptText = `[Confirmation] Announcement Dispatched: ${effectiveEventTitle}\n\n` +
       `Broadcast Timestamp: ${broadcastTimestamp} (${formattedTimestamp})\n` +
       `Recipient Count: ${totalRecipientsCount} (${isTestMode ? 'Test Mode' : `${validGroupA.length} Group A, ${validGroupB.length} Group B`})\n` +
       `City: ${cityName}\n` +
@@ -486,6 +490,8 @@ ${samplePreview.text}
         groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
         totalDispatched: dispatchedCount || emailsToSend.length,
         forceResend: Boolean(forceResend),
+        eventId: eventId || undefined,
+        eventTitle: eventTitle || undefined,
       });
     } catch (dbErr) {
       console.error("[Firestore Broadcast Log Error]:", dbErr);

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { BroadcastRecord } from '@/lib/firebase';
-import { CommunityEvent, getEventsForCity, fetchHydratedEvents } from '@/lib/eventsConfig';
+import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
 import {
   Users,
@@ -286,7 +286,8 @@ export default function AdminDashboard() {
     events[0] || {
       id: 'chi-sep-26-gathering',
       city: 'chicago',
-      title: 'Actually, Let’s Stretch & Sip — Moksha Yoga',
+      brandPrefix: "Actually, Let's™",
+      title: 'Stretch & Sip — Moksha Yoga',
       date: '2026-09-26',
       displayDate: 'Sat, Sep 26',
       timeWindow: '10:30 AM (10:00 AM – 12:00 PM CDT)',
@@ -928,7 +929,7 @@ export default function AdminDashboard() {
                         .filter((ev) => ev.id !== 'chi-legacy-polled-sep-26')
                         .map((ev) => (
                           <option key={ev.id} value={ev.id}>
-                            {ev.displayDate} — {ev.title}
+                            {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
                           </option>
                         ))}
                     </optgroup>
@@ -937,7 +938,7 @@ export default function AdminDashboard() {
                         .filter((ev) => ev.id === 'chi-legacy-polled-sep-26')
                         .map((ev) => (
                           <option key={ev.id} value={ev.id}>
-                            {ev.displayDate} — {ev.title}
+                            {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
                           </option>
                         ))}
                     </optgroup>
@@ -956,6 +957,7 @@ export default function AdminDashboard() {
               </span>
               {events.map((ev) => {
                 const isSelected = ev.id === selectedEvent.id;
+                const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
                 return (
                   <button
                     key={ev.id}
@@ -968,7 +970,7 @@ export default function AdminDashboard() {
                     }`}
                   >
                     {ev.icon ? `${ev.icon} ` : ''}
-                    {ev.displayDate}: {ev.title.length > 24 ? `${ev.title.slice(0, 24)}…` : ev.title}
+                    {ev.displayDate}: {cleanName.length > 24 ? `${cleanName.slice(0, 24)}…` : cleanName}
                   </button>
                 );
               })}
@@ -976,9 +978,13 @@ export default function AdminDashboard() {
 
             {/* Main Gathering Info & Actions Row */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
-              <div className="space-y-2">
-                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
-                  {selectedEvent.title}
+              <div className="space-y-1">
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center gap-0.5">
+                  <span>Actually, Let&apos;s</span>
+                  <sup className="text-[8px] font-bold">TM</sup>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
+                  {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
                 </h2>
                 <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#6A6253]">
                   <span className="inline-flex items-center gap-1.5 font-medium text-[#2B271F]">
@@ -1298,7 +1304,7 @@ export default function AdminDashboard() {
                   Showing <strong>{filteredResponses.length}</strong> of <strong>{responses.length}</strong> contacts
                   {(searchQuery || filterAttendance !== 'all' || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all') && (
                     <span className="text-[#C8643F] font-semibold ml-1">
-                      (Filtered{filterAttendance === 'attending' ? ` · Attending ${selectedEvent.title}` : filterAttendance === 'survey_only' ? ' · Survey Only' : ''})
+                      (Filtered{filterAttendance === 'attending' ? ` · Attending ${splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}` : filterAttendance === 'survey_only' ? ' · Survey Only' : ''})
                     </span>
                   )}
                 </p>
@@ -1346,7 +1352,10 @@ export default function AdminDashboard() {
                 >
                   <option value="all">All Contacts ({responses.length})</option>
                   <option value="attending">
-                    Attending: {selectedEvent.title.length > 20 ? `${selectedEvent.title.slice(0, 20)}…` : selectedEvent.title}
+                    Attending: {(() => {
+                      const clean = splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName;
+                      return clean.length > 20 ? `${clean.slice(0, 20)}…` : clean;
+                    })()}
                   </option>
                   <option value="survey_only">Survey Only (Not RSVP&apos;d)</option>
                 </select>
@@ -1729,7 +1738,7 @@ export default function AdminDashboard() {
                     <optgroup label="Chapter Gatherings">
                       {events.map((ev) => (
                         <option key={ev.id} value={ev.displayDate}>
-                          {ev.displayDate} — {ev.title}
+                          {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
                         </option>
                       ))}
                     </optgroup>
@@ -1866,7 +1875,7 @@ export default function AdminDashboard() {
                       <>
                         <span className="text-[#6A6253]">Target Gathering:</span>
                         <span className="col-span-2 font-bold text-[#C8643F]">
-                          {activeModalEventTitle || selectedEvent?.title}
+                          Actually, Let&apos;s<sup className="text-[0.65em] font-bold ml-0.5">TM</sup> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
                         </span>
                       </>
                     )}

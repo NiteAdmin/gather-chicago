@@ -117,7 +117,7 @@ export default function ConfirmationCard({
       {/* Brand Header & Subtitle */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C8643F', fontWeight: 700 }}>
-          Actually, Let&apos;s
+          Actually, Let&apos;s<sup style={{ fontSize: '0.65em', fontWeight: 700, marginLeft: '2px' }}>TM</sup>
         </div>
         <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#4C5A40', marginTop: '2px', fontFamily: "'Fraunces', serif" }}>
           Community Series · {cityName}

@@ -37,7 +37,7 @@ import {
 import UserNavButton from "@/components/nav/UserNavButton";
 import MemberCalendar from "@/components/dashboard/MemberCalendar";
 import DashboardHero from "@/components/dashboard/DashboardHero";
-import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents } from "@/lib/eventsConfig";
+import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle } from "@/lib/eventsConfig";
 import {
   fetchUserRSVPs,
   fetchUserSavedRsvps,
@@ -393,8 +393,32 @@ export default function DashboardPage() {
   };
 
   // Dynamically partition events: filter upcoming (date >= '2026-09-09') & sort ascending
-  const { upcomingAttending } = partitionUpcomingEvents(resolvedEvents);
+  const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents);
   const attendingCount = upcomingAttending.length;
+
+  const host = {
+    name: "Lola",
+    email: "admin@actuallylets.com",
+    city: "Chicago",
+  };
+
+  const getHostSubtitle = (event: ResolvedEvent | null, city: string = "Chicago"): string => {
+    if (!event) return `${city} Community Host`;
+    const { eventName } = splitEventTitle(event.title, event.brandPrefix);
+    if (event.venueName && eventName.includes(" — ")) {
+      const parts = eventName.split(" — ");
+      if (parts.length === 2) {
+        const suffix = parts[1].trim().toLowerCase();
+        const venue = event.venueName.toLowerCase();
+        if (venue.startsWith(suffix)) {
+          return `${parts[0].trim()} Host`;
+        }
+      }
+    }
+    return `${eventName.trim()} Host`;
+  };
+
+  const hostSubtitle = getHostSubtitle(spotlightEvent, host.city);
 
   // Active member vibes: priority to users/{uid}, fallback to survey responses
   const displayVibes =
@@ -435,8 +459,12 @@ export default function DashboardPage() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center gap-0.5">
+                    <span>Actually, Let&apos;s</span>
+                    <sup className="text-[7px] font-bold">TM</sup>
+                  </div>
                   <h4 className="text-xs font-bold text-[#2B271F] leading-tight">
-                    {ev.title}
+                    {splitEventTitle(ev.title, ev.brandPrefix).eventName}
                   </h4>
                   <p className="text-[11px] font-semibold text-[#C8643F] mt-0.5">
                     {ev.displayDate} &bull; {ev.timeWindow.includes("10:30 AM") ? "10:30 AM" : ev.timeWindow.split(" (")[0]} &bull; {ev.venueName}
@@ -482,7 +510,7 @@ export default function DashboardPage() {
             className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
           >
             <span className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight">
-              Actually, Let&apos;s
+              Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES
@@ -566,15 +594,15 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2.5">
                   <div
                     className="w-9 h-9 rounded-full bg-[#FAF7F2] border border-[#EBE3D5] flex items-center justify-center font-serif font-bold text-sm text-[#2B271F] shadow-xs shrink-0"
-                    aria-label="Host Lola avatar"
+                    aria-label={`Host ${host.name} avatar`}
                   >
-                    <span>L</span>
+                    <span>{host.name.charAt(0)}</span>
                   </div>
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F]">
-                      Lola
+                      {host.name}
                     </h3>
-                    <p className="text-[11px] text-[#8C8270]">Chicago Host</p>
+                    <p className="text-[11px] text-[#8C8270] font-medium">{hostSubtitle}</p>
                   </div>
                 </div>
                 <p className="text-xs text-[#6A6253] leading-relaxed">
@@ -582,15 +610,15 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex flex-col gap-2 pt-1">
                   <a
-                    href="mailto:admin@actuallylets.com?subject=Actually%20Let's%20Chicago%20-%20Question%20for%20Lola"
-                    aria-label="Contact Chicago chapter host Lola via email"
+                    href={`mailto:${host.email}?subject=${encodeURIComponent(`Actually Let's ${host.city} - Question for ${host.name} (${hostSubtitle})`)}`}
+                    aria-label={`Contact ${host.city} host ${host.name} via email`}
                     className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#EDE4D3] hover:bg-[#E2D6C0] text-[#2B271F] text-xs font-semibold transition-colors"
                   >
                     <Mail className="w-3.5 h-3.5 text-[#C8643F]" />
-                    <span>Contact Lola</span>
+                    <span>Contact {host.name}</span>
                   </a>
                   <Link
-                    href="/host?city=chicago"
+                    href={`/host?city=${host.city.toLowerCase()}`}
                     className="text-center text-[11px] font-semibold text-[#C8643F] hover:underline"
                   >
                     Host a community gathering &rarr;
