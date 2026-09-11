@@ -860,8 +860,8 @@ export default function SurveyForm({
                     Which dates could you make?
                   </h3>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FBF0EA] border border-[#F0D5C7] text-[#A64F2E] font-medium text-[11px] tracking-wide uppercase">
-                      <span>✦</span>
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#FBF0EA] border border-[#F0D5C7] text-[#A64F2E] font-medium text-[11px] tracking-wide uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#C8643F]" />
                       <span>Fast Pass · Set it & forget it</span>
                     </div>
                     <span className="text-[11px] font-serif italic text-stone-500">
