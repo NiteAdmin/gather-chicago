@@ -859,8 +859,11 @@ export default function SurveyForm({
                   <h3 className="font-serif text-xl sm:text-2xl font-normal text-[#2B271F] tracking-tight mb-1">
                     Which dates could you make?
                   </h3>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-stone-600 mb-3">
-                    <span>Auto-detect free weekends — set it and forget it for upcoming gatherings:</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FBF0EA] border border-[#F0D5C7] text-[#A64F2E] font-medium text-[11px] tracking-wide uppercase">
+                      <span>✦</span>
+                      <span>Fast Pass · Set it & forget it</span>
+                    </div>
                     <span className="text-[11px] font-serif italic text-stone-500">
                       Free/busy only · 100% private
                     </span>
