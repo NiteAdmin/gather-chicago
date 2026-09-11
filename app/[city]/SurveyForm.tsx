@@ -9,8 +9,7 @@ import ConfirmationCard from '@/app/components/ConfirmationCard';
 import PostRsvpAuthModal from '@/components/survey/PostRsvpAuthModal';
 import {
   Calendar,
-  UploadCloud,
-  Sparkles,
+  Upload,
   ShieldCheck,
   Check,
   AlertCircle,
@@ -101,6 +100,8 @@ export default function SurveyForm({
   const [slotStatusMap, setSlotStatusMap] = useState<Record<string, 'free' | 'busy'>>({});
   const [calendarScanMessage, setCalendarScanMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSyncingCalendar = checkingCalendar;
+  const handleTriggerIcsUpload = () => fileInputRef.current?.click();
 
   const [customDate, setCustomDate] = useState('');
   const [customTime, setCustomTime] = useState('');
@@ -385,8 +386,6 @@ export default function SurveyForm({
 
         * {
           box-sizing: border-box;
-          margin: 0;
-          padding: 0;
         }
 
         body {
@@ -853,77 +852,66 @@ export default function SurveyForm({
             </div>
 
             <div className="card">
-              {/* Top Section: Fast Pass Auto-Availability */}
-              <div className="smart-connect-bar">
-                <div className="smart-connect-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="smart-connect-badge fast-pass">
-                      <Sparkles className="w-3.5 h-3.5 text-[var(--terra)]" />
-                      <span>FAST PASS &bull; SET IT &amp; FORGET IT</span>
+              {/* Step 1: Dates */}
+              <div className="q">
+                {/* Question Header */}
+                <div className="mb-4">
+                  <h3 className="font-serif text-xl sm:text-2xl font-normal text-[#2B271F] tracking-tight mb-1">
+                    Which dates could you make?
+                  </h3>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-stone-600">
+                    <span>Tap any dates that work for you, or auto-detect from your calendar:</span>
+                    <span className="text-[11px] font-serif italic text-stone-500">
+                      Free/busy only · 100% private
                     </span>
                   </div>
-                  <span className="smart-connect-badge privacy">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>100% Private &bull; Free/Busy Only</span>
-                  </span>
                 </div>
 
-                <p style={{ fontSize: '0.82rem', color: '#5A5243', marginTop: '4px', marginBottom: '12px', lineHeight: 1.45 }}>
-                  Skip manual selection. Connect once to automatically match open slots across upcoming {cityName} gatherings.
-                </p>
-
-                <div className="smart-connect-actions">
+                {/* Inline Auto-Detect Actions */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 p-2 rounded-xl bg-[#F7F3EB] border border-[#E5DDD0] mb-5">
+                  {/* Google Calendar Action */}
                   <button
                     type="button"
-                    className="connect-btn google"
                     onClick={handleConnectGoogleCalendar}
-                    disabled={checkingCalendar}
+                    disabled={isSyncingCalendar}
+                    className="flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-lg bg-[#2B271F] hover:bg-[#3D372E] text-[#FAF8F5] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {checkingCalendar && calendarConnected === 'google' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-[var(--terra)]" />
-                        <span>Checking Google Calendar...</span>
-                      </>
+                    {isSyncingCalendar && calendarConnected === 'google' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E3D8C8]" />
                     ) : (
-                      <>
-                        <Calendar className="w-4 h-4 text-[#4285F4]" />
-                        <span>Connect Google Calendar</span>
-                      </>
+                      <Calendar className="w-3.5 h-3.5 text-[#E3D8C8]" strokeWidth={1.75} />
                     )}
+                    <span>Google Calendar</span>
                   </button>
 
+                  {/* .ics Upload Action */}
                   <button
                     type="button"
-                    className="connect-btn ics"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={checkingCalendar}
+                    onClick={handleTriggerIcsUpload}
+                    disabled={isSyncingCalendar}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-white hover:bg-stone-50 border border-[#D9CFC1] text-[#3B3228] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {checkingCalendar && calendarConnected === 'ics' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-[var(--terra)]" />
-                        <span>Reading .ics File...</span>
-                      </>
+                    {isSyncingCalendar && calendarConnected === 'ics' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-500" />
                     ) : (
-                      <>
-                        <UploadCloud className="w-4 h-4 text-[#6E7F5E]" />
-                        <span>Drop / Pick .ics File</span>
-                      </>
+                      <Upload className="w-3.5 h-3.5 text-stone-500" strokeWidth={1.75} />
                     )}
+                    <span>Upload .ics</span>
                   </button>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".ics,text/calendar"
-                    style={{ display: 'none' }}
-                    onChange={handleIcsUpload}
-                  />
                 </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".ics,text/calendar"
+                  style={{ display: 'none' }}
+                  onChange={handleIcsUpload}
+                />
 
                 {calendarScanMessage && (
-                  <div className="smart-connect-msg" style={{ marginTop: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircle2 className="w-4 h-4 text-[#3B5730] shrink-0" />
+                  <div className="mb-5 flex items-center justify-between gap-2 p-3 rounded-xl bg-[#EAF0E6] border border-[#C5D8BF] text-[#2D5A30] text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#3B5730] shrink-0" strokeWidth={1.8} />
                       <span>{calendarScanMessage}</span>
                     </div>
                     <button
@@ -933,27 +921,20 @@ export default function SurveyForm({
                         setCalendarConnected(null);
                         setCalendarScanMessage(null);
                       }}
-                      style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#6A6253', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.76rem' }}
+                      className="text-[11px] text-[#55694F] hover:text-[#2D5A30] underline cursor-pointer bg-transparent border-none"
                     >
                       Reset
                     </button>
                   </div>
                 )}
-              </div>
 
-              {/* Clean Section Transition Separator */}
-              <div className="manual-divider-wrap">
-                <div className="manual-divider-line" />
-                <span className="manual-divider-text">
-                  &mdash; OR CHOOSE DATES &amp; ACTIVITIES MANUALLY &mdash;
-                </span>
-                <div className="manual-divider-line" />
-              </div>
-
-              {/* Step 1: Dates */}
-              <div className="q">
-                <div className="q-label">Which dates could you make?</div>
-                <div className="q-help">Tap any dates that work for you, or auto-detect free slots above.</div>
+                {/* Subtle Divider */}
+                <div className="relative flex items-center justify-center mb-5">
+                  <div className="w-full border-t border-[#E8DFD1]" />
+                  <span className="absolute bg-[#FBF7EE] px-3 font-mono text-[10px] uppercase tracking-wider text-stone-600">
+                    Or select manually
+                  </span>
+                </div>
 
                 <div className="chips">
                   {DATES.map((d) => (
