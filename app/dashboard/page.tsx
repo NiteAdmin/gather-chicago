@@ -42,6 +42,7 @@ import {
   fetchUserRSVPs,
   fetchUserSavedRsvps,
   saveUserRsvps,
+  saveUserEventOverride,
   saveUserVibes,
   loadUserData as loadUserFirestoreData,
   AVAILABLE_VIBES,
@@ -59,6 +60,7 @@ export default function DashboardPage() {
   const [baseEvents, setBaseEvents] = useState<CommunityEvent[]>(OCTOBER_2026_EVENTS);
   const [userResponses, setUserResponses] = useState<SurveyResponse[]>([]);
   const [savedRsvpIds, setSavedRsvpIds] = useState<string[]>([]);
+  const [declinedEventIds, setDeclinedEventIds] = useState<string[]>([]);
   const [userVibes, setUserVibes] = useState<string[]>([]);
   const [isEditingVibes, setIsEditingVibes] = useState(false);
   const [selectedEditorVibes, setSelectedEditorVibes] = useState<string[]>([]);
@@ -69,6 +71,7 @@ export default function DashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<string, "attending" | "open">>({});
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedHostEmail, setCopiedHostEmail] = useState(false);
 
   // Auth Form State for inline card when unauthenticated
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -82,15 +85,23 @@ export default function DashboardPage() {
   const loadUserData = useCallback(async (userEmail: string, userUid: string) => {
     setLoadingEvents(true);
     try {
-      const [{ vibes, savedRsvpIds: savedIds, responses }, hydrated] = await Promise.all([
+      const [{ vibes, savedRsvpIds: savedIds, declinedEventIds: declinedIds, responses }, hydrated] = await Promise.all([
         loadUserFirestoreData(userUid, userEmail),
         fetchHydratedEvents("chicago"),
       ]);
       setBaseEvents(hydrated);
       setUserResponses(responses);
       setSavedRsvpIds(savedIds);
+      setDeclinedEventIds(declinedIds || []);
       setUserVibes(vibes);
-      const resolved = resolveUserAttendance(hydrated, responses, manualOverrides, savedIds, vibes);
+      const resolved = resolveUserAttendance(
+        hydrated,
+        responses,
+        manualOverrides,
+        savedIds,
+        vibes,
+        declinedIds || []
+      );
       setResolvedEvents(resolved);
     } catch (err) {
       console.warn("Could not load user RSVPs:", err);
@@ -109,6 +120,7 @@ export default function DashboardPage() {
       } else {
         setUserResponses([]);
         setSavedRsvpIds([]);
+        setDeclinedEventIds([]);
         setUserVibes([]);
         fetchHydratedEvents("chicago")
           .then((hydrated) => {
@@ -127,6 +139,7 @@ export default function DashboardPage() {
     // 1. Snapshot previous state for rollback
     const prevOverrides = { ...manualOverrides };
     const prevSavedRsvpIds = [...savedRsvpIds];
+    const prevDeclinedIds = [...declinedEventIds];
     const prevResolvedEvents = [...resolvedEvents];
 
     const currentStatus =
@@ -142,31 +155,46 @@ export default function DashboardPage() {
     };
     setManualOverrides(updatedOverrides);
 
-    // Re-resolve events with session overrides using hydrated baseEvents
+    let nextSavedRsvpIds: string[];
+    let nextDeclinedIds: string[];
+
+    if (newStatus === "attending") {
+      nextSavedRsvpIds = Array.from(new Set([...savedRsvpIds, eventId]));
+      nextDeclinedIds = declinedEventIds.filter((id) => id !== eventId);
+    } else {
+      nextSavedRsvpIds = savedRsvpIds.filter((id) => id !== eventId);
+      nextDeclinedIds = Array.from(new Set([...declinedEventIds, eventId]));
+    }
+
+    setSavedRsvpIds(nextSavedRsvpIds);
+    setDeclinedEventIds(nextDeclinedIds);
+
+    // Re-resolve events with session overrides and persistent decline state
     const updatedEvents = resolveUserAttendance(
       baseEvents,
       userResponses,
       updatedOverrides,
-      savedRsvpIds,
-      userVibes
+      nextSavedRsvpIds,
+      userVibes,
+      nextDeclinedIds
     );
     setResolvedEvents(updatedEvents);
-
-    // Compute updated array of attending IDs to persist to users/{uid} in Firestore
-    const updatedAttendingIds = updatedEvents
-      .filter((e) => e.attendanceStatus === "attending")
-      .map((e) => e.id);
-
-    setSavedRsvpIds(updatedAttendingIds);
 
     // 3. Persist to Firestore with error rollback & toast
     if (user?.uid) {
       try {
-        await saveUserRsvps(user.uid, updatedAttendingIds);
+        await saveUserEventOverride(
+          user.uid,
+          eventId,
+          newStatus,
+          savedRsvpIds,
+          declinedEventIds
+        );
       } catch (err: any) {
-        console.warn("Unable to persist RSVP to Firestore, rolling back state:", err);
+        console.warn("Unable to persist RSVP override to Firestore, rolling back state:", err);
         setManualOverrides(prevOverrides);
         setSavedRsvpIds(prevSavedRsvpIds);
+        setDeclinedEventIds(prevDeclinedIds);
         setResolvedEvents(prevResolvedEvents);
         setRsvpToast("Unable to update RSVP. Please check your connection and try again.");
         setTimeout(() => setRsvpToast(null), 4000);
@@ -346,6 +374,7 @@ export default function DashboardPage() {
     await signOut(auth);
     setManualOverrides({});
     setSavedRsvpIds([]);
+    setDeclinedEventIds([]);
     setUserVibes([]);
   };
 
@@ -357,7 +386,8 @@ export default function DashboardPage() {
         userResponses,
         manualOverrides,
         savedRsvpIds,
-        selectedEditorVibes
+        selectedEditorVibes,
+        declinedEventIds
       );
       setResolvedEvents(updatedEvents);
       setVibesSuccessMsg("Preferences updated!");
@@ -377,7 +407,8 @@ export default function DashboardPage() {
         userResponses,
         manualOverrides,
         savedRsvpIds,
-        selectedEditorVibes
+        selectedEditorVibes,
+        declinedEventIds
       );
       setResolvedEvents(updatedEvents);
       setVibesSuccessMsg("Preferences saved!");
@@ -400,6 +431,14 @@ export default function DashboardPage() {
     name: "Lola",
     email: "admin@actuallylets.com",
     city: "Chicago",
+  };
+
+  const handleCopyHostEmail = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(host.email);
+    }
+    setCopiedHostEmail(true);
+    setTimeout(() => setCopiedHostEmail(false), 2000);
   };
 
   const getHostSubtitle = (event: ResolvedEvent | null, city: string = "Chicago"): string => {
@@ -609,17 +648,53 @@ export default function DashboardPage() {
                   Have questions about venue access, food accommodations, or want to co-host a meetup?
                 </p>
                 <div className="flex flex-col gap-2 pt-1">
-                  <a
-                    href={`mailto:${host.email}?subject=${encodeURIComponent(`Actually Let's ${host.city} - Question for ${host.name} (${hostSubtitle})`)}`}
-                    aria-label={`Contact ${host.city} host ${host.name} via email`}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#EDE4D3] hover:bg-[#E2D6C0] text-[#2B271F] text-xs font-semibold transition-colors"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-[#C8643F]" />
-                    <span>Contact {host.name}</span>
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`mailto:${host.email}?subject=${encodeURIComponent(`Actually Let's ${host.city} - Question for ${host.name} (${hostSubtitle})`)}`}
+                      aria-label={`Contact ${host.city} host ${host.name} via email`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#EDE4D3] hover:bg-[#E2D6C0] text-[#2B271F] text-xs font-semibold transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-[#C8643F] shrink-0" />
+                      <span className="truncate">Contact {host.name}</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleCopyHostEmail}
+                      aria-label={copiedHostEmail ? "Host email copied to clipboard" : `Copy host email ${host.email}`}
+                      title={copiedHostEmail ? "Copied!" : `Copy ${host.email}`}
+                      className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                        copiedHostEmail
+                          ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
+                          : "bg-white border-[#D8CEBC] hover:border-[#B5A995] text-[#2B271F]"
+                      }`}
+                    >
+                      {copiedHostEmail ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#3D5634]" />
+                          <span className="text-[11px] font-bold">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-[#8C8270]" />
+                          <span className="text-[11px]">Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Direct visual display of host email for transparency */}
+                  <div className="text-[11px] text-[#8C8270] flex items-center justify-between px-1">
+                    <span className="font-mono truncate">{host.email}</span>
+                    {copiedHostEmail && (
+                      <span className="text-[#3D5634] font-medium text-[10px] ml-2 shrink-0">
+                        Copied to clipboard
+                      </span>
+                    )}
+                  </div>
+
                   <Link
                     href={`/host?city=${host.city.toLowerCase()}`}
-                    className="text-center text-[11px] font-semibold text-[#C8643F] hover:underline"
+                    className="text-center text-[11px] font-semibold text-[#C8643F] hover:underline pt-0.5"
                   >
                     Host a community gathering &rarr;
                   </Link>

@@ -58,10 +58,12 @@ export async function fetchUserVibes(userId: string): Promise<string[] | null> {
 export async function loadUserData(userId: string, userEmail?: string): Promise<{
   vibes: string[];
   savedRsvpIds: string[];
+  declinedEventIds: string[];
   responses: SurveyResponse[];
 }> {
   let vibes: string[] = [];
   let savedRsvpIds: string[] = [];
+  let declinedEventIds: string[] = [];
   let responses: SurveyResponse[] = [];
 
   if (userId) {
@@ -75,6 +77,9 @@ export async function loadUserData(userId: string, userEmail?: string): Promise<
         }
         if (Array.isArray(data?.rsvpEventIds)) {
           savedRsvpIds = data.rsvpEventIds as string[];
+        }
+        if (Array.isArray(data?.declinedEventIds)) {
+          declinedEventIds = data.declinedEventIds as string[];
         }
       }
     } catch (err) {
@@ -93,7 +98,7 @@ export async function loadUserData(userId: string, userEmail?: string): Promise<
     }
   }
 
-  return { vibes, savedRsvpIds, responses };
+  return { vibes, savedRsvpIds, declinedEventIds, responses };
 }
 
 /**
@@ -141,6 +146,27 @@ export async function fetchUserSavedRsvps(uid: string): Promise<string[]> {
 }
 
 /**
+ * Fetch persisted declined/cancelled event IDs saved in users/{uid} in Firestore.
+ */
+export async function fetchUserDeclinedEvents(uid: string): Promise<string[]> {
+  if (!uid) return [];
+  try {
+    const userDocRef = doc(db, "users", uid);
+    const snap = await getDoc(userDocRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data?.declinedEventIds)) {
+        return data.declinedEventIds as string[];
+      }
+    }
+    return [];
+  } catch (err) {
+    console.warn("fetchUserDeclinedEvents failed or offline:", err);
+    return [];
+  }
+}
+
+/**
  * Save updated array of RSVP event IDs to users/{uid} in Firestore.
  */
 export async function saveUserRsvps(uid: string, rsvpEventIds: string[]): Promise<void> {
@@ -152,6 +178,50 @@ export async function saveUserRsvps(uid: string, rsvpEventIds: string[]): Promis
     console.warn("saveUserRsvps error:", err);
     throw err;
   }
+}
+
+/**
+ * Persist explicit RSVP attendance or cancellation override to users/{uid} in Firestore.
+ * Ensures an explicit cancellation ('open') is stored in declinedEventIds and removed from rsvpEventIds,
+ * and vice-versa for 'attending'.
+ */
+export async function saveUserEventOverride(
+  uid: string,
+  eventId: string,
+  status: 'attending' | 'open',
+  currentRsvpIds: string[] = [],
+  currentDeclinedIds: string[] = []
+): Promise<{ rsvpEventIds: string[]; declinedEventIds: string[] }> {
+  if (!uid) return { rsvpEventIds: currentRsvpIds, declinedEventIds: currentDeclinedIds };
+
+  let updatedRsvps: string[];
+  let updatedDeclined: string[];
+
+  if (status === 'attending') {
+    updatedRsvps = Array.from(new Set([...currentRsvpIds, eventId]));
+    updatedDeclined = currentDeclinedIds.filter((id) => id !== eventId);
+  } else {
+    updatedRsvps = currentRsvpIds.filter((id) => id !== eventId);
+    updatedDeclined = Array.from(new Set([...currentDeclinedIds, eventId]));
+  }
+
+  try {
+    const userDocRef = doc(db, "users", uid);
+    await setDoc(
+      userDocRef,
+      {
+        rsvpEventIds: updatedRsvps,
+        declinedEventIds: updatedDeclined,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err: any) {
+    console.warn("saveUserEventOverride error:", err);
+    throw err;
+  }
+
+  return { rsvpEventIds: updatedRsvps, declinedEventIds: updatedDeclined };
 }
 
 /**
@@ -235,16 +305,18 @@ function checkEventVibeMatch(eventId: string, gatherings: string[]): { isMatch: 
  *
  * Rules:
  * 1. Local session overrides take immediate precedence.
- * 2. Persisted rsvpEventIds from Firestore take second precedence.
- * 3. An event is marked 'attending' if the user's survey explicitly selected a matching gathering vibe.
- * 4. Otherwise, defaults to 'open' ("Open Gathering").
+ * 2. Explicit declinedEventIds take second precedence (strict short-circuit: cannot be resurrected by vibe matching).
+ * 3. Persisted rsvpEventIds from Firestore take third precedence.
+ * 4. An event is marked 'attending' if the user's survey explicitly selected a matching gathering vibe.
+ * 5. Otherwise, defaults to 'open' ("Open Gathering").
  */
 export function resolveUserAttendance(
   events: CommunityEvent[] = OCTOBER_2026_EVENTS,
   responses: SurveyResponse[] = [],
   manualAttendanceOverrides?: Record<string, 'attending' | 'open'>,
   savedRsvpIds: string[] = [],
-  userVibes?: string[]
+  userVibes?: string[],
+  declinedEventIds: string[] = []
 ): ResolvedEvent[] {
   const overrides = manualAttendanceOverrides || {};
 
@@ -258,7 +330,18 @@ export function resolveUserAttendance(
       };
     }
 
-    // 2. Saved RSVP in Firestore user profile
+    // 2. Persistent Declined Event (Explicit user cancellation in Firestore)
+    // STRICT SHORT-CIRCUIT: If user explicitly cancelled/declined this event,
+    // NEVER let survey vibe matching resurrect it to 'attending'!
+    if (declinedEventIds.includes(event.id)) {
+      return {
+        ...event,
+        attendanceStatus: 'open',
+        matchingReason: 'Open Gathering — tap to RSVP',
+      };
+    }
+
+    // 3. Saved RSVP in Firestore user profile
     if (savedRsvpIds.includes(event.id)) {
       return {
         ...event,
@@ -267,7 +350,7 @@ export function resolveUserAttendance(
       };
     }
 
-    // 3. User vibes match (from users/{userId})
+    // 4. User vibes match (from users/{userId})
     if (userVibes && userVibes.length > 0) {
       const vibeCheck = checkEventVibeMatch(event.id, userVibes);
       if (vibeCheck.isMatch) {
@@ -279,7 +362,7 @@ export function resolveUserAttendance(
       }
     }
 
-    // 4. Survey response vibe matching
+    // 5. Survey response vibe matching
     if (responses && responses.length > 0) {
       for (const res of responses) {
         const resCity = (res.city || 'chicago').toLowerCase();
@@ -324,7 +407,7 @@ export function resolveUserAttendance(
       }
     }
 
-    // 5. Default to open
+    // 6. Default to open
     return {
       ...event,
       attendanceStatus: 'open',
@@ -376,6 +459,7 @@ export interface RegisteredUser {
   name?: string;
   email?: string;
   rsvpEventIds?: string[];
+  declinedEventIds?: string[];
   vibes?: string[];
   [key: string]: any;
 }
@@ -413,13 +497,18 @@ export function calculateEventAttendance(
   surveyMatchedCount: number;
 } {
   const attendingEmails = new Set<string>();
+  const declinedEmails = new Set<string>();
 
-  // 1. Registered users with explicit RSVP
+  // 1. Registered users with explicit RSVP or cancellation
   let userRsvpCount = 0;
   users.forEach((u) => {
+    const email = (u.email || "").trim().toLowerCase();
+    if (Array.isArray(u.declinedEventIds) && u.declinedEventIds.includes(event.id)) {
+      if (email) declinedEmails.add(email);
+      return;
+    }
     if (Array.isArray(u.rsvpEventIds) && u.rsvpEventIds.includes(event.id)) {
       userRsvpCount++;
-      const email = (u.email || "").trim().toLowerCase();
       if (email) attendingEmails.add(email);
     }
   });
@@ -428,6 +517,9 @@ export function calculateEventAttendance(
   let surveyMatchedCount = 0;
   responses.forEach((r) => {
     const userEmail = (r.email || "").trim().toLowerCase();
+    if (userEmail && declinedEmails.has(userEmail)) {
+      return; // Skip explicitly cancelled users
+    }
     const resolved = resolveUserAttendance([event], [r], undefined, []);
     if (resolved[0]?.attendanceStatus === "attending") {
       surveyMatchedCount++;
@@ -456,17 +548,24 @@ export function isContactAttendingEvent(
 ): boolean {
   const email = (contact.email || "").trim().toLowerCase();
 
-  // Check 1: User profile has saved RSVP for this event
+  // Check 1: User profile has saved RSVP or explicit decline for this event
   if (email) {
     const matchingUser = users.find(
       (u) => (u.email || "").trim().toLowerCase() === email
     );
-    if (
-      matchingUser &&
-      Array.isArray(matchingUser.rsvpEventIds) &&
-      matchingUser.rsvpEventIds.includes(event.id)
-    ) {
-      return true;
+    if (matchingUser) {
+      if (
+        Array.isArray(matchingUser.declinedEventIds) &&
+        matchingUser.declinedEventIds.includes(event.id)
+      ) {
+        return false;
+      }
+      if (
+        Array.isArray(matchingUser.rsvpEventIds) &&
+        matchingUser.rsvpEventIds.includes(event.id)
+      ) {
+        return true;
+      }
     }
   }
 
