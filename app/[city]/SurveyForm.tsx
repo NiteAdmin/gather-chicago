@@ -1204,7 +1204,7 @@ export default function SurveyForm({
               {/* A2P 10DLC Footer Legal & Compliance Links */}
               <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)', lineHeight: '1.6' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong>Actually, Let&apos;s</strong> &bull; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &bull;{' '}
+                  <strong>Actually, Let&apos;s<sup style={{ fontSize: '0.6em', fontWeight: 'bold', marginLeft: '2px', verticalAlign: 'super' }}>TM</sup></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1221,7 +1221,7 @@ export default function SurveyForm({
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline', marginRight: '10px' }}>
                     Privacy Policy
                   </a>
-                  <span style={{ color: 'var(--line)' }}>&bull;</span>
+                  <span style={{ color: 'var(--line)' }}>&middot;</span>
                   <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--terra)', textDecoration: 'underline', marginLeft: '10px' }}>
                     Terms of Service
                   </a>

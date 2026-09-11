@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Users } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 export default function IntroPage() {
@@ -92,7 +93,7 @@ export default function IntroPage() {
         <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
           {/* Eyebrow Badge */}
           <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest px-3 sm:px-4 py-1.5 rounded-full mb-6 shadow-sm max-w-full text-center">
-            <span>✦</span>
+            <Users className="w-3.5 h-3.5 text-[var(--terra)] shrink-0" />
             <span>CONSENSUS-DRIVEN COMMUNITY GATHERINGS</span>
           </div>
 
@@ -308,19 +309,19 @@ export default function IntroPage() {
             <Link href="/chicago" className="hover:text-[#2B271F] underline underline-offset-4">
               Chicago Series
             </Link>
-            <span>▪</span>
+            <span className="text-[#A89F91] select-none">&middot;</span>
             <Link href="/host" className="hover:text-[#2B271F] transition-colors">
               Host Application
             </Link>
-            <span>▪</span>
+            <span className="text-[#A89F91] select-none">&middot;</span>
             <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
               Privacy Policy
             </Link>
-            <span>▪</span>
+            <span className="text-[#A89F91] select-none">&middot;</span>
             <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
               Terms of Service
             </Link>
-            <span>▪</span>
+            <span className="text-[#A89F91] select-none">&middot;</span>
             <a
               href="mailto:admin@actuallylets.com"
               className="underline hover:text-stone-800 transition-colors"
@@ -328,9 +329,14 @@ export default function IntroPage() {
               admin@actuallylets.com
             </a>
           </div>
-          <p className="text-[11px] sm:text-xs">
-            <strong>Actually, Let’s</strong> &bull; Consensus-driven community gatherings &bull; A portion of every ticket supports local community initiatives.
-          </p>
+          <div className="space-y-1 pt-1">
+            <p className="text-xs sm:text-sm font-bold text-[#2B271F]">
+              Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
+            </p>
+            <p className="text-[11px] sm:text-xs text-[#6A6253]">
+              Consensus-driven community gatherings <span className="mx-1 text-[#A89F91]">&middot;</span> A portion of every ticket supports local community initiatives.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

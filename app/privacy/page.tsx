@@ -72,16 +72,16 @@ export default function PrivacyPage() {
 
         <footer style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #D8CEBC', textAlign: 'center', fontSize: '0.85rem', color: '#6A6253', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
-            <strong>Actually, Let&apos;s</strong> &bull; Chicago, IL &bull;{' '}
+            <strong>Actually, Let&apos;s<sup style={{ fontSize: '0.6em', fontWeight: 'bold', marginLeft: '2px', verticalAlign: 'super' }}>TM</sup></strong> &middot; Chicago, IL &middot;{' '}
             <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
               rsvp@actuallylets.com
             </MailtoButton>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '4px' }}>
             <Link href="/chicago" style={{ color: '#C8643F', fontWeight: 600, textDecoration: 'none' }}>
-              &larr; Back to Actually Let&apos;s Chicago
+              &larr; Back to Actually, Let&apos;s Chicago
             </Link>
-            <span style={{ color: '#D8CEBC' }}>&bull;</span>
+            <span style={{ color: '#D8CEBC' }}>&middot;</span>
             <Link href="/terms" style={{ color: '#6A6253', fontWeight: 600, textDecoration: 'underline' }}>
               Terms of Service
             </Link>

@@ -506,15 +506,15 @@ export default function HostApplicationPage() {
           <Link href="/" className="hover:text-[#2B271F] transition-colors">
             Home
           </Link>
-          <span>▪</span>
+          <span className="text-[#A89F91] select-none">&middot;</span>
           <Link href="/chicago" className="hover:text-[#2B271F] transition-colors">
             Chicago Series
           </Link>
-          <span>▪</span>
+          <span className="text-[#A89F91] select-none">&middot;</span>
           <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
             Privacy Policy
           </Link>
-          <span>▪</span>
+          <span className="text-[#A89F91] select-none">&middot;</span>
           <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
             Terms of Service
           </Link>
