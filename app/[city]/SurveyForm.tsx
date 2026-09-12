@@ -778,8 +778,7 @@ export default function SurveyForm({
       <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
           <Link href="/" className="eyebrow" style={{ minHeight: '1.2rem' }}>
-            <span>Actually, Let&apos;s</span>
-            <sup style={{ fontSize: '0.68em', fontWeight: 'bold' }}>TM</sup>
+            <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
           </Link>
           <h1 style={{ minHeight: '3.2rem' }}>
             Let&apos;s find the <em>right time</em> to gather in {cityName}.
@@ -1188,7 +1187,7 @@ export default function SurveyForm({
               {/* A2P 10DLC Footer Legal & Compliance Links */}
               <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)', lineHeight: '1.6' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong>Actually, Let&apos;s<sup style={{ fontSize: '0.6em', fontWeight: 'bold', marginLeft: '2px', verticalAlign: 'super' }}>TM</sup></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
+                  <strong>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
                   <button
                     type="button"
                     onClick={(e) => {

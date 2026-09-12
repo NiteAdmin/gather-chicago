@@ -13,11 +13,11 @@ This document establishes the permanent architectural, design, and branding inva
 ### 1.2 Exact JSX Superscript Convention
 Whenever rendering the brand in React / JSX, use the established superscript styling:
 ```tsx
-Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
+Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
 ```
 For inline styles (e.g. emails or raw HTML containers):
 ```tsx
-<strong>Actually, Let&apos;s<sup style={{ fontSize: '0.6em', fontWeight: 'bold', marginLeft: '2px', verticalAlign: 'super' }}>TM</sup></strong>
+<strong>Actually, Let&apos;s<span style={{ fontSize: '0.55em', fontFamily: 'sans-serif', fontWeight: 'normal', position: 'relative', top: '-0.6em', marginLeft: '1px', userSelect: 'none', color: '#78716c' }}>™</span></strong>
 ```
 
 ### 1.3 Isolation Principle (No Inline Concatenation)

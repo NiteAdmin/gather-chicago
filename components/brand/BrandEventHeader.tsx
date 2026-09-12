@@ -24,15 +24,14 @@ export default function BrandEventHeader({
   titleClassName = "text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight",
   headingTag: Heading = "h2",
   containerClassName = "space-y-1",
-  tradeMarkClassName = "text-[0.65em] font-bold ml-0.5 align-super",
+  tradeMarkClassName = "text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500",
 }: BrandEventHeaderProps) {
   const { eventName } = splitEventTitle(title, brandPrefix);
 
   return (
     <div className={containerClassName}>
       <div className={`${eyebrowClassName} flex items-center`}>
-        <span>Actually, Let&apos;s</span>
-        <sup className={tradeMarkClassName}>TM</sup>
+        <span>Actually, Let&apos;s<span className={tradeMarkClassName}>™</span></span>
       </div>
       <Heading className={titleClassName}>{eventName}</Heading>
     </div>

@@ -6,7 +6,7 @@ All AI agents, coding assistants, and contributors interacting with this codebas
 1. **Always Read Brand Standards**: Consult [`BRAND_STANDARDS.md`](./BRAND_STANDARDS.md) before generating or altering UI components.
 2. **Brand Name & Trademark Formatting**:
    - The brand is strictly **`Actually, Let's™`**.
-   - Always include the trademark superscript: `Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>`.
+   - Always include the trademark superscript: `Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>`.
    - The brand mark must ALWAYS sit isolated on its own line or eyebrow badge.
    - NEVER concatenate inline with descriptive copy or event titles.
    - Use clean midpoint bullets (`·` / `&middot;`), never square boxes (`▪`) or unstyled bullets.

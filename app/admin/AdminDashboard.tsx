@@ -979,9 +979,8 @@ export default function AdminDashboard() {
             {/* Main Gathering Info & Actions Row */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
               <div className="space-y-1">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center gap-0.5">
-                  <span>Actually, Let&apos;s</span>
-                  <sup className="text-[8px] font-bold">TM</sup>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
+                  <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
@@ -1875,7 +1874,7 @@ export default function AdminDashboard() {
                       <>
                         <span className="text-[#6A6253]">Target Gathering:</span>
                         <span className="col-span-2 font-bold text-[#C8643F]">
-                          Actually, Let&apos;s<sup className="text-[0.65em] font-bold ml-0.5">TM</sup> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
+                          Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
                         </span>
                       </>
                     )}

@@ -19,7 +19,7 @@ export default function Navbar({ className = '' }: NavbarProps) {
           aria-label="Actually, Let's Home"
         >
           <span className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap">
-            Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
+            Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
           </span>
           {/* SERIES chip: hidden on mobile (< 640px), visible on sm: and up */}
           <span className="hidden sm:inline-flex rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">

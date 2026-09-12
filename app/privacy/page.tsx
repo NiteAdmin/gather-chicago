@@ -72,7 +72,7 @@ export default function PrivacyPage() {
 
         <footer style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #D8CEBC', textAlign: 'center', fontSize: '0.85rem', color: '#6A6253', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
-            <strong>Actually, Let&apos;s<sup style={{ fontSize: '0.6em', fontWeight: 'bold', marginLeft: '2px', verticalAlign: 'super' }}>TM</sup></strong> &middot; Chicago, IL &middot;{' '}
+            <strong>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></strong> &middot; Chicago, IL &middot;{' '}
             <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
               rsvp@actuallylets.com
             </MailtoButton>

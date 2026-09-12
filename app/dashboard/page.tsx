@@ -498,9 +498,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center gap-0.5">
-                    <span>Actually, Let&apos;s</span>
-                    <sup className="text-[7px] font-bold">TM</sup>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
+                    <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
                   </div>
                   <h4 className="text-xs font-bold text-[#2B271F] leading-tight">
                     {splitEventTitle(ev.title, ev.brandPrefix).eventName}
@@ -549,7 +548,7 @@ export default function DashboardPage() {
             className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
           >
             <span className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight">
-              Actually, Let&apos;s<sup className="text-[0.6em] font-bold ml-0.5 align-super">TM</sup>
+              Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES

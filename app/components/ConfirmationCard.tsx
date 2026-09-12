@@ -117,7 +117,7 @@ export default function ConfirmationCard({
       {/* Brand Header & Subtitle */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C8643F', fontWeight: 700 }}>
-          Actually, Let&apos;s<sup style={{ fontSize: '0.65em', fontWeight: 700, marginLeft: '2px' }}>TM</sup>
+          Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
         </div>
         <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#4C5A40', marginTop: '2px', fontFamily: "'Fraunces', serif" }}>
           Community Series · {cityName}
@@ -526,7 +526,7 @@ export default function ConfirmationCard({
       {/* Compliance / Entity Footer */}
       <div style={{ marginTop: '28px', paddingTop: '16px', borderTop: '1px solid #D8CEBC', fontSize: '0.78rem', color: '#6A6253', lineHeight: '1.6' }}>
         <div style={{ marginBottom: '4px' }}>
-          <strong>Actually, Let&apos;s</strong> &bull; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &bull;{' '}
+          <strong>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
           <button
             type="button"
             onClick={(e) => {
