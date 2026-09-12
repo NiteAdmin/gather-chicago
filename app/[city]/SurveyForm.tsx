@@ -91,7 +91,7 @@ export default function SurveyForm({
   const [customGathering, setCustomGathering] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [selectedDayPref, setSelectedDayPref] = useState<string>('');
+  const [selectedDayPref, setSelectedDayPref] = useState<string>('Either works');
   const [selectedGuests, setSelectedGuests] = useState<string>('');
   const [selectedDrink, setSelectedDrink] = useState<string>('');
 
@@ -327,7 +327,7 @@ export default function SurveyForm({
         customDate: trimmedCustomDate || null,
         times: Array.isArray(selectedTimes) ? selectedTimes : [],
         customTime: customTime.trim() || null,
-        dayPref: selectedDayPref || null,
+        dayPref: selectedDayPref || 'Either works',
         guests: selectedGuests || null,
         drink: selectedDrink || null,
         notes: notes ? notes.trim() : null,
@@ -821,7 +821,7 @@ export default function SurveyForm({
               setCustomGathering('');
               setSelectedDates([]);
               setSelectedTimes([]);
-              setSelectedDayPref('');
+              setSelectedDayPref('Either works');
               setSelectedGuests('');
               setSelectedDrink('');
               setCustomDate('');
@@ -1000,29 +1000,6 @@ export default function SurveyForm({
                       onClick={() => toggleChip(selectedTimes, setSelectedTimes, t)}
                     >
                       {t}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Prefer a specific time? Type it here (e.g. 10:30am)…"
-                  style={{ marginTop: '11px' }}
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                />
-              </div>
-
-              <div className="q">
-                <div className="q-label">Weekday or weekend?</div>
-                <div className="chips">
-                  {DAYPREF.map((dp) => (
-                    <button
-                      key={dp}
-                      type="button"
-                      className={`chip ${selectedDayPref === dp ? 'on' : ''}`}
-                      onClick={() => setSelectedDayPref(selectedDayPref === dp ? '' : dp)}
-                    >
-                      {dp}
                     </button>
                   ))}
                 </div>
