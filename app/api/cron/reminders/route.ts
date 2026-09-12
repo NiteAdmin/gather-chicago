@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Resend } from "resend";
 import { SurveyResponse } from "@/types/survey";
@@ -18,12 +18,15 @@ async function handleCronReminders(request: NextRequest) {
     const queryKey = request.nextUrl.searchParams.get("key");
     const secretHeader = request.headers.get("x-admin-secret");
     const adminSecret = process.env.ADMIN_SECRET;
+    const cronSecret = process.env.CRON_SECRET;
+
+    const validSecrets = [adminSecret, cronSecret].filter(Boolean) as string[];
 
     const isAuthorized =
-      Boolean(adminSecret) &&
-      (authHeader === `Bearer ${adminSecret}` ||
-        queryKey === adminSecret ||
-        secretHeader === adminSecret);
+      validSecrets.length > 0 &&
+      (validSecrets.some((secret) => authHeader === `Bearer ${secret}`) ||
+        validSecrets.some((secret) => queryKey === secret) ||
+        validSecrets.some((secret) => secretHeader === secret));
 
     if (!isAuthorized) {
       return NextResponse.json(
@@ -33,7 +36,25 @@ async function handleCronReminders(request: NextRequest) {
     }
 
     const dryRun = request.nextUrl.searchParams.get("dryRun") === "true";
+    const ignoreAge = request.nextUrl.searchParams.get("ignoreAge") === "true";
     const targetCity = request.nextUrl.searchParams.get("city")?.toLowerCase();
+
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const isEligible = (docData: SurveyResponse) => {
+      if (!docData.quarterlyReminder) return false;
+      if (ignoreAge) return true;
+      const lastSent =
+        docData.lastQuarterlyReminderSentAt?.toDate?.() ||
+        (docData.lastQuarterlyReminderSentAt ? new Date(docData.lastQuarterlyReminderSentAt) : null);
+      const created =
+        docData.createdAt?.toDate?.() ||
+        (docData.createdAt ? new Date(docData.createdAt) : null);
+      const referenceDate = lastSent || created;
+      if (!referenceDate || isNaN(referenceDate.getTime())) return false;
+      return now - referenceDate.getTime() >= NINETY_DAYS_MS;
+    };
 
     // 1. Fetch eligible responses opting into quarterly reminders
     let q = query(
@@ -55,9 +76,12 @@ async function handleCronReminders(request: NextRequest) {
       ...d.data(),
     })) as SurveyResponse[];
 
-    // De-duplicate by email & city pair
+    // 2. Filter strictly by 90-day threshold
+    const eligibleResponses = allResponses.filter(isEligible);
+
+    // 3. De-duplicate by email & city pair
     const seenMap = new Map<string, SurveyResponse>();
-    for (const resp of allResponses) {
+    for (const resp of eligibleResponses) {
       const email = resp.email ? resp.email.trim().toLowerCase() : "";
       const city = (resp.city || "chicago").toLowerCase();
       const key = `${email}:${city}`;
@@ -151,9 +175,11 @@ async function handleCronReminders(request: NextRequest) {
     const chunkSize = 100;
     let successfulCount = 0;
     const errors: any[] = [];
+    const successfulRecipients: SurveyResponse[] = [];
 
     for (let i = 0; i < batchEmails.length; i += chunkSize) {
       const chunk = batchEmails.slice(i, i + chunkSize);
+      const chunkRecipients = recipients.slice(i, i + chunkSize);
       try {
         const result = await resend.batch.send(chunk);
         if (result?.error) {
@@ -161,11 +187,29 @@ async function handleCronReminders(request: NextRequest) {
           errors.push(result.error);
         } else if (result?.data?.data) {
           successfulCount += result.data.data.length;
+          successfulRecipients.push(...chunkRecipients);
         }
       } catch (chunkErr) {
         console.error("Batch dispatch error in cron reminders:", chunkErr);
         errors.push(chunkErr);
       }
+    }
+
+    // Persist lastQuarterlyReminderSentAt for successful dispatches
+    if (successfulRecipients.length > 0) {
+      await Promise.allSettled(
+        successfulRecipients.map(async (r) => {
+          if (!r.id) return;
+          try {
+            await updateDoc(doc(db, "responses", r.id), {
+              email: r.email,
+              lastQuarterlyReminderSentAt: serverTimestamp(),
+            });
+          } catch (updateErr) {
+            console.warn(`Failed to update lastQuarterlyReminderSentAt for ${r.id}:`, updateErr);
+          }
+        })
+      );
     }
 
     return NextResponse.json({
