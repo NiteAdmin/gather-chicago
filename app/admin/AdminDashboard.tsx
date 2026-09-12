@@ -6,6 +6,7 @@ import { formatPhoneNumber } from '@/lib/formatPhone';
 import { BroadcastRecord } from '@/lib/firebase';
 import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
+import { BrandName } from '@/components/brand/BrandName';
 import {
   Users,
   UserCheck,
@@ -980,7 +981,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
               <div className="space-y-1">
                 <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
-                  <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
+                  <BrandName />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
@@ -1874,7 +1875,7 @@ export default function AdminDashboard() {
                       <>
                         <span className="text-[#6A6253]">Target Gathering:</span>
                         <span className="col-span-2 font-bold text-[#C8643F]">
-                          Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
+                          <BrandName /> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
                         </span>
                       </>
                     )}

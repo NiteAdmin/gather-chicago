@@ -10,14 +10,26 @@ This document establishes the permanent architectural, design, and branding inva
 - The brand name is strictly **`Actually, Let's™`**.
 - The trademark symbol is **mandatory**. Never omit the trademark symbol in user-facing surfaces (navbars, hero sections, card badges, modals, email dispatch templates, or footers).
 
-### 1.2 Exact JSX Superscript Convention
-Whenever rendering the brand in React / JSX, use the established superscript styling:
+### 1.2 Centralized Brand Component & Superscript Convention
+Always use the centralized `<BrandName />` component from `@/components/brand/BrandName` to ensure consistent trademark rendering, baseline alignment, and a minimum 9px font floor across all viewport sizes:
 ```tsx
-Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
+import { BrandName } from '@/components/brand/BrandName';
+
+// Default rendering:
+<BrandName />
+
+// With custom container or trademark classes:
+<BrandName className="font-serif-fraunces text-2xl font-bold" tmClassName="text-stone-400" />
 ```
-For inline styles (e.g. emails or raw HTML containers):
+Under the hood, `<BrandName />` enforces:
+- Zero leading whitespace between `'s` and `™`.
+- Optical legibility floor: `text-[max(9px,0.65em)]` and `min-text-[9px]`.
+- Strict sans-serif styling: `font-sans font-medium`.
+- Baseline alignment: `-top-[0.45em] relative ml-[1.5px] select-none text-stone-500`.
+
+For raw HTML/inline emails only:
 ```tsx
-<strong>Actually, Let&apos;s<span style={{ fontSize: '0.55em', fontFamily: 'sans-serif', fontWeight: 'normal', position: 'relative', top: '-0.6em', marginLeft: '1px', userSelect: 'none', color: '#78716c' }}>™</span></strong>
+<strong>Actually, Let&apos;s<span style={{ fontSize: '0.65em', minFontSize: '9px', fontFamily: 'sans-serif', fontWeight: 'normal', position: 'relative', top: '-0.45em', marginLeft: '1.5px', userSelect: 'none', color: '#78716c' }}>™</span></strong>
 ```
 
 ### 1.3 Isolation Principle (No Inline Concatenation)

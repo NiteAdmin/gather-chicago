@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import MailtoButton from '@/app/components/MailtoButton';
+import { BrandName } from '@/components/brand/BrandName';
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Actually Let's",
@@ -72,7 +73,7 @@ export default function PrivacyPage() {
 
         <footer style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #D8CEBC', textAlign: 'center', fontSize: '0.85rem', color: '#6A6253', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
-            <strong>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></strong> &middot; Chicago, IL &middot;{' '}
+            <strong><BrandName /></strong> &middot; Chicago, IL &middot;{' '}
             <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
               rsvp@actuallylets.com
             </MailtoButton>

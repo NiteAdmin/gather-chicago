@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ResolvedEvent, partitionUpcomingEvents } from "@/lib/userEvents";
 import { splitEventTitle } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
+import { BrandName } from "@/components/brand/BrandName";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -84,7 +85,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
             </div>
             <div className="min-w-0">
               <div className="text-[10.5px] sm:text-[11px] font-bold uppercase tracking-widest text-[#F5B096] mb-0.5 flex items-center">
-                <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
+                <BrandName tmClassName="text-[#F5B096]/75" />
               </div>
               <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold font-serif-fraunces text-white tracking-tight leading-tight">
                 {splitEventTitle(spotlightEvent.title, spotlightEvent.brandPrefix).eventName}

@@ -4,6 +4,7 @@ import React, { useState, useId } from "react";
 import { ResolvedEvent } from "@/lib/userEvents";
 import { splitEventTitle } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
+import { BrandName } from "@/components/brand/BrandName";
 import {
   Calendar as CalendarIcon,
   List,
@@ -571,7 +572,7 @@ export default function MemberCalendar({
 
                       <div className="mt-1.5">
                         <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                          <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
+                          <BrandName />
                         </div>
                         <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
                           {splitEventTitle(ev.title, ev.brandPrefix).eventName}
@@ -671,7 +672,7 @@ export default function MemberCalendar({
                 </div>
                 <div className="mt-1.5">
                   <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
-                    <span>Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span></span>
+                    <BrandName />
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
                     {splitEventTitle(activePopoverEvent.title, activePopoverEvent.brandPrefix).eventName}

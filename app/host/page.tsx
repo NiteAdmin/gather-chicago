@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2, Sparkles, Users, Calendar, HeartHandshake } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import UserNavButton from "@/components/nav/UserNavButton";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function HostApplicationPage() {
   // Form fields
@@ -109,9 +110,7 @@ export default function HostApplicationPage() {
             href="/"
             className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
           >
-            <span className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight">
-              Actually, Let&apos;s
-            </span>
+            <BrandName className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight" />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES
             </span>

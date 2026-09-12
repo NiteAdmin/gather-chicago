@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import { BrandName } from '@/components/brand/BrandName';
 
 export default function IntroPage() {
   // Cycler text state for Hero headline
@@ -331,7 +332,7 @@ export default function IntroPage() {
           </div>
           <div className="space-y-1 pt-1">
             <p className="text-xs sm:text-sm font-bold text-[#2B271F]">
-              Actually, Let&apos;s<span className="text-[0.55em] font-sans font-normal -top-[0.6em] relative ml-[1px] select-none text-stone-500">™</span>
+              <BrandName />
             </p>
             <p className="text-[11px] sm:text-xs text-[#6A6253]">
               Consensus-driven community gatherings <span className="mx-1 text-[#A89F91]">&middot;</span> A portion of every ticket supports local community initiatives.
