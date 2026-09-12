@@ -297,7 +297,8 @@ export default function IntroPage() {
             </div>
 
             <p className="text-[11px] text-[#8C8270] text-center pt-4 leading-relaxed">
-              ✦ Host Admin Beta includes automated calendar availability polling, broadcast alerts, and dynamic event feeds.
+              <span className="w-1.5 h-1.5 rounded-full bg-[#C8643F] inline-block mr-1.5 align-middle" />
+              Host Admin Beta includes automated calendar availability polling, broadcast alerts, and dynamic event feeds.
             </p>
           </div>
         </section>
