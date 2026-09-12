@@ -856,9 +856,7 @@ export default function SurveyForm({
               <div className="q">
                 {/* Question Header */}
                 <div className="mb-4">
-                  <h3 className="font-serif text-xl sm:text-2xl font-normal text-[#2B271F] tracking-tight mb-1">
-                    Which dates could you make?
-                  </h3>
+                  <div className="q-label">Which dates could you make?</div>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#FBF0EA] border border-[#F0D5C7] text-[#A64F2E] font-medium text-[11px] tracking-wide uppercase">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#C8643F]" />

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertCircle, Loader2, Sparkles, Users, Calendar, HeartHandshake } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Loader2, Users, Calendar, HeartHandshake } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import UserNavButton from "@/components/nav/UserNavButton";
 import { BrandName } from "@/components/brand/BrandName";
@@ -134,7 +134,7 @@ export default function HostApplicationPage() {
         {/* HERO INTRO */}
         <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#C8643F] border border-[#D8CEBC] text-[11px] sm:text-xs font-bold uppercase tracking-widest px-3.5 py-1.5 rounded-full mb-4 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C8643F]" />
             <span>HOST ADMIN ACCESS</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-bold font-serif-fraunces text-[#2B271F] tracking-tight leading-tight">
@@ -452,7 +452,7 @@ export default function HostApplicationPage() {
                 {tier === "custom" && (
                   <div className="p-4 bg-[#EDE4D3]/50 border border-[#D8CEBC] rounded-2xl space-y-3 animate-fade-in mt-3">
                     <div className="flex items-start gap-2.5 text-xs text-[#2B271F]">
-                      <Sparkles className="w-4 h-4 text-[#E07A5F] shrink-0 mt-0.5" />
+                      <Calendar className="w-4 h-4 text-[#E07A5F] shrink-0 mt-0.5" />
                       <p className="font-medium leading-relaxed">
                         We&apos;ll schedule a 20-minute discovery session right after submission to map out your custom tools.
                       </p>
