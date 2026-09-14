@@ -3,7 +3,6 @@ import { Resend } from "resend";
 import { fetchResponses, saveResponse } from "@/lib/firebase";
 import { sendSms } from "@/lib/twilio";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { generateCalendarDetails } from "@/lib/calendar";
 
 // In-memory sliding window IP rate limiter (3 requests per 15 minutes)
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -128,20 +127,24 @@ export async function POST(req: Request) {
     }
 
     // Duplicate Check: Log re-submission / update instead of bailing out with 400
-    const existingResponses = await fetchResponses();
-    const isDuplicate = existingResponses.some((r) => {
-      const existingEmail = r.email ? r.email.trim().toLowerCase() : "";
-      const existingPhone = r.phoneNumber ? r.phoneNumber.replace(/\D/g, "") : "";
+    try {
+      const existingResponses = await fetchResponses();
+      const isDuplicate = existingResponses.some((r) => {
+        const existingEmail = r.email ? r.email.trim().toLowerCase() : "";
+        const existingPhone = r.phoneNumber ? r.phoneNumber.replace(/\D/g, "") : "";
 
-      const emailMatch = existingEmail && existingEmail === trimmedEmail;
-      const phoneMatch =
-        sanitizedPhone && sanitizedPhone.length > 0 && existingPhone && existingPhone === sanitizedPhone;
+        const emailMatch = existingEmail && existingEmail === trimmedEmail;
+        const phoneMatch =
+          sanitizedPhone && sanitizedPhone.length > 0 && existingPhone && existingPhone === sanitizedPhone;
 
-      return emailMatch || phoneMatch;
-    });
+        return emailMatch || phoneMatch;
+      });
 
-    if (isDuplicate) {
-      console.log(`[RSVP UPDATE]: Existing RSVP detected for email: ${trimmedEmail}. Saving updated response and triggering confirmation email.`);
+      if (isDuplicate) {
+        console.log(`[RSVP UPDATE]: Existing RSVP detected for email: ${trimmedEmail}. Saving updated response and triggering confirmation email.`);
+      }
+    } catch (fetchErr) {
+      console.warn("Could not fetch existing responses for duplicate check:", fetchErr);
     }
 
     // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
@@ -244,24 +247,12 @@ export async function POST(req: Request) {
 
     const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
-    const calData = generateCalendarDetails({
-      cityName: targetCityName,
-      name: trimmedName,
-      email: trimmedEmail,
-      gatherings,
-      customGathering: body.customGathering,
-      dates,
-      times: body.times,
-      customDate: body.customDate,
-      customTime: body.customTime,
-    });
-
     const emailHtml = `
       <div style="background-color: #FBF7EE; padding: 32px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2B271F;">
         <div style="max-width: 580px; margin: 0 auto;">
           <!-- Brand Header -->
           <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
+            <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span></h1>
             <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Series · ${targetCityName}</p>
           </div>
 
@@ -303,21 +294,7 @@ export async function POST(req: Request) {
             <!-- 4. Write-In Notes Callout Block (if present) -->
             ${notesSectionHtml}
 
-            <!-- 5. Add to Calendar Button Section -->
-            <div style="text-align: center; margin: 26px 0 20px; padding: 18px; background-color: #FBF7EE; border: 1px solid #E6DEC8; border-radius: 12px;">
-              <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #4C5A40;">
-                📅 Keep your schedule open:
-              </p>
-              <a
-                href="${calData.googleCalendarUrl}"
-                target="_blank"
-                style="display: inline-block; background-color: #C8643F; color: #FFFFFF; text-decoration: none; padding: 11px 22px; border-radius: 10px; font-weight: bold; font-size: 13px; box-shadow: 0 3px 8px rgba(200, 100, 63, 0.3);"
-              >
-                Add to Google Calendar
-              </a>
-            </div>
-
-            <!-- 6. What Happens Next Card -->
+            <!-- 5. What Happens Next Card -->
             <div style="background-color: #F4EEE2; border: 1px solid #E6DEC8; border-radius: 12px; padding: 16px 18px; margin-top: 16px;">
               <h4 style="font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: bold; color: #4C5A40; margin: 0 0 4px;">
                 What happens next?
@@ -332,7 +309,7 @@ export async function POST(req: Request) {
           <!-- Clean Footer -->
           <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #8C8270; line-height: 1.5;">
             <p style="margin: 0 0 4px; font-weight: 500;">
-              Actually, Let&apos;s Series · Community-led gatherings
+              Actually, Let&apos;s<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span> Series · Community-led gatherings
             </p>
             <p style="margin: 0;">
               A portion of every ticket supports local community building and sustainability efforts.
@@ -385,7 +362,7 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually, Let's\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nAdd to Google Calendar placeholder:\n${calData.googleCalendarUrl}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually, Let's™\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's™ ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
     const adminSender = "Actually Let's System <rsvp@actuallylets.com>";
@@ -409,7 +386,7 @@ export async function POST(req: Request) {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #2B271F; background-color: #FBF7EE;">
         <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border: 1px solid #D8CEBC; border-radius: 12px; padding: 24px;">
           <h2 style="margin: 0 0 16px 0; color: #C8643F; font-size: 18px; font-weight: 700;">
-            🎉 New RSVP Received: ${trimmedName} (${targetCityName})
+            📝 New Intake Submission: ${trimmedName} (${targetCityName})
           </h2>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
             <tbody>
@@ -426,15 +403,15 @@ export async function POST(req: Request) {
                 <td style="padding: 10px 8px; color: #2B271F;">${sanitizedPhone ? formatPhoneNumber(sanitizedPhone) : "N/A"}${sanitizedSmsOptIn ? ' (SMS Opted In)' : ''}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
-                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Gatherings</th>
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Concepts</th>
                 <td style="padding: 10px 8px; color: #2B271F;">${allGatheringsStr}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
-                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Dates</th>
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Voted Availability</th>
                 <td style="padding: 10px 8px; color: #2B271F;">${allDatesStr}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
-                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Times</th>
+                <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Preferred Times</th>
                 <td style="padding: 10px 8px; color: #2B271F;">${allTimesStr}</td>
               </tr>
               ${body.notes && typeof body.notes === "string" && body.notes.trim() ? `
@@ -447,6 +424,15 @@ export async function POST(req: Request) {
         </div>
       </div>
     `;
+
+    const adminEmailText = `New intake submission received for Actually, Let's ${targetCityName}:
+
+Name: ${trimmedName}
+Email: ${trimmedEmail}
+Phone: ${sanitizedPhone ? formatPhoneNumber(sanitizedPhone) : "N/A"}${sanitizedSmsOptIn ? ' (SMS Opted In)' : ''}
+Concepts: ${allGatheringsStr}
+Voted Availability: ${allDatesStr}
+Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" && body.notes.trim() ? `\nNotes: "${body.notes.trim()}"` : ''}`;
 
     let resendId: string | undefined = undefined;
     let adminResendId: string | undefined = undefined;
@@ -469,8 +455,9 @@ export async function POST(req: Request) {
             from: adminSender,
             to: ["admin@actuallylets.com"],
             replyTo: trimmedEmail,
-            subject: `[New RSVP] ${trimmedName} - ${targetCityName} Gathering Availability`,
+            subject: `New intake submission from ${trimmedName} (${targetCityName})`,
             html: adminEmailHtml,
+            text: adminEmailText,
           }),
         ]);
 
@@ -514,7 +501,7 @@ export async function POST(req: Request) {
         const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
 
         // Plain-text SMS template (No URLs/links) to bypass carrier spam filters
-        const smsMessage = `Actually Let's: Hi ${trimmedName}, your RSVP for ${targetCityName} is confirmed! Reply STOP to opt out.`;
+        const smsMessage = `Actually Let's: Hi ${trimmedName}, your preferences for ${targetCityName} are received! Reply STOP to opt out.`;
 
         console.log(`Triggering Twilio confirmation SMS to ${formattedE164}...`);
         const message = await sendSms(formattedE164, smsMessage);
