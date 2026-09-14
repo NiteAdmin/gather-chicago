@@ -472,12 +472,12 @@ export default function DashboardPage() {
           )
         );
 
-  const renderDocket = () => (
+  const renderPlans = () => (
     <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
       <div className="flex items-center justify-between mb-3.5">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
           <CalendarIcon className="w-3.5 h-3.5 text-[#C8643F]" />
-          <span>Your Docket</span>
+          <span>Your Plans</span>
         </h3>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1E3A20] text-[#A3E699]">
           {attendingCount} ATTENDING
@@ -757,9 +757,9 @@ export default function DashboardPage() {
                 onToggleRSVP={handleToggleRSVP}
               />
 
-              {/* 2. DOCKET / ATTENDING MINI-FEED (Mobile only: stacks cleanly below Hero on < lg) */}
+              {/* 2. PLANS / ATTENDING MINI-FEED (Mobile only: stacks cleanly below Hero on < lg) */}
               <div className="block lg:hidden">
-                {renderDocket()}
+                {renderPlans()}
               </div>
 
               {/* 3. INTERACTIVE MEMBER CALENDAR */}
@@ -777,12 +777,12 @@ export default function DashboardPage() {
             </section>
 
             {/* ========================================================== */}
-            {/* RIGHT COLUMN (Desktop col 3 / Mobile step 5): Docket, Sync & Invite */}
+            {/* RIGHT COLUMN (Desktop col 3 / Mobile step 5): Plans, Sync & Invite */}
             {/* ========================================================== */}
             <aside className="order-3 lg:order-3 lg:col-span-3 space-y-5 static lg:sticky lg:top-8 self-start">
-              {/* Gathering Docket (Desktop only: top of right sidebar) */}
+              {/* Gathering Plans (Desktop only: top of right sidebar) */}
               <div className="hidden lg:block">
-                {renderDocket()}
+                {renderPlans()}
               </div>
 
               {/* Add to Calendar Sync */}

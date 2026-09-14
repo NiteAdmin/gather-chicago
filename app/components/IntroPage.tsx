@@ -9,15 +9,15 @@ import { BrandName } from '@/components/brand/BrandName';
 export default function IntroPage() {
   // Cycler text state for Hero headline
   const heroPhrases = [
-    'toasting mimosas',
-    'in child’s pose',
-    'at the playground',
-    'paddling rivers',
-    'hiking the woods',
-    'making new old friends',
-    'giving back',
-    'finding our balance',
-    'golfing',
+    'paddle rivers',
+    'golf',
+    'hike the woods',
+    'make new old friends',
+    'give back',
+    'find our balance',
+    'toast mimosas',
+    'relax in child’s pose',
+    'play board games',
   ];
   const [activityIndex, setActivityIndex] = useState(0);
 

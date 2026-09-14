@@ -55,6 +55,7 @@ const GATHERINGS = [
   "Kayaking / Paddleboarding",
   "Outdoor Activities",
   "Golfing",
+  "Board games / Card games",
   "Down for Whatever",
 ];
 

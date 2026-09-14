@@ -39,6 +39,7 @@ const GATHERINGS = [
   "Kayaking / Paddleboarding",
   "Outdoor Activities",
   "Golfing",
+  "Board games / Card games",
   "Down for Whatever",
 ];
 
@@ -53,7 +54,6 @@ const TIMES = [
 
 const DAYPREF = ["Weekend", "Weekday", "Either works"];
 const GUESTS = ["Just me", "2", "3", "4+"];
-const DRINKS = ["Mimosa", "Mocktail", "Both please"];
 
 const DATES = [
   "Fri, Oct 9: Family Night — Pizza",
@@ -93,7 +93,6 @@ export default function SurveyForm({
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [selectedDayPref, setSelectedDayPref] = useState<string>('Either works');
   const [selectedGuests, setSelectedGuests] = useState<string>('');
-  const [selectedDrink, setSelectedDrink] = useState<string>('');
 
   // Smart Calendar Availability State
   const [checkingCalendar, setCheckingCalendar] = useState(false);
@@ -329,7 +328,7 @@ export default function SurveyForm({
         customTime: customTime.trim() || null,
         dayPref: selectedDayPref || 'Either works',
         guests: selectedGuests || null,
-        drink: selectedDrink || null,
+        drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
         turnstileToken: turnstileToken || null,
@@ -811,7 +810,6 @@ export default function SurveyForm({
             customDate={customDate}
             selectedTimes={selectedTimes}
             customTime={customTime}
-            selectedDrink={selectedDrink}
             selectedGuests={selectedGuests}
             responseId={responseId}
             onReset={() => {
@@ -823,7 +821,6 @@ export default function SurveyForm({
               setSelectedTimes([]);
               setSelectedDayPref('Either works');
               setSelectedGuests('');
-              setSelectedDrink('');
               setCustomDate('');
               setCustomTime('');
               setNotes('');
@@ -1016,22 +1013,6 @@ export default function SurveyForm({
                       onClick={() => setSelectedGuests(selectedGuests === gst ? '' : gst)}
                     >
                       {gst}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="q">
-                <div className="q-label">Mimosa or mocktail?</div>
-                <div className="chips">
-                  {DRINKS.map((drk) => (
-                    <button
-                      key={drk}
-                      type="button"
-                      className={`chip ${selectedDrink === drk ? 'on' : ''}`}
-                      onClick={() => setSelectedDrink(selectedDrink === drk ? '' : drk)}
-                    >
-                      {drk}
                     </button>
                   ))}
                 </div>

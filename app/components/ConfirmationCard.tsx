@@ -15,7 +15,7 @@ interface ConfirmationCardProps {
   customDate?: string;
   selectedTimes: string[];
   customTime?: string;
-  selectedDrink?: string;
+  selectedDrink?: string | null;
   selectedGuests?: string;
   responseId?: string;
   onReset?: () => void;
