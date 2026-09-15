@@ -130,7 +130,7 @@ export default function MemberCalendar({
   const openCount = events.filter((e) => e.attendanceStatus === "open").length;
 
   return (
-    <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-4 sm:p-6 shadow-sm ${className}`}>
+    <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-3 sm:p-6 shadow-sm overflow-hidden ${className}`}>
       {/* CALENDAR HEADER CONTROLS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3.5 border-b border-[#D8CEBC]/60">
         <div>
@@ -386,7 +386,7 @@ export default function MemberCalendar({
               return (
                 <div
                   key={`day-${dayNum}`}
-                  className={`min-h-[70px] sm:min-h-[78px] p-1 sm:p-1.5 rounded-xl border transition-all relative flex flex-col justify-between ${
+                  className={`min-h-[52px] sm:min-h-[78px] p-1 sm:p-1.5 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 ${
                     hasEvents
                       ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20"
                       : isWeekend
@@ -394,9 +394,9 @@ export default function MemberCalendar({
                       : "bg-[#FBF7EE] border-[#D8CEBC]/50"
                   }`}
                 >
-                  <div className="flex items-center justify-between leading-none">
+                  <div className="flex items-center justify-between leading-none w-full">
                     <span
-                      className={`text-[11px] font-bold inline-flex items-center justify-center w-5 h-5 rounded-full ${
+                      className={`text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
                         hasEvents
                           ? "bg-[#2B271F] text-white"
                           : "text-[#6A6253]"
@@ -405,28 +405,43 @@ export default function MemberCalendar({
                       {dayNum}
                     </span>
                     {hasEvents && (
-                      <span className="text-[9px] font-bold text-[#C8643F] hidden sm:inline">
-                        ● Event
-                      </span>
+                      <>
+                        <span className="text-[9px] font-bold text-[#C8643F] hidden sm:inline">
+                          ● Event
+                        </span>
+                        {/* Mobile Event Dot Indicator (< sm) */}
+                        <div className="flex items-center gap-0.5 sm:hidden">
+                          {dayEvents.map((ev) => (
+                            <span
+                              key={ev.id}
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                ev.attendanceStatus === "attending"
+                                  ? "bg-emerald-600"
+                                  : "bg-[#C8643F]"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
 
-                  {/* Event Bubbles */}
-                  <div className="space-y-0.5 mt-1">
+                  {/* Desktop Event Bubbles (>= sm) */}
+                  <div className="hidden sm:block space-y-0.5 mt-1 min-w-0">
                     {dayEvents.map((ev) => {
                       const style = getCategoryStyles(ev.category);
                       const isAttending = ev.attendanceStatus === "attending";
 
                       return (
-                        <div key={ev.id} className="relative group/bubble">
+                        <div key={ev.id} className="relative group/bubble min-w-0">
                           <button
                             type="button"
                             aria-label={`View details for ${splitEventTitle(ev.title, ev.brandPrefix).eventName} on ${ev.displayDate}`}
                             onClick={() => setActivePopoverEvent(ev)}
-                            className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight ${style.bg} ${style.border} ${style.text}`}
+                            className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight min-w-0 ${style.bg} ${style.border} ${style.text}`}
                             title={`Actually, Let's™ ${splitEventTitle(ev.title, ev.brandPrefix).eventName} (${ev.timeWindow})`}
                           >
-                            <span className="truncate flex items-center gap-1.5">
+                            <span className="truncate flex items-center gap-1.5 min-w-0">
                               <span className="shrink-0 flex items-center">
                                 <EventIcon
                                   iconName={ev.iconName}
@@ -436,7 +451,7 @@ export default function MemberCalendar({
                                   className="w-3.5 h-3.5 text-[#C8643F]"
                                 />
                               </span>
-                              <span className="font-bold truncate">{splitEventTitle(ev.title, ev.brandPrefix).eventName}</span>
+                              <span className="font-bold truncate min-w-0">{ev.chipLabel || splitEventTitle(ev.title, ev.brandPrefix).eventName}</span>
                             </span>
                             {isAttending ? (
                               <span
@@ -449,6 +464,26 @@ export default function MemberCalendar({
                       );
                     })}
                   </div>
+
+                  {/* Mobile Tap Target (< sm) */}
+                  {hasEvents && (
+                    <div className="sm:hidden mt-auto pt-0.5 flex justify-center w-full">
+                      <button
+                        type="button"
+                        onClick={() => setActivePopoverEvent(dayEvents[0])}
+                        className="w-full flex items-center justify-center p-1 rounded-md bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
+                        aria-label={`View event details on ${currentMonthConfig.name} ${dayNum}`}
+                      >
+                        <EventIcon
+                          iconName={dayEvents[0].iconName}
+                          eventId={dayEvents[0].id}
+                          category={dayEvents[0].category}
+                          fallbackIcon={dayEvents[0].icon}
+                          className="w-3.5 h-3.5 text-[#C8643F]"
+                        />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

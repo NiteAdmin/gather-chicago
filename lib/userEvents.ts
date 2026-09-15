@@ -232,63 +232,91 @@ function checkEventVibeMatch(eventId: string, gatherings: string[]): { isMatch: 
   for (const rawG of gatherings) {
     const g = rawG.toLowerCase().trim();
 
-    // 1. Pizza Night (Family / Food)
-    if (eventId.includes("pizza")) {
-      if (g.includes("family") || g.includes("parents")) {
+    // 1. Lincoln Square Ravenswood Apple Fest (Outdoor / Community / Family)
+    if (eventId.includes("apple-fest")) {
+      if (g.includes("family") || g.includes("community") || g.includes("all ages") || g.includes("outdoor") || g.includes("down for whatever")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 2. Morning Walk (Outdoor / City Walk)
-    if (eventId.includes("walk")) {
-      if (g.includes("city walk") || g.includes("outdoor")) {
+    // 2. Little Lark Pizza & Pinsa Nights (Family / Food / Social)
+    if (eventId.includes("pizza") || eventId.includes("pinsa")) {
+      if (g.includes("family") || g.includes("parents") || g.includes("happy hour") || g.includes("all ages") || g.includes("down for whatever")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 3. Coffee & Casual Conversations (Mornings / Social)
+    // 3. Lincoln Park Wine Fest (Social / Adults / Nightlife)
+    if (eventId.includes("wine-fest") || eventId.includes("wine")) {
+      if (g.includes("happy hour") || g.includes("couples") || g.includes("date night") || g.includes("ladies night") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 4. Soul & Smoke (Food / BBQ / Family)
+    if (eventId.includes("soul-smoke")) {
+      if (g.includes("family") || g.includes("all ages") || g.includes("happy hour") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 5. Spooky Zoo & BOO! at the Zoo (Outdoor / Animals / Family)
+    if (eventId.includes("zoo")) {
+      if (g.includes("family") || g.includes("parents") || g.includes("outdoor") || g.includes("all ages") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 6. Goebbert's Farm Fall Festival (Outdoor / Seasonal / Family)
+    if (eventId.includes("goebbert")) {
+      if (g.includes("family") || g.includes("parents") || g.includes("outdoor") || g.includes("all ages") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 7. Friday Night Stand Up Comedy at Laugh Factory Chicago (Nightlife / Entertainment / Adults)
+    if (eventId.includes("laugh-factory") || eventId.includes("comedy")) {
+      if (g.includes("date night") || g.includes("couples") || g.includes("ladies night") || g.includes("happy hour") || g.includes("down for whatever")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 8. Morning Walk & Trails (Outdoor / City Walk)
+    if (eventId.includes("walk") || eventId.includes("trail-coffee")) {
+      if (g.includes("city walk") || g.includes("outdoor") || g.includes("hiking") || g.includes("coffee") || g.includes("morning")) {
+        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+      }
+    }
+
+    // 9. Coffee & Casual Conversations (Mornings / Social)
     if (eventId.includes("coffee")) {
-      if (g.includes("morning") || g.includes("coffee")) {
+      if (g.includes("morning") || g.includes("coffee") || g.includes("down for whatever")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 4. Fall Nature Stroll (Outdoor / Hiking)
+    // 10. Fall Nature Stroll (Outdoor / Hiking)
     if (eventId.includes("stroll")) {
       if (g.includes("hiking") || g.includes("outdoor") || g.includes("nature")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 5. Community Fall Social (Happy Hour / Evening Social)
-    if (eventId.includes("fall-social")) {
-      if (g.includes("happy hour") || g.includes("ladies night") || g.includes("date night") || g.includes("couples")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 6. Board Games & Brews (Social / Games)
+    // 11. Board Games & Brews (Social / Games)
     if (eventId.includes("board-games")) {
       if (g.includes("community") || g.includes("happy hour") || g.includes("all ages") || g.includes("down for whatever")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 7. Morning Trail Walk & Coffee (Outdoor / Active / Mornings)
-    if (eventId.includes("trail-coffee")) {
-      if (g.includes("outdoor") || g.includes("hiking") || g.includes("city walk") || g.includes("coffee") || g.includes("morning")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 8. Friendsgiving Potluck Warmup (Food / Dinner / Community)
+    // 12. Friendsgiving Potluck Warmup (Food / Dinner / Community)
     if (eventId.includes("friendsgiving")) {
       if (g.includes("family") || g.includes("couples") || g.includes("date night") || g.includes("community") || g.includes("all ages")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
       }
     }
 
-    // 9. Low-Key Book Swap & Chill (Culture / Social / Coffee)
+    // 13. Low-Key Book Swap & Chill (Culture / Social / Coffee)
     if (eventId.includes("book-swap")) {
       if (g.includes("community") || g.includes("all ages") || g.includes("coffee") || g.includes("down for whatever")) {
         return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };

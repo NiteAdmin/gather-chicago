@@ -55,7 +55,7 @@ import { SurveyResponse } from "@/types/survey";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(false);
 
   // Events state with dynamic broadcast hydration
   const [baseEvents, setBaseEvents] = useState<CommunityEvent[]>(OCTOBER_2026_EVENTS);
@@ -68,7 +68,9 @@ export default function DashboardPage() {
   const [savingVibes, setSavingVibes] = useState(false);
   const [vibesSuccessMsg, setVibesSuccessMsg] = useState<string | null>(null);
   const [rsvpToast, setRsvpToast] = useState<string | null>(null);
-  const [resolvedEvents, setResolvedEvents] = useState<ResolvedEvent[]>([]);
+  const [resolvedEvents, setResolvedEvents] = useState<ResolvedEvent[]>(() =>
+    resolveUserAttendance(OCTOBER_2026_EVENTS, [], {})
+  );
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<string, "attending" | "open">>({});
   const [copiedLink, setCopiedLink] = useState(false);
@@ -113,7 +115,16 @@ export default function DashboardPage() {
   }, [manualOverrides]);
 
   useEffect(() => {
+    let isMounted = true;
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted) {
+        setLoadingUser(false);
+      }
+    }, 1200);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(fallbackTimer);
+      if (!isMounted) return;
       setUser(currentUser);
       setLoadingUser(false);
       if (currentUser?.email && currentUser?.uid) {
@@ -125,15 +136,21 @@ export default function DashboardPage() {
         setUserVibes([]);
         fetchHydratedEvents("chicago")
           .then((hydrated) => {
+            if (!isMounted) return;
             setBaseEvents(hydrated);
             setResolvedEvents(resolveUserAttendance(hydrated, [], {}));
           })
           .catch(() => {
+            if (!isMounted) return;
             setResolvedEvents(resolveUserAttendance(OCTOBER_2026_EVENTS, [], {}));
           });
       }
     });
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
   }, [loadUserData]);
 
   const handleToggleRSVP = async (eventId: string) => {
@@ -838,8 +855,9 @@ export default function DashboardPage() {
             </aside>
           </div>
         ) : (
-          /* UNAUTHENTICATED INLINE CARD */
-          <div className="max-w-md mx-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-md animate-fade-in">
+          /* UNAUTHENTICATED INLINE CARD + PUBLIC CALENDAR PREVIEW */
+          <>
+            <div className="max-w-md mx-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-md animate-fade-in">
             <div className="text-center mb-6">
               <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] mx-auto flex items-center justify-center mb-3">
                 <User className="w-6 h-6" />
@@ -961,6 +979,30 @@ export default function DashboardPage() {
               </button>
             </form>
           </div>
+
+          {/* Public Calendar Preview for Unauthenticated Visitors */}
+          <div className="mt-12 max-w-4xl mx-auto space-y-4">
+            <div className="text-center">
+              <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full">
+                COMMUNITY LINEUP PREVIEW
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
+                October 2026 Chapter Calendar
+              </h2>
+              <p className="text-xs text-[#6A6253] mt-0.5 max-w-md mx-auto">
+                Explore Chicago gatherings below. Sign in above to manage your RSVPs and sync with Apple or Google Calendar.
+              </p>
+            </div>
+            <MemberCalendar
+              events={resolvedEvents}
+              onToggleRSVP={() => {
+                setMode("signin");
+                setAuthError("Please sign in or claim your account to RSVP for gatherings.");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </div>
+        </>
         )}
 
         {/* VIBE PREFERENCE EDITOR MODAL */}
