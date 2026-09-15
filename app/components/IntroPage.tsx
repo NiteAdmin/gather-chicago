@@ -15,7 +15,7 @@ export default function IntroPage() {
     'make new old friends',
     'give back',
     'find our balance',
-    'toast mimosas',
+    'grab coffee',
     'relax in child’s pose',
     'play board games',
   ];
@@ -216,50 +216,43 @@ export default function IntroPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Card 1 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                1
+            {[
+              {
+                number: 1,
+                title: "Vote on vibes & dates",
+                description:
+                  "Pick the gatherings you'd actually show up for — morning walks, coffee socials, board games, date nights — and mark the dates that fit your real calendar.",
+              },
+              {
+                number: 2,
+                title: "We tally consensus & sync your calendar",
+                description:
+                  "We lock in the winning slot that works for the most people. Your live calendar feed updates automatically as details are finalized.",
+              },
+              {
+                number: 3,
+                title: "Show up and connect",
+                description:
+                  "We send you the venue details and ticket link. A portion of every gathering supports local community initiatives.",
+              },
+            ].map((step) => (
+              <div
+                key={step.number}
+                className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-[#C8643F]/10 text-[#C8643F] flex items-center justify-center font-serif font-serif-fraunces font-bold text-base shrink-0 group-hover:scale-105 transition-transform">
+                  {step.number}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
-                  Vote on vibes &amp; dates
-                </h3>
-                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  Pick the gatherings you&apos;d actually show up for — yoga mornings, mimosa brunches, ladies&apos; nights, date nights — and mark the dates that fit your real calendar.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#4C5A40] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                2
-              </div>
-              <div>
-                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
-                  We tally consensus &amp; sync your calendar
-                </h3>
-                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  We lock in the winning slot that works for the most people. Your live calendar feed updates automatically as details are finalized.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-[#FBF7EE] border border-[#D8CEBC]/70 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-5 group">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#6E7F5E] font-serif-fraunces font-bold text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                3
-              </div>
-              <div>
-                <h3 className="text-lg font-bold font-serif-fraunces text-[#2B271F]">
-                  Show up and connect
-                </h3>
-                <p className="text-sm text-[#6A6253] mt-1 leading-relaxed">
-                  We send you the venue details and ticket link. A portion of every gathering supports local community initiatives.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* How It Works CTA */}
