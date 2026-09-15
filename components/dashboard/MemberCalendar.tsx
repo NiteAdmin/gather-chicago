@@ -114,6 +114,15 @@ export default function MemberCalendar({
           badgeBg: "bg-[#F7EDD5]",
           label: "Culture & Arts",
         };
+      case "comedy":
+      case "stand-up":
+        return {
+          bg: "bg-[#FFF8E7]",
+          border: "border-[#EAD39E]",
+          text: "text-[#8A6218]",
+          badgeBg: "bg-[#F7EDD5]",
+          label: "Stand-Up Comedy",
+        };
       case "social":
       default:
         return {

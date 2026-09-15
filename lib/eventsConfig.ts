@@ -14,10 +14,10 @@ export interface CommunityEvent {
   date: string; // ISO format 'YYYY-MM-DD'
   displayDate: string; // e.g., 'Fri, Oct 9'
   timeWindow: string; // e.g., '6:30 PM – 9:00 PM CDT'
-  category: 'food' | 'outdoor' | 'social' | 'wellness' | 'culture';
+  category: 'food' | 'outdoor' | 'social' | 'wellness' | 'culture' | 'comedy' | 'stand-up';
   categoryLabel?: string;
   icon: string; // fallback icon/emoji e.g. '🍕'
-  iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | string;
+  iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
   venueName: string;
   venueAddress?: string;
   description: string;
@@ -215,10 +215,10 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     date: "2026-10-23",
     displayDate: "Fri, Oct 23",
     timeWindow: "7:00 PM – 8:30 PM CDT",
-    category: "culture",
-    categoryLabel: "NIGHTLIFE & ENTERTAINMENT",
-    icon: "✨",
-    iconName: "Sparkles",
+    category: "comedy",
+    categoryLabel: "STAND-UP COMEDY",
+    icon: "🎤",
+    iconName: "Mic",
     venueName: "Laugh Factory Chicago",
     venueAddress: "3175 N Broadway, Chicago, IL 60657",
     description: "High-energy stand-up comedy showcase featuring top Chicago comics and national headliners on Belmont and Broadway. Tickets start from $29.51 with two-beverage minimum.",

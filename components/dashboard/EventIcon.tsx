@@ -10,6 +10,7 @@ import {
   Trees,
   Sparkles,
   Activity,
+  Mic,
   LucideProps,
 } from "lucide-react";
 
@@ -33,14 +34,16 @@ export default function EventIcon({
     iconName ||
     (eventId.includes("sep-26")
       ? "Sparkles"
-      : eventId.includes("pizza")
+      : eventId.includes("pizza") || eventId.includes("pinsa")
       ? "Pizza"
       : eventId.includes("walk")
       ? "Footprints"
       : eventId.includes("coffee")
       ? "Coffee"
-      : eventId.includes("stroll")
+      : eventId.includes("stroll") || eventId.includes("zoo") || eventId.includes("goebbert")
       ? "Trees"
+      : eventId.includes("laugh-factory") || eventId.includes("comedy")
+      ? "Mic"
       : eventId.includes("social")
       ? "Flame"
       : null);
@@ -62,7 +65,12 @@ export default function EventIcon({
       return <Coffee className={className} strokeWidth={2} {...props} />;
     case "Trees":
       return <Trees className={className} strokeWidth={2} {...props} />;
+    case "Mic":
+      return <Mic className={className} strokeWidth={2} {...props} />;
     default:
+      if (category === "comedy" || category === "stand-up") {
+        return <Mic className={className} strokeWidth={2} {...props} />;
+      }
       if (category === "wellness") {
         return <Sparkles className={className} strokeWidth={2} {...props} />;
       }
