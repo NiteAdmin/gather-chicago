@@ -98,7 +98,7 @@ export default function ConfirmationCard({
       console.error('Post-survey account creation error:', err);
       if (err.code === 'auth/email-already-in-use') {
         setIsExistingUser(true);
-        setAccountError('An account with this email already exists. Enter your password to sign in:');
+        setAccountError('Account exists — enter your password to sign in and view your plans:');
       } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setAccountError('Incorrect password. Please try again.');
       } else if (err.code === 'auth/weak-password') {
@@ -190,7 +190,7 @@ export default function ConfirmationCard({
         </p>
 
         {/* Profile Claim / Account Prompt */}
-        {!currentUser ? (
+        {!currentUser || accountSuccess ? (
           <div style={{ paddingTop: '16px', borderTop: '1px solid #EDE4D3' }}>
             <div style={{ marginBottom: '12px' }}>
               <strong style={{ fontSize: '0.88rem', color: '#2B271F', display: 'block', fontWeight: 700, marginBottom: '2px' }}>
@@ -292,15 +292,6 @@ export default function ConfirmationCard({
                 )}
               </button>
             </form>
-
-            <div style={{ marginTop: '10px', textAlign: 'center' }}>
-              <Link
-                href="/dashboard"
-                style={{ fontSize: '0.78rem', color: '#8C8270', textDecoration: 'underline' }}
-              >
-                Or view dashboard as guest &rarr;
-              </Link>
-            </div>
           </div>
         ) : (
           <div style={{ paddingTop: '14px', borderTop: '1px solid #EDE4D3' }}>
@@ -340,7 +331,7 @@ export default function ConfirmationCard({
               onClick={onReset}
               style={{ background: 'none', border: 'none', color: '#6A6253', cursor: 'pointer', textDecoration: 'underline', font: 'inherit' }}
             >
-              Submit another RSVP
+              Submit another response
             </button>
           </>
         )}
