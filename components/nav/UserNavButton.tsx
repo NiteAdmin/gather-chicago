@@ -26,9 +26,13 @@ import {
 
 interface UserNavButtonProps {
   className?: string;
+  suppressModal?: boolean;
 }
 
-export default function UserNavButton({ className = "" }: UserNavButtonProps) {
+export default function UserNavButton({
+  className = "",
+  suppressModal = false,
+}: UserNavButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -36,6 +40,11 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isConfirmation =
+    suppressModal ||
+    (typeof window !== "undefined" &&
+      window.location.search.includes("view=confirmation"));
 
   // Auth Form State
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -52,6 +61,24 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
     });
     return () => unsubscribe();
   }, []);
+
+  // Suppress floating auth modals/popovers if confirmation card is active
+  useEffect(() => {
+    if (isConfirmation) {
+      setShowModal(false);
+      setShowDropdown(false);
+      setAuthError(null);
+      setAuthSuccessMsg(null);
+    }
+  }, [isConfirmation]);
+
+  // Reset modal and dropdown state on route change (navigating away)
+  useEffect(() => {
+    setShowModal(false);
+    setShowDropdown(false);
+    setAuthError(null);
+    setAuthSuccessMsg(null);
+  }, [pathname]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -70,7 +97,43 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
     };
   }, [showDropdown]);
 
+  // Close modal and dropdown on Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowModal(false);
+        setShowDropdown(false);
+        setAuthError(null);
+        setAuthSuccessMsg(null);
+      }
+    }
+    if (showModal || showDropdown) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showModal, showDropdown]);
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setAuthError(null);
+    setAuthSuccessMsg(null);
+  };
+
   const handleClick = () => {
+    if (isConfirmation) {
+      // Suppress floating sign-in modal completely while confirmation card is active
+      if (user) {
+        if (pathname !== "/dashboard") {
+          router.push("/dashboard");
+        } else {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
+      return;
+    }
+
     if (!user) {
       setAuthError(null);
       setAuthSuccessMsg(null);
@@ -179,7 +242,7 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
       </button>
 
       {/* Authenticated Floating Dropdown (Mobile Only) */}
-      {user && showDropdown && (
+      {user && showDropdown && !isConfirmation && (
         <div
           role="menu"
           aria-label="Member Account Menu"
@@ -260,20 +323,20 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
       )}
 
       {/* Auth Modal */}
-      {showModal && (
+      {showModal && !isConfirmation && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
+            if (e.target === e.currentTarget) handleCloseModal();
           }}
         >
           <div className="relative w-full max-w-md bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in">
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setShowModal(false)}
+              onClick={handleCloseModal}
               className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
               aria-label="Close auth modal"
             >
@@ -407,7 +470,7 @@ export default function UserNavButton({ className = "" }: UserNavButtonProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setShowModal(false);
+                  handleCloseModal();
                   router.push("/dashboard");
                 }}
                 className="text-xs text-[#6A6253] hover:text-[#2B271F] underline transition-colors cursor-pointer"

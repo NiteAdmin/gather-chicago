@@ -191,6 +191,13 @@ export default function SurveyForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
+  // Check if confirmation view is active to suppress floating auth modals
+  const isConfirmationActive =
+    submitted ||
+    (mounted &&
+      typeof window !== 'undefined' &&
+      window.location.search.includes('view=confirmation'));
+
   const toggleChip = (list: string[], setList: (v: string[]) => void, item: string) => {
     if (list.includes(item)) {
       setList(list.filter((i) => i !== item));
@@ -858,7 +865,7 @@ export default function SurveyForm({
             >
               Member Dashboard &rarr;
             </Link>
-            <UserNavButton />
+            <UserNavButton suppressModal={isConfirmationActive} />
           </div>
         </div>
       </header>
@@ -901,6 +908,9 @@ export default function SurveyForm({
             selectedGuests={selectedGuests}
             responseId={responseId}
             onReset={() => {
+              if (typeof window !== 'undefined' && window.location.search.includes('view=confirmation')) {
+                window.history.replaceState(null, '', window.location.pathname);
+              }
               setSubmitted(false);
               setResponseId('');
               setSelectedGatherings([]);
