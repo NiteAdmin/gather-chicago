@@ -861,154 +861,131 @@ export default function DashboardPage() {
             </aside>
           </div>
         ) : (
-          /* UNAUTHENTICATED INLINE CARD + PUBLIC CALENDAR PREVIEW */
-          <>
-            <div className="max-w-md mx-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-md animate-fade-in">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] mx-auto flex items-center justify-center mb-3">
-                <User className="w-6 h-6" />
+          /* UNAUTHENTICATED CLEAN SIGN-IN VIEW */
+          <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
+            <div className="max-w-md w-full mx-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-md animate-fade-in">
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#EDE4D3] text-[#C8643F] mx-auto flex items-center justify-center mb-3">
+                  <User className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F]">
+                  MEMBER ACCESS
+                </span>
+                <h1 className="text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+                  {mode === "signin" ? "Sign In to Your Dashboard" : "Claim Your Member Account"}
+                </h1>
+                <p className="text-xs sm:text-sm text-[#6A6253] mt-1.5 leading-relaxed">
+                  {mode === "signin"
+                    ? "Access your RSVP confirmations, calendar sync feed, and gathering details."
+                    : "Set a password for your account to manage your responses and sync event invites."}
+                </p>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F]">
-                MEMBER ACCESS
-              </span>
-              <h1 className="text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
-                {mode === "signin" ? "Sign In to Your Dashboard" : "Claim Your Member Account"}
-              </h1>
-              <p className="text-xs sm:text-sm text-[#6A6253] mt-1.5 leading-relaxed">
-                {mode === "signin"
-                  ? "Access your RSVP confirmations, calendar sync feed, and gathering details."
-                  : "Set a password for your account to manage your responses and sync event invites."}
-              </p>
+
+              {/* Mode Switcher */}
+              <div className="grid grid-cols-2 p-1 bg-[#EDE4D3]/70 rounded-xl mb-5 text-xs font-bold text-[#6A6253]">
+                <button
+                  type="button"
+                  aria-label="Switch to Sign In mode"
+                  onClick={() => {
+                    setMode("signin");
+                    setAuthError(null);
+                    setAuthSuccessMsg(null);
+                  }}
+                  className={`py-2 rounded-lg transition-all cursor-pointer ${
+                    mode === "signin"
+                      ? "bg-[#FBF7EE] text-[#2B271F] shadow-sm"
+                      : "hover:text-[#2B271F]"
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  aria-label="Switch to Create Account mode"
+                  onClick={() => {
+                    setMode("signup");
+                    setAuthError(null);
+                    setAuthSuccessMsg(null);
+                  }}
+                  className={`py-2 rounded-lg transition-all cursor-pointer ${
+                    mode === "signup"
+                      ? "bg-[#FBF7EE] text-[#2B271F] shadow-sm"
+                      : "hover:text-[#2B271F]"
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {authError && (
+                <div className="mb-4 p-3 bg-[#FDF2F0] border border-[#F5C2BA] text-[#A63A24] text-xs font-semibold rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              {authSuccessMsg && (
+                <div className="mb-4 p-3 bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634] text-xs font-semibold rounded-xl flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{authSuccessMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  aria-label={mode === "signin" ? "Sign in to your member account" : "Create and claim your member account"}
+                  disabled={submittingAuth}
+                  className="w-full bg-[#C8643F] hover:bg-[#b05230] text-white py-3 px-4 rounded-xl font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {submittingAuth ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : mode === "signin" ? (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      <span>Sign In</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Create &amp; Claim Account</span>
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
-
-            {/* Mode Switcher */}
-            <div className="grid grid-cols-2 p-1 bg-[#EDE4D3]/70 rounded-xl mb-5 text-xs font-bold text-[#6A6253]">
-              <button
-                type="button"
-                aria-label="Switch to Sign In mode"
-                onClick={() => {
-                  setMode("signin");
-                  setAuthError(null);
-                  setAuthSuccessMsg(null);
-                }}
-                className={`py-2 rounded-lg transition-all cursor-pointer ${
-                  mode === "signin"
-                    ? "bg-[#FBF7EE] text-[#2B271F] shadow-sm"
-                    : "hover:text-[#2B271F]"
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                aria-label="Switch to Create Account mode"
-                onClick={() => {
-                  setMode("signup");
-                  setAuthError(null);
-                  setAuthSuccessMsg(null);
-                }}
-                className={`py-2 rounded-lg transition-all cursor-pointer ${
-                  mode === "signup"
-                    ? "bg-[#FBF7EE] text-[#2B271F] shadow-sm"
-                    : "hover:text-[#2B271F]"
-                }`}
-              >
-                Create Account
-              </button>
-            </div>
-
-            {authError && (
-              <div className="mb-4 p-3 bg-[#FDF2F0] border border-[#F5C2BA] text-[#A63A24] text-xs font-semibold rounded-xl flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{authError}</span>
-              </div>
-            )}
-
-            {authSuccessMsg && (
-              <div className="mb-4 p-3 bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634] text-xs font-semibold rounded-xl flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{authSuccessMsg}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
-                />
-              </div>
-
-              <button
-                type="submit"
-                aria-label={mode === "signin" ? "Sign in to your member account" : "Create and claim your member account"}
-                disabled={submittingAuth}
-                className="w-full bg-[#C8643F] hover:bg-[#b05230] text-white py-3 px-4 rounded-xl font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {submittingAuth ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : mode === "signin" ? (
-                  <>
-                    <LogIn className="w-4 h-4" />
-                    <span>Sign In</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    <span>Create &amp; Claim Account</span>
-                  </>
-                )}
-              </button>
-            </form>
           </div>
-
-          {/* Public Calendar Preview for Unauthenticated Visitors */}
-          <div className="mt-12 max-w-4xl mx-auto space-y-4">
-            <div className="text-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full">
-                COMMUNITY LINEUP PREVIEW
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
-                October 2026 Chapter Calendar
-              </h2>
-              <p className="text-xs text-[#6A6253] mt-0.5 max-w-md mx-auto">
-                Explore Chicago gatherings below. Sign in above to manage your RSVPs and sync with Apple or Google Calendar.
-              </p>
-            </div>
-            <MemberCalendar
-              events={resolvedEvents}
-              onToggleRSVP={() => {
-                setMode("signin");
-                setAuthError("Please sign in or claim your account to RSVP for gatherings.");
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            />
-          </div>
-        </>
         )}
 
         {/* VIBE PREFERENCE EDITOR MODAL */}
