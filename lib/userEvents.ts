@@ -9,19 +9,11 @@ export interface ResolvedEvent extends CommunityEvent {
 }
 
 export const AVAILABLE_VIBES: string[] = [
-  "Moms Morning",
-  "Ladies Morning",
-  "Ladies Night",
-  "Couples / Date Night",
-  "Happy Hour",
-  "Family-Friendly",
-  "Prenatal & New Parents",
-  "All Ages / Community",
-  "Hiking",
-  "City Walk",
-  "Kayaking / Paddleboarding",
-  "Outdoor Activities",
-  "Golfing",
+  "Board Games & Card Games",
+  "Casual Conversations & Coffee",
+  "Family Night & Pizza",
+  "Wine Tasting & Socials",
+  "Stand-Up Comedy & Entertainment",
   "Down for Whatever",
 ];
 
@@ -225,106 +217,52 @@ export async function saveUserEventOverride(
 }
 
 /**
- * Check if the user's survey response explicitly selected a matching gathering vibe
- * for a specific event.
+ * Check if the user's survey response explicitly selected a specific date matching
+ * this event's calendar date.
+ * Non-committal choices like "any date", "any october weekend", "down for whatever"
+ * do NOT auto-RSVP users to all events.
  */
-function checkEventVibeMatch(eventId: string, gatherings: string[]): { isMatch: boolean; reason?: string } {
-  for (const rawG of gatherings) {
-    const g = rawG.toLowerCase().trim();
+export function checkEventDateMatch(event: CommunityEvent, userDates: string[]): boolean {
+  if (!userDates || userDates.length === 0) return false;
 
-    // 1. Lincoln Square Ravenswood Apple Fest (Outdoor / Community / Family)
-    if (eventId.includes("apple-fest")) {
-      if (g.includes("family") || g.includes("community") || g.includes("all ages") || g.includes("outdoor") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
+  const eventDate = event.date; // e.g. "2026-10-09" or "2026-09-26"
+  const parts = eventDate.split('-');
+  if (parts.length !== 3) return false;
+
+  const monthNum = parseInt(parts[1], 10);
+  const dayNum = parseInt(parts[2], 10);
+
+  const monthNamesShort = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const monthNamesFull = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+  const shortMonth = monthNamesShort[monthNum - 1]; // "oct" or "sep"
+  const fullMonth = monthNamesFull[monthNum - 1];   // "october" or "september"
+
+  for (const rawDate of userDates) {
+    if (!rawDate || typeof rawDate !== 'string') continue;
+    const d = rawDate.trim().toLowerCase();
+
+    // Skip generic non-committal options like "any date", "any october weekend", "down for whatever"
+    if (d.includes("any date") || d.includes("any weekend") || d.includes("down for whatever") || d.includes("either works")) {
+      continue;
     }
 
-    // 2. Little Lark Pizza & Pinsa Nights (Family / Food / Social)
-    if (eventId.includes("pizza") || eventId.includes("pinsa")) {
-      if (g.includes("family") || g.includes("parents") || g.includes("happy hour") || g.includes("all ages") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
+    // Exact ISO match (e.g. "2026-10-09" or "10-09")
+    if (d.includes(eventDate)) {
+      return true;
     }
 
-    // 3. Lincoln Park Wine Fest (Social / Adults / Nightlife)
-    if (eventId.includes("wine-fest") || eventId.includes("wine")) {
-      if (g.includes("happy hour") || g.includes("couples") || g.includes("date night") || g.includes("ladies night") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 4. Soul & Smoke (Food / BBQ / Family)
-    if (eventId.includes("soul-smoke")) {
-      if (g.includes("family") || g.includes("all ages") || g.includes("happy hour") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 5. Spooky Zoo & BOO! at the Zoo (Outdoor / Animals / Family)
-    if (eventId.includes("zoo")) {
-      if (g.includes("family") || g.includes("parents") || g.includes("outdoor") || g.includes("all ages") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 6. Goebbert's Farm Fall Festival (Outdoor / Seasonal / Family)
-    if (eventId.includes("goebbert")) {
-      if (g.includes("family") || g.includes("parents") || g.includes("outdoor") || g.includes("all ages") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 7. Friday Night Stand Up Comedy at Laugh Factory Chicago (Nightlife / Entertainment / Adults)
-    if (eventId.includes("laugh-factory") || eventId.includes("comedy")) {
-      if (g.includes("date night") || g.includes("couples") || g.includes("ladies night") || g.includes("happy hour") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 8. Morning Walk & Trails (Outdoor / City Walk)
-    if (eventId.includes("walk") || eventId.includes("trail-coffee")) {
-      if (g.includes("city walk") || g.includes("outdoor") || g.includes("hiking") || g.includes("coffee") || g.includes("morning")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 9. Coffee & Casual Conversations (Mornings / Social)
-    if (eventId.includes("coffee")) {
-      if (g.includes("morning") || g.includes("coffee") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 10. Fall Nature Stroll (Outdoor / Hiking)
-    if (eventId.includes("stroll")) {
-      if (g.includes("hiking") || g.includes("outdoor") || g.includes("nature")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 11. Board Games & Brews (Social / Games)
-    if (eventId.includes("board-games")) {
-      if (g.includes("community") || g.includes("happy hour") || g.includes("all ages") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 12. Friendsgiving Potluck Warmup (Food / Dinner / Community)
-    if (eventId.includes("friendsgiving")) {
-      if (g.includes("family") || g.includes("couples") || g.includes("date night") || g.includes("community") || g.includes("all ages")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
-      }
-    }
-
-    // 13. Low-Key Book Swap & Chill (Culture / Social / Coffee)
-    if (eventId.includes("book-swap")) {
-      if (g.includes("community") || g.includes("all ages") || g.includes("coffee") || g.includes("down for whatever")) {
-        return { isMatch: true, reason: `Matched your survey selection: "${rawG}"` };
+    // Month + Day check
+    const hasMonth = d.includes(shortMonth) || d.includes(fullMonth);
+    if (hasMonth) {
+      const dayRegex = new RegExp(`(?:^|\\D)0?${dayNum}(?:\\D|$)`);
+      if (dayRegex.test(d)) {
+        return true;
       }
     }
   }
 
-  return { isMatch: false };
+  return false;
 }
 
 /**
@@ -333,10 +271,10 @@ function checkEventVibeMatch(eventId: string, gatherings: string[]): { isMatch: 
  *
  * Rules:
  * 1. Local session overrides take immediate precedence.
- * 2. Explicit declinedEventIds take second precedence (strict short-circuit: cannot be resurrected by vibe matching).
+ * 2. Explicit declinedEventIds take second precedence (strict short-circuit: cannot be resurrected).
  * 3. Persisted rsvpEventIds from Firestore take third precedence.
- * 4. An event is marked 'attending' if the user's survey explicitly selected a matching gathering vibe.
- * 5. Otherwise, defaults to 'open' ("Open Gathering").
+ * 4. Specific date match from Firestore survey responses (response.dates).
+ * 5. Otherwise, strictly defaults to 'open' ("Open to Join" / "Open Gathering").
  */
 export function resolveUserAttendance(
   events: CommunityEvent[] = OCTOBER_2026_EVENTS,
@@ -360,7 +298,7 @@ export function resolveUserAttendance(
 
     // 2. Persistent Declined Event (Explicit user cancellation in Firestore)
     // STRICT SHORT-CIRCUIT: If user explicitly cancelled/declined this event,
-    // NEVER let survey vibe matching resurrect it to 'attending'!
+    // NEVER let survey matching resurrect it to 'attending'!
     if (declinedEventIds.includes(event.id)) {
       return {
         ...event,
@@ -378,19 +316,7 @@ export function resolveUserAttendance(
       };
     }
 
-    // 4. User vibes match (from users/{userId})
-    if (userVibes && userVibes.length > 0) {
-      const vibeCheck = checkEventVibeMatch(event.id, userVibes);
-      if (vibeCheck.isMatch) {
-        return {
-          ...event,
-          attendanceStatus: 'attending',
-          matchingReason: vibeCheck.reason || 'Matched your member preferences',
-        };
-      }
-    }
-
-    // 5. Survey response vibe matching
+    // 4. Specific date match from Firestore survey responses (response.dates)
     if (responses && responses.length > 0) {
       for (const res of responses) {
         const resCity = (res.city || 'chicago').toLowerCase();
@@ -398,44 +324,22 @@ export function resolveUserAttendance(
           continue;
         }
 
-        // Special handling for Chicago Sep 26 Inaugural gathering:
-        if (
-          event.id === "chi-sep-26-gathering" ||
-          event.id === "chi-legacy-polled-sep-26" ||
-          event.date === "2026-09-26"
-        ) {
-          const userDates = Array.isArray(res.dates)
-            ? res.dates
-            : typeof res.dates === "string"
-            ? [res.dates]
-            : [];
-          const matchesDate = userDates.some((d: string) => {
-            const dl = d.toLowerCase();
-            return dl.includes("sep 26") || dl.includes("any date");
-          });
-          if (matchesDate) {
-            return {
-              ...event,
-              attendanceStatus: 'attending',
-              matchingReason: 'Matched your September 26 RSVP selection',
-            };
-          }
-        }
+        const userDates = [
+          ...(Array.isArray(res.dates) ? res.dates : typeof res.dates === 'string' ? [res.dates] : []),
+          ...(res.customDate ? [res.customDate] : []),
+        ];
 
-        const userGatherings = Array.isArray(res.gatherings) ? res.gatherings : [];
-        const vibeCheck = checkEventVibeMatch(event.id, userGatherings);
-
-        if (vibeCheck.isMatch) {
+        if (checkEventDateMatch(event, userDates)) {
           return {
             ...event,
             attendanceStatus: 'attending',
-            matchingReason: vibeCheck.reason || 'Matched your survey vibe selection',
+            matchingReason: `Matched your survey date selection (${event.displayDate})`,
           };
         }
       }
     }
 
-    // 6. Default to open
+    // 5. Strictly default to open ("Open to Join")
     return {
       ...event,
       attendanceStatus: 'open',

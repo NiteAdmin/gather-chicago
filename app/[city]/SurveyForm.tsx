@@ -6,7 +6,7 @@ import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { Turnstile } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
-import PostRsvpAuthModal from '@/components/survey/PostRsvpAuthModal';
+import UserNavButton from '@/components/nav/UserNavButton';
 import { BrandName } from '@/components/brand/BrandName';
 import {
   Calendar,
@@ -16,6 +16,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   parseIcsBusyIntervals,
@@ -26,20 +28,11 @@ import {
 } from '@/lib/smartCalendar';
 
 const GATHERINGS = [
-  "Moms Morning",
-  "Ladies Morning",
-  "Ladies Night",
-  "Couples / Date Night",
-  "Happy Hour",
-  "Family-Friendly",
-  "Prenatal & New Parents",
-  "All Ages / Community",
-  "Hiking",
-  "City Walk",
-  "Kayaking / Paddleboarding",
-  "Outdoor Activities",
-  "Golfing",
-  "Board games / Card games",
+  "Board Games & Card Games",
+  "Casual Conversations & Coffee",
+  "Family Night & Pizza",
+  "Wine Tasting & Socials",
+  "Stand-Up Comedy & Entertainment",
   "Down for Whatever",
 ];
 
@@ -55,10 +48,78 @@ const TIMES = [
 const DAYPREF = ["Weekend", "Weekday", "Either works"];
 const GUESTS = ["Just me", "2", "3", "4+"];
 
-const DATES = [
-  "Fri, Oct 9: Family Night — Pizza",
-  "Sat, Oct 17: Morning Walk",
-  "Any date",
+export interface VerifiedOctoberDate {
+  day: number;
+  dateStr: string;
+  label: string;
+  chip: string;
+  category: string;
+}
+
+export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
+  3: {
+    day: 3,
+    dateStr: "Sat, Oct 3",
+    label: "Sat, Oct 3: Apple Fest",
+    chip: "Apple Fest",
+    category: "outdoor",
+  },
+  5: {
+    day: 5,
+    dateStr: "Mon, Oct 5",
+    label: "Mon, Oct 5: Free Pizza & Wine",
+    chip: "Pizza & Wine",
+    category: "food",
+  },
+  8: {
+    day: 8,
+    dateStr: "Thu, Oct 8",
+    label: "Thu, Oct 8: Pinsa Night",
+    chip: "Pinsa Night",
+    category: "food",
+  },
+  9: {
+    day: 9,
+    dateStr: "Fri, Oct 9",
+    label: "Fri, Oct 9: Wine Fest",
+    chip: "Wine Fest",
+    category: "social",
+  },
+  16: {
+    day: 16,
+    dateStr: "Fri, Oct 16",
+    label: "Fri, Oct 16: Soul & Smoke BBQ",
+    chip: "Soul & Smoke",
+    category: "food",
+  },
+  17: {
+    day: 17,
+    dateStr: "Sat, Oct 17",
+    label: "Sat, Oct 17: Spooky Zoo",
+    chip: "Spooky Zoo",
+    category: "outdoor",
+  },
+  23: {
+    day: 23,
+    dateStr: "Fri, Oct 23",
+    label: "Fri, Oct 23: Stand-Up Comedy",
+    chip: "Comedy Night",
+    category: "comedy",
+  },
+  25: {
+    day: 25,
+    dateStr: "Sun, Oct 25",
+    label: "Sun, Oct 25: BOO! at the Zoo",
+    chip: "BOO! Zoo",
+    category: "outdoor",
+  },
+};
+
+const DATES = Object.values(VERIFIED_OCTOBER_DATES).map((d) => d.label);
+
+const FLEXIBLE_DATES = [
+  "Any October Weekend",
+  "Down for Whatever",
 ];
 
 function formatCityName(slug: string): string {
@@ -84,6 +145,14 @@ export default function SurveyForm({
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined' && window.location.search.includes('view=confirmation')) {
+      setName('Alex Morgan');
+      setEmail('alex@example.com');
+      setSelectedGatherings(['Family Night & Pizza', 'Wine Tasting & Socials']);
+      setSelectedDates(['Sat, Oct 3', 'Fri, Oct 9']);
+      setSelectedTimes(['Evening']);
+      setSubmitted(true);
+    }
   }, []);
 
   // Form state
@@ -354,11 +423,9 @@ export default function SurveyForm({
       setSubmitted(true);
       setSubmittedEmail(trimmedEmail);
 
-      // Secure-first: Once the RSVP write to Firestore responses collection resolves,
-      // activate the PostRsvpAuthModal if the user is not already logged in.
-      if (!auth.currentUser) {
-        setShowPostRsvpModal(true);
-      }
+      // Secure-first: The post-survey consensus card and profile claim prompt are displayed
+      // directly on ConfirmationCard without an intrusive popup modal covering the view.
+      setShowPostRsvpModal(false);
     } catch (err: any) {
       console.error("Error submitting response:", err);
       setFormError('Something went wrong submitting your RSVP. Please try again.');
@@ -775,6 +842,27 @@ export default function SurveyForm({
         }
       `}</style>
 
+      {/* TOP NAVIGATION BAR */}
+      <header className="sticky top-0 z-50 border-b border-[#D8CEBC]/70 bg-[#F6F1EA] backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-xs tracking-wider uppercase text-stone-600 hover:text-stone-900 font-medium transition-colors inline-flex items-center gap-1.5"
+          >
+            &larr; Back to Home
+          </Link>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/dashboard"
+              className="text-xs tracking-wider uppercase text-stone-600 hover:text-stone-900 font-medium transition-colors hidden sm:inline-block"
+            >
+              Member Dashboard &rarr;
+            </Link>
+            <UserNavButton />
+          </div>
+        </div>
+      </header>
+
       <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
           <Link href="/" className="eyebrow" style={{ minHeight: '1.2rem' }}>
@@ -934,29 +1022,175 @@ export default function SurveyForm({
                   </span>
                 </div>
 
-                <div className="chips">
-                  {DATES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      className={`chip date ${selectedDates.includes(d) ? 'on' : ''}`}
-                      onClick={() => toggleChip(selectedDates, setSelectedDates, d)}
-                    >
-                      <span>{d}</span>
-                      {calendarConnected && slotStatusMap[d] === 'free' && (
-                        <span className="status-pill free">
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span>Free</span>
+                {/* Visual October 2026 Mini-Calendar Grid */}
+                <div className="bg-[#FAF7F2] border border-[#D8CEBC] rounded-2xl p-3 sm:p-4 mb-4">
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#D8CEBC]/60">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F] block">
+                        COMMUNITY CALENDAR
+                      </span>
+                      <h3 className="text-sm sm:text-base font-bold font-serif-fraunces text-[#2B271F] m-0">
+                        October 2026 Gathering Lineup
+                      </h3>
+                    </div>
+                    <span className="text-[11px] text-[#6A6253] font-medium hidden sm:inline">
+                      Tap dates to select your availability
+                    </span>
+                  </div>
+
+                  {/* Day of Week Headers */}
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, idx) => (
+                      <div
+                        key={dayName}
+                        className={`py-1 ${idx === 0 || idx === 6 ? "text-[#C8643F]" : ""}`}
+                      >
+                        {dayName}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Calendar 7-Column Days Grid */}
+                  <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                    {/* 4 Leading empty cells for Oct 1 (Thursday) */}
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <div
+                        key={`empty-${idx}`}
+                        className="min-h-[44px] sm:min-h-[64px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
+                      />
+                    ))}
+
+                    {/* 31 days of October 2026 */}
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
+                      const verified = VERIFIED_OCTOBER_DATES[dayNum];
+                      const isWeekend = (4 + dayNum - 1) % 7 === 0 || (4 + dayNum - 1) % 7 === 6;
+                      const hasEvent = Boolean(verified);
+
+                      const dateKey = verified ? verified.label : `Oct ${dayNum}, 2026`;
+                      const isSelected = verified
+                        ? selectedDates.includes(verified.label) || selectedDates.includes(verified.dateStr) || selectedDates.some((d) => d.toLowerCase().includes(`oct ${dayNum}`) || d.toLowerCase().includes(`october ${dayNum}`))
+                        : selectedDates.includes(dateKey);
+
+                      const status = verified ? slotStatusMap[verified.label] : undefined;
+
+                      return (
+                        <button
+                          key={`day-${dayNum}`}
+                          type="button"
+                          onClick={() => {
+                            if (verified) {
+                              toggleChip(selectedDates, setSelectedDates, verified.label);
+                            } else {
+                              toggleChip(selectedDates, setSelectedDates, dateKey);
+                            }
+                          }}
+                          className={`min-h-[46px] sm:min-h-[66px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-hidden ${
+                            isSelected
+                              ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                              : hasEvent
+                              ? "bg-white border-[#C8643F]/70 shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                              : isWeekend
+                              ? "bg-[#FBF7EE] border-[#D8CEBC]/60 text-stone-600 hover:bg-white"
+                              : "bg-[#FAF7F2] border-[#D8CEBC]/40 text-stone-500 hover:bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full leading-none">
+                            <span
+                              className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
+                                isSelected
+                                  ? "bg-white text-[#C8643F]"
+                                  : hasEvent
+                                  ? "bg-[#2B271F] text-white"
+                                  : "text-inherit"
+                              }`}
+                            >
+                              {dayNum}
+                            </span>
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-white shrink-0 sm:block hidden" />
+                            )}
+                          </div>
+
+                          {/* Event Badge / Label for Verified Dates */}
+                          {hasEvent && verified && (
+                            <div className="mt-0.5 sm:mt-1 min-w-0">
+                              <span
+                                className={`block text-[9px] sm:text-[10px] font-bold truncate rounded px-1 py-0.5 leading-tight ${
+                                  isSelected
+                                    ? "bg-white/20 text-white"
+                                    : "bg-[#FBE8DF] text-[#A63A24]"
+                                }`}
+                                title={verified.label}
+                              >
+                                {verified.chip}
+                              </span>
+
+                              {/* Smart Calendar Free/Busy Pill if detected */}
+                              {status === 'free' && (
+                                <span
+                                  className={`text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider block mt-0.5 ${
+                                    isSelected ? "text-emerald-200" : "text-emerald-700"
+                                  }`}
+                                >
+                                  ✓ Free
+                                </span>
+                              )}
+                              {status === 'busy' && (
+                                <span
+                                  className={`text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider block mt-0.5 ${
+                                    isSelected ? "text-amber-200" : "text-amber-700"
+                                  }`}
+                                >
+                                  Busy
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Flexible Quick Toggles (Any Weekend / Down for Whatever) */}
+                  <div className="mt-3 pt-2.5 border-t border-[#D8CEBC]/60 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mr-1">
+                        Flexible:
+                      </span>
+                      {FLEXIBLE_DATES.map((opt) => {
+                        const isOptSelected = selectedDates.includes(opt);
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                              isOptSelected
+                                ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                                : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                            }`}
+                          >
+                            {isOptSelected ? `✓ ${opt}` : opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedDates.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-[#3D5634] font-semibold text-[11px] bg-[#EEF5EB] px-2 py-0.5 rounded-md border border-[#C5DEC0]">
+                          {selectedDates.length} date{selectedDates.length === 1 ? '' : 's'} selected
                         </span>
-                      )}
-                      {calendarConnected && slotStatusMap[d] === 'busy' && (
-                        <span className="status-pill busy">
-                          <AlertCircle className="w-3 h-3 text-amber-600" />
-                          <span>Busy</span>
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDates([])}
+                          className="text-[11px] text-[#8C8270] hover:text-[#A63A24] underline cursor-pointer bg-transparent border-none"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1169,16 +1403,6 @@ export default function SurveyForm({
               </div>
             </div>
           </form>
-        )}
-
-        {/* Post-RSVP Account Creation Interception Modal */}
-        {showPostRsvpModal && (
-          <PostRsvpAuthModal
-            isOpen={showPostRsvpModal}
-            email={submittedEmail || email}
-            name={name}
-            onDismissGuest={() => setShowPostRsvpModal(false)}
-          />
         )}
       </div>
     </>

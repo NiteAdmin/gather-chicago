@@ -496,7 +496,13 @@ export default function DashboardPage() {
           <CalendarIcon className="w-3.5 h-3.5 text-[#C8643F]" />
           <span>Your Plans</span>
         </h3>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1E3A20] text-[#A3E699]">
+        <span
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            attendingCount > 0
+              ? "bg-[#1E3A20] text-[#A3E699]"
+              : "bg-[#EDE4D3] text-[#6A6253]"
+          }`}
+        >
           {attendingCount} ATTENDING
         </span>
       </div>
