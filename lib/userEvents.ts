@@ -222,10 +222,14 @@ export async function saveUserEventOverride(
  * Non-committal choices like "any date", "any october weekend", "down for whatever"
  * do NOT auto-RSVP users to all events.
  */
-export function checkEventDateMatch(event: CommunityEvent, userDates: string[]): boolean {
-  if (!userDates || userDates.length === 0) return false;
+export function checkEventDateMatch(
+  event: CommunityEvent,
+  userDates: string[],
+  allEvents: CommunityEvent[] = OCTOBER_2026_EVENTS
+): boolean {
+  if (!userDates || userDates.length === 0 || !event.date) return false;
 
-  const eventDate = event.date; // e.g. "2026-10-09" or "2026-09-26"
+  const eventDate = event.date.trim(); // e.g. "2026-10-09" or "2026-09-26"
   const parts = eventDate.split('-');
   if (parts.length !== 3) return false;
 
@@ -247,18 +251,53 @@ export function checkEventDateMatch(event: CommunityEvent, userDates: string[]):
       continue;
     }
 
-    // Exact ISO match (e.g. "2026-10-09" or "10-09")
-    if (d.includes(eventDate)) {
+    // Direct match against event id
+    if (d === event.id.toLowerCase() || d.includes(event.id.toLowerCase())) {
       return true;
     }
 
+    // Direct match against event chipLabel
+    const chip = (event.chipLabel || '').toLowerCase();
+    if (chip && d.includes(chip)) {
+      return true;
+    }
+
+    // Exact ISO match (e.g. "2026-10-09" or "10-09")
+    const isIsoMatch = d.includes(eventDate);
+
     // Month + Day check
     const hasMonth = d.includes(shortMonth) || d.includes(fullMonth);
-    if (hasMonth) {
-      const dayRegex = new RegExp(`(?:^|\\D)0?${dayNum}(?:\\D|$)`);
-      if (dayRegex.test(d)) {
-        return true;
+    const dayRegex = new RegExp(`(?:^|\\D)0?${dayNum}(?:\\D|$)`);
+    const isDateMatch = isIsoMatch || (hasMonth && dayRegex.test(d));
+
+    if (isDateMatch) {
+      // Disambiguation for multiple events on the same day:
+      // If other events share this exact same date, check if this rawDate was specifically targeted at a sibling event
+      const siblingEvents = allEvents.filter((e) => e.date === event.date && e.id !== event.id);
+      if (siblingEvents.length > 0) {
+        const matchesSibling = siblingEvents.some((sibling) => {
+          const sId = sibling.id.toLowerCase();
+          const sChip = (sibling.chipLabel || '').toLowerCase();
+          const sTitle = (sibling.title || '').toLowerCase();
+          return (
+            (sId && d.includes(sId)) ||
+            (sChip && d.includes(sChip)) ||
+            (sTitle && d.includes(sTitle))
+          );
+        });
+
+        // If the date string specifically mentions a sibling event, but does NOT mention this event, do NOT match this event.
+        if (matchesSibling) {
+          const matchesCurrent =
+            (chip && d.includes(chip)) ||
+            (event.title && d.includes(event.title.toLowerCase()));
+          if (!matchesCurrent) {
+            continue;
+          }
+        }
       }
+
+      return true;
     }
   }
 
@@ -273,7 +312,7 @@ export function checkEventDateMatch(event: CommunityEvent, userDates: string[]):
  * 1. Local session overrides take immediate precedence.
  * 2. Explicit declinedEventIds take second precedence (strict short-circuit: cannot be resurrected).
  * 3. Persisted rsvpEventIds from Firestore take third precedence.
- * 4. Specific date match from Firestore survey responses (response.dates).
+ * 4. Specific date match from Firestore survey responses (response.dates or response.eventIds).
  * 5. Otherwise, strictly defaults to 'open' ("Open to Join" / "Open Gathering").
  */
 export function resolveUserAttendance(
@@ -316,7 +355,7 @@ export function resolveUserAttendance(
       };
     }
 
-    // 4. Specific date match from Firestore survey responses (response.dates)
+    // 4. Specific match from Firestore survey responses (response.eventIds or response.dates)
     if (responses && responses.length > 0) {
       for (const res of responses) {
         const resCity = (res.city || 'chicago').toLowerCase();
@@ -324,12 +363,21 @@ export function resolveUserAttendance(
           continue;
         }
 
+        // Direct eventId match (if survey recorded specific event IDs)
+        if (res.eventIds && Array.isArray(res.eventIds) && res.eventIds.includes(event.id)) {
+          return {
+            ...event,
+            attendanceStatus: 'attending',
+            matchingReason: `Matched your survey selection (${event.displayDate})`,
+          };
+        }
+
         const userDates = [
           ...(Array.isArray(res.dates) ? res.dates : typeof res.dates === 'string' ? [res.dates] : []),
           ...(res.customDate ? [res.customDate] : []),
         ];
 
-        if (checkEventDateMatch(event, userDates)) {
+        if (checkEventDateMatch(event, userDates, events)) {
           return {
             ...event,
             attendanceStatus: 'attending',

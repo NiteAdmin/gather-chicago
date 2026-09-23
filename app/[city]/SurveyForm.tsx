@@ -60,6 +60,7 @@ export interface VerifiedOctoberDate {
   timeWindow?: string;
   venueName?: string;
   description?: string;
+  eventId?: string;
 }
 
 export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | VerifiedOctoberDate[]> = {
@@ -71,6 +72,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "outdoor",
     timeWindow: "10:00 AM – 1:00 PM CDT",
     venueName: "Lincoln Square Ravenswood",
+    eventId: "chi-2026-10-03-apple-fest",
   },
   5: {
     day: 5,
@@ -80,6 +82,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
     venueName: "Little Lark",
+    eventId: "chi-2026-10-05-pizza-wine",
   },
   8: {
     day: 8,
@@ -89,6 +92,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
     venueName: "Little Lark",
+    eventId: "chi-2026-10-08-pinsa-night",
   },
   9: {
     day: 9,
@@ -98,6 +102,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "social",
     timeWindow: "5:00 PM – 10:00 PM CDT",
     venueName: "Jonquil Park",
+    eventId: "chi-2026-10-09-wine-fest",
   },
   16: {
     day: 16,
@@ -107,6 +112,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
     venueName: "Soul & Smoke",
+    eventId: "chi-2026-10-16-soul-smoke",
   },
   17: [
     {
@@ -118,6 +124,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
       timeWindow: "10:00 AM – 1:00 PM CDT",
       venueName: "Lincoln Park Zoo",
       description: "Lincoln Park Zoo daytime trick-or-treating, live music, and animal viewing across the grounds.",
+      eventId: "chi-2026-10-17-spooky-zoo",
     },
     {
       day: 17,
@@ -128,6 +135,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
       timeWindow: "11:00 AM – 1:00 PM CDT",
       venueName: "Goebbert's Farm",
       description: "Pingree Grove pumpkin patches, hot apple cider donuts, and wagon rides.",
+      eventId: "chi-2026-10-17-goebberts-farm",
     },
   ],
   23: {
@@ -138,6 +146,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "comedy",
     timeWindow: "7:00 PM – 8:30 PM CDT",
     venueName: "Laugh Factory Chicago",
+    eventId: "chi-2026-10-23-laugh-factory",
   },
   25: {
     day: 25,
@@ -147,6 +156,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     category: "outdoor",
     timeWindow: "10:00 AM – 6:00 PM CDT",
     venueName: "Brookfield Zoo Chicago",
+    eventId: "chi-2026-10-25-boo-zoo",
   },
 };
 
@@ -254,6 +264,23 @@ export default function SurveyForm({
       window.removeEventListener('storage', checkVoted);
     };
   }, []);
+
+  useEffect(() => {
+    if (multiEventModalDay !== null) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setMultiEventModalDay(null);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [multiEventModalDay]);
 
   // Check if confirmation view is active to suppress floating auth modals
   const isConfirmationActive =
@@ -452,6 +479,15 @@ export default function SurveyForm({
 
     try {
       // 1. Verify anti-spam, duplicate uniqueness, save to Firestore, and dispatch email/SMS via API
+      const selectedEventIds: string[] = [];
+      Object.values(VERIFIED_OCTOBER_DATES)
+        .flat()
+        .forEach((v) => {
+          if (v.eventId && selectedDates.includes(v.label)) {
+            selectedEventIds.push(v.eventId);
+          }
+        });
+
       const payload = {
         city: rawCity.toLowerCase(),
         cityName: cityName,
@@ -461,6 +497,7 @@ export default function SurveyForm({
         smsOptIn: Boolean(hasSmsOptIn),
         quarterlyReminder: Boolean(quarterlyReminder),
         dates: Array.isArray(selectedDates) ? selectedDates : [],
+        eventIds: selectedEventIds,
         gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
         customGathering: trimmedCustomGathering || null,
         customDate: trimmedCustomDate || null,

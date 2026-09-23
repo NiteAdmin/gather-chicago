@@ -14,6 +14,7 @@ export interface SurveyResponse {
   customTime?: string | null;
   gatherings?: string[];
   dates?: string[];
+  eventIds?: string[];
   times?: string[];
   dayPref?: string | null;
   guests?: string | null;

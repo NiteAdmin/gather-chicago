@@ -44,6 +44,7 @@ export async function saveResponse(data: Omit<SurveyResponse, "id" | "createdAt"
     gatherings: Array.isArray(data.gatherings) ? data.gatherings : [],
     customGathering: data.customGathering ? data.customGathering.trim() : null,
     dates: Array.isArray(data.dates) ? data.dates : [],
+    eventIds: Array.isArray(data.eventIds) ? data.eventIds : [],
     customDate: data.customDate ? data.customDate.trim() : null,
     times: Array.isArray(data.times) ? data.times : [],
     customTime: data.customTime ? data.customTime.trim() : null,

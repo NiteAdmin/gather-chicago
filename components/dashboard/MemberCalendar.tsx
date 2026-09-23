@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { ResolvedEvent } from "@/lib/userEvents";
 import { splitEventTitle, chicagoPotteryPoll } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
@@ -41,6 +41,30 @@ export default function MemberCalendar({
   const [activePopoverEvent, setActivePopoverEvent] = useState<ResolvedEvent | null>(null);
   const [isPotteryModalOpen, setIsPotteryModalOpen] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
+
+  // Derived current active event strictly bound to reactive events array (for seamless rollback sync)
+  const currentActiveEvent = activePopoverEvent
+    ? events.find((e) => e.id === activePopoverEvent.id) || activePopoverEvent
+    : null;
+
+  // Lock body scroll and dismiss on Escape when event modal is open
+  useEffect(() => {
+    if (activePopoverEvent) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setActivePopoverEvent(null);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [activePopoverEvent]);
 
   useEffect(() => {
     const checkVoted = () => {
@@ -888,7 +912,7 @@ export default function MemberCalendar({
       )}
 
       {/* MODAL / POPOVER FOR EVENT DETAILS */}
-      {activePopoverEvent && (
+      {currentActiveEvent && (
         <div
           role="dialog"
           aria-modal="true"
@@ -897,38 +921,55 @@ export default function MemberCalendar({
             if (e.target === e.currentTarget) setActivePopoverEvent(null);
           }}
         >
-          <div className="relative w-full max-w-lg bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setActivePopoverEvent(null)}
-              className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
-              aria-label="Close event popover"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
+          <div
+            ref={modalScrollRef}
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
+          >
             {/* Multi-event switcher bar if multiple events exist on same date */}
             {(() => {
-              const sameDayEvents = events.filter((e) => e.date === activePopoverEvent.date);
-              if (sameDayEvents.length <= 1) return null;
+              const sameDayEvents = events.filter((e) => e.date === currentActiveEvent.date);
+              if (sameDayEvents.length <= 1) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setActivePopoverEvent(null)}
+                    className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
+                    aria-label="Close event popover"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                );
+              }
               return (
-                <div className="mb-4 pr-8">
-                  <div className="text-[10px] font-bold text-[#8C8270] uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>{sameDayEvents.length} Gatherings on this date</span>
-                    <span className="text-[10px] text-[#C8643F] font-semibold">Switch event to view &amp; RSVP</span>
+                <div className="mb-5">
+                  <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <span className="text-xs font-bold text-[#8C8270] uppercase tracking-wider">
+                      {sameDayEvents.length} Gatherings on this date
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActivePopoverEvent(null)}
+                      className="p-1.5 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/60 cursor-pointer shrink-0"
+                      aria-label="Close event popover"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                   <div className="flex items-center gap-1.5 p-1 bg-[#EDE4D3]/70 rounded-xl">
                     {sameDayEvents.map((sEv) => {
-                      const isCurrent = sEv.id === activePopoverEvent.id;
+                      const isCurrent = sEv.id === currentActiveEvent.id;
                       const sTitle = splitEventTitle(sEv.title, sEv.brandPrefix).eventName;
                       return (
                         <button
                           key={sEv.id}
                           type="button"
-                          onClick={() => setActivePopoverEvent(sEv)}
-                          className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate cursor-pointer ${
+                          onClick={() => {
+                            setActivePopoverEvent(sEv);
+                            modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate cursor-pointer ${
                             isCurrent
-                              ? "bg-[#2B271F] text-[#FBF7EE] shadow-xs"
+                              ? "bg-[#2B271F] text-white shadow-xs"
                               : "text-[#6A6253] hover:text-[#2B271F] hover:bg-white/50"
                           }`}
                         >
@@ -948,20 +989,20 @@ export default function MemberCalendar({
             <div className="flex items-start gap-4 mb-4">
               <div className="w-14 h-14 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner">
                 <EventIcon
-                  iconName={activePopoverEvent.iconName}
-                  eventId={activePopoverEvent.id}
-                  category={activePopoverEvent.category}
-                  fallbackIcon={activePopoverEvent.icon}
+                  iconName={currentActiveEvent.iconName}
+                  eventId={currentActiveEvent.id}
+                  category={currentActiveEvent.category}
+                  fallbackIcon={currentActiveEvent.icon}
                   className="w-7 h-7 text-[#E07A5F]"
                 />
               </div>
               <div className="pr-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                    {activePopoverEvent.displayDate}
+                    {currentActiveEvent.displayDate}
                   </span>
                   <span className="text-[11px] font-semibold text-[#6A6253] bg-[#EDE4D3] px-2.5 py-0.5 rounded-full">
-                    {activePopoverEvent.category.toUpperCase()}
+                    {currentActiveEvent.category.toUpperCase()}
                   </span>
                 </div>
                 <div className="mt-1.5">
@@ -969,7 +1010,7 @@ export default function MemberCalendar({
                     <BrandName />
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
-                    {splitEventTitle(activePopoverEvent.title, activePopoverEvent.brandPrefix).eventName}
+                    {splitEventTitle(currentActiveEvent.title, currentActiveEvent.brandPrefix).eventName}
                   </h3>
                 </div>
               </div>
@@ -978,33 +1019,33 @@ export default function MemberCalendar({
             {/* Attendance Status Banner */}
             <div
               className={`p-3 rounded-2xl border mb-5 flex items-center justify-between text-xs font-semibold ${
-                activePopoverEvent.attendanceStatus === "attending"
+                currentActiveEvent.attendanceStatus === "attending"
                   ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
                   : "bg-[#F5F1E8] border-[#D8CEBC] text-[#6A6253]"
               }`}
             >
               <div className="flex items-center gap-2">
-                {activePopoverEvent.attendanceStatus === "attending" ? (
+                {currentActiveEvent.attendanceStatus === "attending" ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 ) : (
                   <CalendarIcon className="w-4 h-4 text-[#C8643F] shrink-0" />
                 )}
                 <span>
-                  {activePopoverEvent.attendanceStatus === "attending"
+                  {currentActiveEvent.attendanceStatus === "attending"
                     ? "You're Going — RSVP Confirmed"
                     : "Spots Available — RSVP to attend"}
                 </span>
               </div>
-              {activePopoverEvent.matchingReason && (
+              {currentActiveEvent.matchingReason && (
                 <span className="text-[10px] text-[#8C8270] hidden sm:inline">
-                  {activePopoverEvent.matchingReason}
+                  {currentActiveEvent.matchingReason}
                 </span>
               )}
             </div>
 
             {/* Event Description */}
             <p className="text-xs sm:text-sm text-[#6A6253] leading-relaxed mb-5">
-              {activePopoverEvent.description}
+              {currentActiveEvent.description}
             </p>
 
             {/* Details Box */}
@@ -1013,7 +1054,7 @@ export default function MemberCalendar({
                 <Clock className="w-4 h-4 text-[#C8643F] shrink-0" />
                 <div>
                   <span className="text-[#8C8270] text-[11px] block">Time Window</span>
-                  <span className="font-semibold">{activePopoverEvent.timeWindow}</span>
+                  <span className="font-semibold">{currentActiveEvent.timeWindow}</span>
                 </div>
               </div>
 
@@ -1021,9 +1062,9 @@ export default function MemberCalendar({
                 <MapPin className="w-4 h-4 text-[#4C5A40] shrink-0 mt-0.5" />
                 <div>
                   <span className="text-[#8C8270] text-[11px] block">Venue &amp; Location</span>
-                  <span className="font-semibold block">{activePopoverEvent.venueName}</span>
-                  {activePopoverEvent.venueAddress && (
-                    <span className="text-[11px] text-[#6A6253]">{activePopoverEvent.venueAddress}</span>
+                  <span className="font-semibold block">{currentActiveEvent.venueName}</span>
+                  {currentActiveEvent.venueAddress && (
+                    <span className="text-[11px] text-[#6A6253]">{currentActiveEvent.venueAddress}</span>
                   )}
                 </div>
               </div>
@@ -1031,9 +1072,9 @@ export default function MemberCalendar({
 
             {/* Sister gathering callout if multiple events exist on same date */}
             {(() => {
-              const sameDayEvents = events.filter((e) => e.date === activePopoverEvent.date);
+              const sameDayEvents = events.filter((e) => e.date === currentActiveEvent.date);
               if (sameDayEvents.length <= 1) return null;
-              const others = sameDayEvents.filter((e) => e.id !== activePopoverEvent.id);
+              const others = sameDayEvents.filter((e) => e.id !== currentActiveEvent.id);
               if (others.length === 0) return null;
               return (
                 <div className="bg-[#FAF7F2] border border-[#D8CEBC]/70 rounded-2xl p-3 mb-5">
@@ -1054,7 +1095,10 @@ export default function MemberCalendar({
                         </div>
                         <button
                           type="button"
-                          onClick={() => setActivePopoverEvent(other)}
+                          onClick={() => {
+                            setActivePopoverEvent(other);
+                            modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
                           className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2B271F] text-[#FBF7EE] hover:bg-[#3D372E] transition-all cursor-pointer shadow-xs"
                         >
                           {isAttendingOther ? "View RSVP (Going)" : "View Gathering →"}
@@ -1072,34 +1116,26 @@ export default function MemberCalendar({
                 type="button"
                 onClick={() => {
                   if (onToggleRSVP) {
-                    onToggleRSVP(activePopoverEvent.id);
-                    setActivePopoverEvent((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            attendanceStatus: prev.attendanceStatus === "attending" ? "open" : "attending",
-                          }
-                        : null
-                    );
+                    onToggleRSVP(currentActiveEvent.id);
                   }
                 }}
                 className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                  activePopoverEvent.attendanceStatus === "attending"
+                  currentActiveEvent.attendanceStatus === "attending"
                     ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
                     : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
                 }`}
               >
-                {activePopoverEvent.attendanceStatus === "attending" ? "Can't Make It? Cancel RSVP" : "RSVP: I'm Going! →"}
+                {currentActiveEvent.attendanceStatus === "attending" ? "Can't Make It? Cancel RSVP" : "RSVP: I'm Going! →"}
               </button>
 
-              {(activePopoverEvent.externalUrl || activePopoverEvent.partifulUrl) && (
+              {(currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl) && (
                 <a
-                  href={activePopoverEvent.externalUrl || activePopoverEvent.partifulUrl}
+                  href={currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-3 bg-white hover:bg-[#EDE4D3] text-[#2B271F] border border-[#D8CEBC] rounded-xl text-xs font-semibold transition-all"
                 >
-                  <span>{activePopoverEvent.externalUrlLabel || "Open Link"}</span>
+                  <span>{currentActiveEvent.externalUrlLabel || "Open Link"}</span>
                   <ExternalLink className="w-3.5 h-3.5 ml-1.5 inline" />
                 </a>
               )}
