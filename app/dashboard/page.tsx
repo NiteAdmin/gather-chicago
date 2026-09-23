@@ -795,6 +795,7 @@ export default function DashboardPage() {
                 <MemberCalendar
                   events={resolvedEvents}
                   onToggleRSVP={handleToggleRSVP}
+                  userEmail={user?.email}
                 />
               )}
             </section>
@@ -984,6 +985,29 @@ export default function DashboardPage() {
                   )}
                 </button>
               </form>
+            </div>
+
+            {/* Public Calendar Preview for Unauthenticated Visitors */}
+            <div className="mt-10 max-w-4xl mx-auto space-y-4 w-full">
+              <div className="text-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full">
+                  COMMUNITY LINEUP PREVIEW
+                </span>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1.5">
+                  October 2026 Chapter Calendar
+                </h2>
+                <p className="text-xs text-[#6A6253] mt-0.5 max-w-md mx-auto">
+                  Explore Chicago gatherings below. Sign in above to manage your RSVPs and sync with Apple or Google Calendar.
+                </p>
+              </div>
+              <MemberCalendar
+                events={resolvedEvents}
+                onToggleRSVP={() => {
+                  setMode("signin");
+                  setAuthError("Please sign in or claim your account to RSVP for gatherings.");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
             </div>
           </div>
         )}

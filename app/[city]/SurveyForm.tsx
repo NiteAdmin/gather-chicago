@@ -6,6 +6,7 @@ import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { Turnstile } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
+import PotteryPollModal from '@/app/components/PotteryPollModal';
 import UserNavButton from '@/components/nav/UserNavButton';
 import { BrandName } from '@/components/brand/BrandName';
 import {
@@ -18,6 +19,8 @@ import {
   Loader2,
   Sparkles,
   ArrowLeft,
+  Clock,
+  MapPin,
 } from 'lucide-react';
 import {
   parseIcsBusyIntervals,
@@ -54,15 +57,20 @@ export interface VerifiedOctoberDate {
   label: string;
   chip: string;
   category: string;
+  timeWindow?: string;
+  venueName?: string;
+  description?: string;
 }
 
-export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
+export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | VerifiedOctoberDate[]> = {
   3: {
     day: 3,
     dateStr: "Sat, Oct 3",
     label: "Sat, Oct 3: Apple Fest",
     chip: "Apple Fest",
     category: "outdoor",
+    timeWindow: "10:00 AM – 1:00 PM CDT",
+    venueName: "Lincoln Square Ravenswood",
   },
   5: {
     day: 5,
@@ -70,6 +78,8 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
     label: "Mon, Oct 5: Free Pizza & Wine",
     chip: "Pizza & Wine",
     category: "food",
+    timeWindow: "6:00 PM – 8:30 PM CDT",
+    venueName: "Little Lark",
   },
   8: {
     day: 8,
@@ -77,6 +87,8 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
     label: "Thu, Oct 8: Pinsa Night",
     chip: "Pinsa Night",
     category: "food",
+    timeWindow: "6:00 PM – 8:30 PM CDT",
+    venueName: "Little Lark",
   },
   9: {
     day: 9,
@@ -84,6 +96,8 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
     label: "Fri, Oct 9: Wine Fest",
     chip: "Wine Fest",
     category: "social",
+    timeWindow: "5:00 PM – 10:00 PM CDT",
+    venueName: "Jonquil Park",
   },
   16: {
     day: 16,
@@ -91,20 +105,39 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
     label: "Fri, Oct 16: Soul & Smoke BBQ",
     chip: "Soul & Smoke",
     category: "food",
+    timeWindow: "6:00 PM – 8:30 PM CDT",
+    venueName: "Soul & Smoke",
   },
-  17: {
-    day: 17,
-    dateStr: "Sat, Oct 17",
-    label: "Sat, Oct 17: Spooky Zoo",
-    chip: "Spooky Zoo",
-    category: "outdoor",
-  },
+  17: [
+    {
+      day: 17,
+      dateStr: "Sat, Oct 17",
+      label: "Sat, Oct 17: Spooky Zoo",
+      chip: "Spooky Zoo",
+      category: "outdoor",
+      timeWindow: "10:00 AM – 1:00 PM CDT",
+      venueName: "Lincoln Park Zoo",
+      description: "Lincoln Park Zoo daytime trick-or-treating, live music, and animal viewing across the grounds.",
+    },
+    {
+      day: 17,
+      dateStr: "Sat, Oct 17",
+      label: "Sat, Oct 17: Goebbert's Farm",
+      chip: "Goebbert's Farm",
+      category: "outdoor",
+      timeWindow: "11:00 AM – 1:00 PM CDT",
+      venueName: "Goebbert's Farm",
+      description: "Pingree Grove pumpkin patches, hot apple cider donuts, and wagon rides.",
+    },
+  ],
   23: {
     day: 23,
     dateStr: "Fri, Oct 23",
     label: "Fri, Oct 23: Stand-Up Comedy",
     chip: "Comedy Night",
     category: "comedy",
+    timeWindow: "7:00 PM – 8:30 PM CDT",
+    venueName: "Laugh Factory Chicago",
   },
   25: {
     day: 25,
@@ -112,10 +145,20 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate> = {
     label: "Sun, Oct 25: BOO! at the Zoo",
     chip: "BOO! Zoo",
     category: "outdoor",
+    timeWindow: "10:00 AM – 6:00 PM CDT",
+    venueName: "Brookfield Zoo Chicago",
   },
 };
 
-const DATES = Object.values(VERIFIED_OCTOBER_DATES).map((d) => d.label);
+export function getVerifiedEventsForDay(dayNum: number): VerifiedOctoberDate[] {
+  const item = VERIFIED_OCTOBER_DATES[dayNum];
+  if (!item) return [];
+  return Array.isArray(item) ? item : [item];
+}
+
+const DATES = Object.values(VERIFIED_OCTOBER_DATES)
+  .flat()
+  .map((d) => d.label);
 
 const FLEXIBLE_DATES = [
   "Any October Weekend",
@@ -190,6 +233,27 @@ export default function SurveyForm({
   const [submittedEmail, setSubmittedEmail] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [isPotteryModalOpen, setIsPotteryModalOpen] = useState(false);
+  const [multiEventModalDay, setMultiEventModalDay] = useState<number | null>(null);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    const checkVoted = () => {
+      try {
+        const voted = localStorage.getItem('hasVoted_pottery-studio-faceoff');
+        setHasVoted(voted === 'true');
+      } catch {
+        // ignore localStorage errors
+      }
+    };
+    checkVoted();
+    window.addEventListener('pollVoteUpdated', checkVoted);
+    window.addEventListener('storage', checkVoted);
+    return () => {
+      window.removeEventListener('pollVoteUpdated', checkVoted);
+      window.removeEventListener('storage', checkVoted);
+    };
+  }, []);
 
   // Check if confirmation view is active to suppress floating auth modals
   const isConfirmationActive =
@@ -1072,31 +1136,72 @@ export default function SurveyForm({
 
                     {/* 31 days of October 2026 */}
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
-                      const verified = VERIFIED_OCTOBER_DATES[dayNum];
+                      const verifiedList = getVerifiedEventsForDay(dayNum);
+                      const isMultiEvent = verifiedList.length > 1;
+                      const hasEvent = verifiedList.length > 0;
                       const isWeekend = (4 + dayNum - 1) % 7 === 0 || (4 + dayNum - 1) % 7 === 6;
-                      const hasEvent = Boolean(verified);
 
-                      const dateKey = verified ? verified.label : `Oct ${dayNum}, 2026`;
-                      const isSelected = verified
-                        ? selectedDates.includes(verified.label) || selectedDates.includes(verified.dateStr) || selectedDates.some((d) => d.toLowerCase().includes(`oct ${dayNum}`) || d.toLowerCase().includes(`october ${dayNum}`))
+                      const dateKey = hasEvent ? verifiedList[0].label : `Oct ${dayNum}, 2026`;
+                      const isSelected = hasEvent
+                        ? verifiedList.some((v) =>
+                            selectedDates.includes(v.label) ||
+                            selectedDates.includes(v.dateStr) ||
+                            selectedDates.some((d) => d.toLowerCase().includes(`oct ${dayNum}`) || d.toLowerCase().includes(`october ${dayNum}`))
+                          )
                         : selectedDates.includes(dateKey);
 
-                      const status = verified ? slotStatusMap[verified.label] : undefined;
+                      const status = hasEvent ? slotStatusMap[verifiedList[0].label] : undefined;
+                      const isPollDay = isChicago && (dayNum === 4 || dayNum === 10);
+                      const pollTitle = isPollDay
+                        ? dayNum === 4
+                          ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
+                          : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 10 option)"
+                        : undefined;
 
                       return (
-                        <button
+                        <div
                           key={`day-${dayNum}`}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
+                          title={isPollDay ? pollTitle : undefined}
                           onClick={() => {
-                            if (verified) {
-                              toggleChip(selectedDates, setSelectedDates, verified.label);
+                            if (isPollDay) {
+                              setIsPotteryModalOpen(true);
+                              return;
+                            }
+                            if (isMultiEvent) {
+                              setMultiEventModalDay(dayNum);
+                              return;
+                            }
+                            if (hasEvent) {
+                              toggleChip(selectedDates, setSelectedDates, verifiedList[0].label);
                             } else {
                               toggleChip(selectedDates, setSelectedDates, dateKey);
                             }
                           }}
-                          className={`min-h-[46px] sm:min-h-[66px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-hidden ${
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              if (isPollDay) {
+                                setIsPotteryModalOpen(true);
+                                return;
+                              }
+                              if (isMultiEvent) {
+                                setMultiEventModalDay(dayNum);
+                                return;
+                              }
+                              if (hasEvent) {
+                                toggleChip(selectedDates, setSelectedDates, verifiedList[0].label);
+                              } else {
+                                toggleChip(selectedDates, setSelectedDates, dateKey);
+                              }
+                            }
+                          }}
+                          className={`min-h-[46px] sm:min-h-[66px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-visible group/cell ${
                             isSelected
                               ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                              : isPollDay
+                              ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
                               : hasEvent
                               ? "bg-white border-[#C8643F]/70 shadow-xs hover:border-[#C8643F] hover:shadow-sm"
                               : isWeekend
@@ -1109,7 +1214,7 @@ export default function SurveyForm({
                               className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
                                 isSelected
                                   ? "bg-white text-[#C8643F]"
-                                  : hasEvent
+                                  : (hasEvent || isPollDay)
                                   ? "bg-[#2B271F] text-white"
                                   : "text-inherit"
                               }`}
@@ -1122,18 +1227,36 @@ export default function SurveyForm({
                           </div>
 
                           {/* Event Badge / Label for Verified Dates */}
-                          {hasEvent && verified && (
-                            <div className="mt-0.5 sm:mt-1 min-w-0">
-                              <span
-                                className={`block text-[9px] sm:text-[10px] font-bold truncate rounded px-1 py-0.5 leading-tight ${
-                                  isSelected
-                                    ? "bg-white/20 text-white"
-                                    : "bg-[#FBE8DF] text-[#A63A24]"
-                                }`}
-                                title={verified.label}
-                              >
-                                {verified.chip}
-                              </span>
+                          {hasEvent && (
+                            <div className="mt-0.5 sm:mt-1 space-y-0.5 min-w-0">
+                              {verifiedList.map((vEvent) => {
+                                const isEvSelected = selectedDates.includes(vEvent.label);
+                                const evTooltip = `${vEvent.label}${vEvent.timeWindow ? ` • ${vEvent.timeWindow}` : ""}${vEvent.venueName ? ` • ${vEvent.venueName}` : ""}`;
+                                return (
+                                  <span
+                                    key={vEvent.label}
+                                    role={isMultiEvent ? "button" : undefined}
+                                    onClick={
+                                      isMultiEvent
+                                        ? (e) => {
+                                            e.stopPropagation();
+                                            toggleChip(selectedDates, setSelectedDates, vEvent.label);
+                                          }
+                                        : undefined
+                                    }
+                                    className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-1 py-0.5 leading-tight transition-all ${
+                                      isEvSelected
+                                        ? "bg-[#C8643F] text-white shadow-xs"
+                                        : isSelected
+                                        ? "bg-white/20 text-white"
+                                        : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
+                                    }`}
+                                    title={evTooltip}
+                                  >
+                                    {isEvSelected ? `✓ ${vEvent.chip}` : vEvent.chip}
+                                  </span>
+                                );
+                              })}
 
                               {/* Smart Calendar Free/Busy Pill if detected */}
                               {status === 'free' && (
@@ -1156,7 +1279,33 @@ export default function SurveyForm({
                               )}
                             </div>
                           )}
-                        </button>
+
+                          {/* Neutral Community Poll Badge on Oct 4 & Oct 10 */}
+                          {isPollDay && (
+                            <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
+                              <span
+                                className="text-[10px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-1 inline-flex items-center justify-center gap-1 whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
+                                title={pollTitle}
+                              >
+                                🗳️ Vote
+                              </span>
+
+                              {/* Matching Hover Popover Card */}
+                              <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-48 sm:w-56 p-2.5 bg-[#2B271F] text-white rounded-xl shadow-xl z-50 pointer-events-none opacity-0 group-hover/poll:opacity-100 transition-opacity duration-150 text-left hidden sm:block">
+                                <div className="text-[9px] font-bold text-[#E07A5F] tracking-widest uppercase mb-0.5">
+                                  COMMUNITY POLL
+                                </div>
+                                <div className="text-xs font-bold font-serif-fraunces text-white leading-snug">
+                                  Pottery Class vs. GnarWare Workshop
+                                </div>
+                                <div className="text-[10px] text-[#EDE4D3] mt-1 flex items-center gap-1">
+                                  <span>Click to cast your vote</span>
+                                </div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2B271F]" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -1202,6 +1351,68 @@ export default function SurveyForm({
                     )}
                   </div>
                 </div>
+
+                {/* Community Poll Banner Strip below Calendar (Chicago only) */}
+                {isChicago && (
+                  <div className="mb-4 p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner text-xl">
+                        🗳️
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
+                            Sun, Oct 4 &amp; Sat, Oct 10
+                          </span>
+                          {hasVoted ? (
+                            <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                              ✓ VOTED
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                              COMMUNITY POLL
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-1.5">
+                          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
+                            <BrandName />
+                          </div>
+                          <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
+                            Vote on Next Gathering
+                          </h3>
+                        </div>
+
+                        <p className="text-xs text-[#6A6253] mt-1 leading-relaxed max-w-xl">
+                          {hasVoted
+                            ? "Your vote is in. We'll announce the winning location when bookings open."
+                            : "Help us choose between Lincoln Square Pottery Studio and GnarWare Workshop."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D8CEBC]/40">
+                      {hasVoted ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsPotteryModalOpen(true)}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-[#D8CEBC] bg-white text-[#2B271F] hover:bg-[#EDE4D3]/50 shadow-xs"
+                        >
+                          Edit Vote
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsPotteryModalOpen(true)}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-dashed border-[#C8643F] bg-[#C8643F]/5 text-[#C8643F] hover:bg-[#C8643F]/10 shadow-xs"
+                        >
+                          Vote Now &rarr;
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Step 2: Gatherings */}
@@ -1415,6 +1626,104 @@ export default function SurveyForm({
           </form>
         )}
       </div>
+
+      {/* Multi-Event Selector Modal for dates with multiple gatherings (e.g., Oct 17) */}
+      {multiEventModalDay !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMultiEventModalDay(null);
+          }}
+        >
+          <div className="relative w-full max-w-md bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 shadow-2xl animate-fade-in">
+            <button
+              type="button"
+              onClick={() => setMultiEventModalDay(null)}
+              className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
+              aria-label="Close event selector"
+            >
+              ✕
+            </button>
+
+            <div className="text-[10px] font-bold text-[#C8643F] uppercase tracking-widest mb-1">
+              OCTOBER {multiEventModalDay} GATHERINGS
+            </div>
+            <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F] leading-tight mb-2">
+              Select Your Gathering(s)
+            </h3>
+            <p className="text-xs text-[#6A6253] mb-4">
+              We have multiple gatherings planned for this day. Check any you would like to join:
+            </p>
+
+            <div className="space-y-3">
+              {getVerifiedEventsForDay(multiEventModalDay).map((ev) => {
+                const isEvSelected = selectedDates.includes(ev.label);
+                return (
+                  <div
+                    key={ev.label}
+                    onClick={() => toggleChip(selectedDates, setSelectedDates, ev.label)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                      isEvSelected
+                        ? "bg-[#C8643F]/10 border-[#C8643F] shadow-xs"
+                        : "bg-white border-[#D8CEBC] hover:border-[#C8643F]"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#2B271F]">{ev.chip}</span>
+                        <span className="text-[10px] font-semibold text-[#8C8270] bg-[#EDE4D3] px-2 py-0.5 rounded-full">
+                          {ev.category.toUpperCase()}
+                        </span>
+                      </div>
+                      {ev.timeWindow && (
+                        <div className="text-[11px] text-[#6A6253] mt-1 font-medium">
+                          🕒 {ev.timeWindow} · 📍 {ev.venueName}
+                        </div>
+                      )}
+                      {ev.description && (
+                        <p className="text-[11px] text-[#6A6253] mt-1 leading-relaxed">
+                          {ev.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="shrink-0 mt-0.5">
+                      <span
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-md border text-xs font-bold ${
+                          isEvSelected
+                            ? "bg-[#C8643F] border-[#C8643F] text-white"
+                            : "border-[#D8CEBC] bg-white text-transparent"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-[#D8CEBC]/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMultiEventModalDay(null)}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-[#2B271F] text-[#FBF7EE] hover:bg-[#3D372E] transition-all cursor-pointer shadow-xs"
+              >
+                Save &amp; Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pottery Studio Face-Off Community Choice Ballot Modal */}
+      <PotteryPollModal
+        isOpen={isPotteryModalOpen}
+        onClose={() => setIsPotteryModalOpen(false)}
+        initialEmail={email}
+      />
     </>
   );
 }

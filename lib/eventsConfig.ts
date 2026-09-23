@@ -67,7 +67,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Footprints",
     venueName: "Lincoln Square Ravenswood",
     venueAddress: "4505 N Lincoln Ave, Chicago, IL 60625",
-    description: "Celebrate autumn in the heart of Lincoln Square with fresh local apples, hot cider, artisan baked goods, live street music, and family activities. Free admission ($5 suggested donation).",
+    description: "Autumn weekend in Lincoln Square with local apple growers, hot spiced cider, fresh baked goods, and live street music along Lincoln Ave. Free admission ($5 suggested donation).",
     externalUrl: "https://www.lincolnsquare.org/apple-fest",
     externalUrlLabel: "Official Apple Fest Site",
     partifulUrl: "https://www.lincolnsquare.org/apple-fest",
@@ -177,7 +177,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Lincoln Park Zoo",
     venueAddress: "2001 N Clark St, Chicago, IL 60614",
-    description: "A beloved Chicago family tradition! Lincoln Park Zoo hosts safe daytime trick-or-treating, live entertainment, craft stations, and animal viewing across the grounds. Free admission.",
+    description: "Lincoln Park Zoo's daytime trick-or-treating with music, animal viewing, and craft stations across the grounds. Free to attend—bring family or join fellow members for a relaxed autumn walk.",
     externalUrl: "https://www.lpzoo.org/event/spooky-zoo/",
     externalUrlLabel: "Zoo Event Details",
     partifulUrl: "https://www.lpzoo.org/event/spooky-zoo/",
@@ -199,7 +199,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Goebbert's Farm",
     venueAddress: "42W813 Reinking Rd, Pingree Grove, IL 60140",
-    description: "Full fall festival experience with pumpkin patches, apple cider donuts, wagon rides, animal land, and the famous pumpkin-eating dinosaur. Free for 2 & under; $27–$30 weekend tickets.",
+    description: "Fall festival out in Pingree Grove with pumpkin patches, fresh apple cider donuts, wagon rides, and farm attractions. A great seasonal weekend trip.",
     externalUrl: "https://goebbertspumpkinfarm.com/fall-festival/ticket-prices/",
     externalUrlLabel: "Festival Tickets",
     partifulUrl: "https://goebbertspumpkinfarm.com/fall-festival/ticket-prices/",
@@ -243,7 +243,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Brookfield Zoo Chicago",
     venueAddress: "31st St & Golfview Ave, Brookfield, IL 60513",
-    description: "Brookfield Zoo's annual Halloween celebration features festive photo-ops, pumpkin carving demos, carousel rides, and animal pumpkin-smashing treats. Included with general zoo admission.",
+    description: "Brookfield Zoo's Halloween gathering featuring pumpkin carving demos, carousel rides, and fall animal treats. Included with regular zoo admission.",
     externalUrl: "https://www.brookfieldzoo.org/events/boo-at-the-zoo",
     externalUrlLabel: "Brookfield Zoo Details",
     partifulUrl: "https://www.brookfieldzoo.org/events/boo-at-the-zoo",
@@ -519,3 +519,50 @@ export function filterUpcomingEvents(
     spotlightEvent,
   };
 }
+
+export interface PollOption {
+  id: string;
+  name: string;
+  neighborhood: string;
+  address: string;
+  price: string;
+  dates: string;
+  website: string;
+}
+
+export interface CommunityPoll {
+  id: string;
+  title: string;
+  category: string;
+  status: "poll"; // STRICTLY 'poll'
+  pollDates: string[];
+  options: PollOption[];
+}
+
+export const chicagoPotteryPoll: CommunityPoll = {
+  id: "pottery-studio-faceoff",
+  title: "Pottery Workshop Community Poll",
+  category: "culture",
+  status: "poll", // STRICTLY 'poll'
+  pollDates: ["2026-10-04", "2026-10-10"],
+  options: [
+    {
+      id: "lincoln-square",
+      name: "Lincoln Square Pottery Studio",
+      neighborhood: "Lincoln Square",
+      address: "4150 N Lincoln Ave, Chicago, IL",
+      price: "$60 / person (2 hrs)",
+      dates: "Oct 4 or Oct 10 (10 AM or 12 PM)",
+      website: "https://www.comeplaywithclay.com/classes",
+    },
+    {
+      id: "gnarware",
+      name: "GnarWare Workshop",
+      neighborhood: "Pilsen",
+      address: "1838 West Cermak Ave, Chicago, IL 60608",
+      price: "$40 / person (2 hrs)",
+      dates: "Flexible Oct & Nov (Wed–Sun, 12 PM–8 PM)",
+      website: "https://www.care.com/connect/gnarwareworkshop/providers/671-gnarware-workshop",
+    },
+  ],
+};

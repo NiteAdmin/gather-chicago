@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useId } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { ResolvedEvent } from "@/lib/userEvents";
-import { splitEventTitle } from "@/lib/eventsConfig";
+import { splitEventTitle, chicagoPotteryPoll } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
+import PotteryPollModal from "@/app/components/PotteryPollModal";
 import {
   Calendar as CalendarIcon,
   List,
@@ -23,12 +24,14 @@ interface MemberCalendarProps {
   events: ResolvedEvent[];
   onToggleRSVP?: (eventId: string) => void;
   className?: string;
+  userEmail?: string | null;
 }
 
 export default function MemberCalendar({
   events,
   onToggleRSVP,
   className = "",
+  userEmail,
 }: MemberCalendarProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedMonth, setSelectedMonth] = useState<"2026-10" | "2026-11">("2026-10");
@@ -36,6 +39,26 @@ export default function MemberCalendar({
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "attending" | "open">("all");
   const [activePopoverEvent, setActivePopoverEvent] = useState<ResolvedEvent | null>(null);
+  const [isPotteryModalOpen, setIsPotteryModalOpen] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    const checkVoted = () => {
+      try {
+        const voted = localStorage.getItem('hasVoted_pottery-studio-faceoff');
+        setHasVoted(voted === 'true');
+      } catch {
+        // ignore localStorage errors
+      }
+    };
+    checkVoted();
+    window.addEventListener('pollVoteUpdated', checkVoted);
+    window.addEventListener('storage', checkVoted);
+    return () => {
+      window.removeEventListener('pollVoteUpdated', checkVoted);
+      window.removeEventListener('storage', checkVoted);
+    };
+  }, []);
 
   // Month Configurations for Fall 2026
   const monthConfigs = {
@@ -391,13 +414,41 @@ export default function MemberCalendar({
               const dayEvents = eventsByDay[dayNum] || [];
               const hasEvents = dayEvents.length > 0;
               const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
+              const isPollDay = selectedMonth === "2026-10" && (dayNum === 4 || dayNum === 10);
+              const pollTitle = isPollDay
+                ? dayNum === 4
+                  ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
+                  : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 10 option)"
+                : undefined;
 
               return (
                 <div
                   key={`day-${dayNum}`}
-                  className={`min-h-[52px] sm:min-h-[78px] p-1 sm:p-1.5 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 ${
-                    hasEvents
-                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20"
+                  role={isPollDay || hasEvents ? "button" : undefined}
+                  tabIndex={isPollDay || hasEvents ? 0 : undefined}
+                  title={isPollDay ? pollTitle : undefined}
+                  onClick={() => {
+                    if (isPollDay) {
+                      setIsPotteryModalOpen(true);
+                    } else if (hasEvents) {
+                      setActivePopoverEvent(dayEvents[0]);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (isPollDay) {
+                        setIsPotteryModalOpen(true);
+                      } else if (hasEvents) {
+                        setActivePopoverEvent(dayEvents[0]);
+                      }
+                    }
+                  }}
+                  className={`min-h-[52px] sm:min-h-[78px] p-1 sm:p-1.5 rounded-xl border transition-all relative flex flex-col justify-between overflow-visible min-w-0 group/cell ${
+                    isPollDay
+                      ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
+                      : hasEvents
+                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20 cursor-pointer hover:border-[#C8643F]"
                       : isWeekend
                       ? "bg-[#FAF5EA] border-[#D8CEBC]/60"
                       : "bg-[#FBF7EE] border-[#D8CEBC]/50"
@@ -406,7 +457,7 @@ export default function MemberCalendar({
                   <div className="flex items-center justify-between leading-none w-full">
                     <span
                       className={`text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
-                        hasEvents
+                        hasEvents || isPollDay
                           ? "bg-[#2B271F] text-white"
                           : "text-[#6A6253]"
                       }`}
@@ -416,7 +467,7 @@ export default function MemberCalendar({
                     {hasEvents && (
                       <>
                         <span className="text-[9px] font-bold text-[#C8643F] hidden sm:inline">
-                          ● Event
+                          ● {dayEvents.length > 1 ? `${dayEvents.length} Events` : "Event"}
                         </span>
                         {/* Mobile Event Dot Indicator (< sm) */}
                         <div className="flex items-center gap-0.5 sm:hidden">
@@ -435,20 +486,51 @@ export default function MemberCalendar({
                     )}
                   </div>
 
+                  {/* Neutral Community Poll Badge on Oct 4 & Oct 10 */}
+                  {isPollDay && (
+                    <div className="mt-1 min-w-0 relative group/poll" title={pollTitle}>
+                      <span
+                        className="text-[10px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-1 inline-flex items-center justify-center gap-1 whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
+                        title={pollTitle}
+                      >
+                        🗳️ Vote
+                      </span>
+
+                      {/* Matching Hover Popover Card */}
+                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-48 sm:w-56 p-2.5 bg-[#2B271F] text-white rounded-xl shadow-xl z-50 pointer-events-none opacity-0 group-hover/poll:opacity-100 transition-opacity duration-150 text-left hidden sm:block">
+                        <div className="text-[9px] font-bold text-[#E07A5F] tracking-widest uppercase mb-0.5">
+                          COMMUNITY POLL
+                        </div>
+                        <div className="text-xs font-bold font-serif-fraunces text-white leading-snug">
+                          Pottery Class vs. GnarWare Workshop
+                        </div>
+                        <div className="text-[10px] text-[#EDE4D3] mt-1 flex items-center gap-1">
+                          <span>Click to cast your vote</span>
+                        </div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2B271F]" />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Desktop Event Bubbles (>= sm) */}
                   <div className="hidden sm:block space-y-0.5 mt-1 min-w-0">
                     {dayEvents.map((ev) => {
                       const style = getCategoryStyles(ev.category);
                       const isAttending = ev.attendanceStatus === "attending";
+                      const sTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                      const evTooltip = `${sTitle} • ${ev.timeWindow} • ${ev.venueName}`;
 
                       return (
                         <div key={ev.id} className="relative group/bubble min-w-0">
                           <button
                             type="button"
-                            aria-label={`View details for ${splitEventTitle(ev.title, ev.brandPrefix).eventName} on ${ev.displayDate}`}
-                            onClick={() => setActivePopoverEvent(ev)}
+                            aria-label={`View details for ${sTitle} on ${ev.displayDate}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActivePopoverEvent(ev);
+                            }}
                             className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight min-w-0 ${style.bg} ${style.border} ${style.text}`}
-                            title={`Actually, Let's™ ${splitEventTitle(ev.title, ev.brandPrefix).eventName} (${ev.timeWindow})`}
+                            title={evTooltip}
                           >
                             <span className="truncate flex items-center gap-1.5 min-w-0">
                               <span className="shrink-0 flex items-center">
@@ -460,7 +542,7 @@ export default function MemberCalendar({
                                   className="w-3.5 h-3.5 text-[#C8643F]"
                                 />
                               </span>
-                              <span className="font-bold truncate min-w-0">{ev.chipLabel || splitEventTitle(ev.title, ev.brandPrefix).eventName}</span>
+                              <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
                             </span>
                             {isAttending ? (
                               <span
@@ -479,7 +561,10 @@ export default function MemberCalendar({
                     <div className="sm:hidden mt-auto pt-0.5 flex justify-center w-full">
                       <button
                         type="button"
-                        onClick={() => setActivePopoverEvent(dayEvents[0])}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePopoverEvent(dayEvents[0]);
+                        }}
                         className="w-full flex items-center justify-center p-1 rounded-md bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
                         aria-label={`View event details on ${currentMonthConfig.name} ${dayNum}`}
                       >
@@ -505,6 +590,68 @@ export default function MemberCalendar({
               />
             ))}
           </div>
+
+          {/* Community Poll Banner Strip below Month Grid (Oct 2026) */}
+          {selectedMonth === "2026-10" && (
+            <div className="mt-4 p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner text-xl">
+                  🗳️
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
+                      Sun, Oct 4 &amp; Sat, Oct 10
+                    </span>
+                    {hasVoted ? (
+                      <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        ✓ VOTED
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        COMMUNITY POLL
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-1.5">
+                    <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
+                      <BrandName />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
+                      Vote on Next Gathering
+                    </h3>
+                  </div>
+
+                  <p className="text-xs text-[#6A6253] mt-1 leading-relaxed max-w-xl">
+                    {hasVoted
+                      ? "Your vote is in. We'll announce the winning location when bookings open."
+                      : "Help us choose between Lincoln Square Pottery Studio and GnarWare Workshop."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D8CEBC]/40">
+                {hasVoted ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsPotteryModalOpen(true)}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-[#D8CEBC] bg-white text-[#2B271F] hover:bg-[#EDE4D3]/50 shadow-xs"
+                  >
+                    Edit Vote
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsPotteryModalOpen(true)}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-dashed border-[#C8643F] bg-[#C8643F]/5 text-[#C8643F] hover:bg-[#C8643F]/10 shadow-xs"
+                  >
+                    Vote Now &rarr;
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* AGENDA LIST VIEW */
@@ -570,12 +717,77 @@ export default function MemberCalendar({
               </button>
             </div>
           ) : (
-            filteredEvents
-              .filter((e) => {
-                if (agendaMonthFilter === "all") return true;
-                return e.date.startsWith(agendaMonthFilter);
-              })
-              .map((ev) => {
+            <>
+              {/* Community Poll Agenda Card (Oct 4 & Oct 10) */}
+              {(agendaMonthFilter === "all" || agendaMonthFilter === "2026-10") &&
+                filterStatus !== "attending" &&
+                (filterCategory === "all" || filterCategory === "culture") && (
+                  <div className="p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner text-xl">
+                        🗳️
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
+                            Sun, Oct 4 &amp; Sat, Oct 10
+                          </span>
+                          {hasVoted ? (
+                            <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                              ✓ VOTED
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold bg-[#EDE4D3] text-[#C8643F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                              COMMUNITY POLL
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-1.5">
+                          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
+                            <BrandName />
+                          </div>
+                          <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
+                            Vote on Next Gathering
+                          </h3>
+                        </div>
+
+                        <p className="text-xs text-[#6A6253] mt-1 leading-relaxed max-w-xl">
+                          {hasVoted
+                            ? "Your vote is in. We'll announce the winning location when bookings open."
+                            : "Help us choose between Lincoln Square Pottery Studio and GnarWare Workshop."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D8CEBC]/40">
+                      {hasVoted ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsPotteryModalOpen(true)}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-[#D8CEBC] bg-white text-[#2B271F] hover:bg-[#EDE4D3]/50 shadow-xs"
+                        >
+                          Edit Vote
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsPotteryModalOpen(true)}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-dashed border-[#C8643F] bg-[#C8643F]/5 text-[#C8643F] hover:bg-[#C8643F]/10 shadow-xs"
+                        >
+                          Vote Now &rarr;
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {filteredEvents
+                .filter((e) => {
+                  if (agendaMonthFilter === "all") return true;
+                  return e.date.startsWith(agendaMonthFilter);
+                })
+                .map((ev) => {
               const style = getCategoryStyles(ev.category);
               const isAttending = ev.attendanceStatus === "attending";
 
@@ -669,7 +881,8 @@ export default function MemberCalendar({
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
       )}
@@ -693,6 +906,43 @@ export default function MemberCalendar({
             >
               <X className="w-5 h-5" />
             </button>
+
+            {/* Multi-event switcher bar if multiple events exist on same date */}
+            {(() => {
+              const sameDayEvents = events.filter((e) => e.date === activePopoverEvent.date);
+              if (sameDayEvents.length <= 1) return null;
+              return (
+                <div className="mb-4 pr-8">
+                  <div className="text-[10px] font-bold text-[#8C8270] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>{sameDayEvents.length} Gatherings on this date</span>
+                    <span className="text-[10px] text-[#C8643F] font-semibold">Switch event to view &amp; RSVP</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1 bg-[#EDE4D3]/70 rounded-xl">
+                    {sameDayEvents.map((sEv) => {
+                      const isCurrent = sEv.id === activePopoverEvent.id;
+                      const sTitle = splitEventTitle(sEv.title, sEv.brandPrefix).eventName;
+                      return (
+                        <button
+                          key={sEv.id}
+                          type="button"
+                          onClick={() => setActivePopoverEvent(sEv)}
+                          className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate cursor-pointer ${
+                            isCurrent
+                              ? "bg-[#2B271F] text-[#FBF7EE] shadow-xs"
+                              : "text-[#6A6253] hover:text-[#2B271F] hover:bg-white/50"
+                          }`}
+                        >
+                          <span className="truncate">{sEv.chipLabel || sTitle}</span>
+                          {sEv.attendanceStatus === "attending" && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="You're going" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Header with Icon & Badges */}
             <div className="flex items-start gap-4 mb-4">
@@ -737,12 +987,12 @@ export default function MemberCalendar({
                 {activePopoverEvent.attendanceStatus === "attending" ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 ) : (
-                  <Sparkles className="w-4 h-4 text-[#C8643F] shrink-0" />
+                  <CalendarIcon className="w-4 h-4 text-[#C8643F] shrink-0" />
                 )}
                 <span>
                   {activePopoverEvent.attendanceStatus === "attending"
-                    ? "You're Going — Your RSVP is confirmed!"
-                    : "Open Gathering — Spots available"}
+                    ? "You're Going — RSVP Confirmed"
+                    : "Spots Available — RSVP to attend"}
                 </span>
               </div>
               {activePopoverEvent.matchingReason && (
@@ -778,6 +1028,43 @@ export default function MemberCalendar({
                 </div>
               </div>
             </div>
+
+            {/* Sister gathering callout if multiple events exist on same date */}
+            {(() => {
+              const sameDayEvents = events.filter((e) => e.date === activePopoverEvent.date);
+              if (sameDayEvents.length <= 1) return null;
+              const others = sameDayEvents.filter((e) => e.id !== activePopoverEvent.id);
+              if (others.length === 0) return null;
+              return (
+                <div className="bg-[#FAF7F2] border border-[#D8CEBC]/70 rounded-2xl p-3 mb-5">
+                  <span className="text-[10px] font-bold text-[#8C8270] uppercase tracking-wider block mb-1.5">
+                    Another gathering on this date
+                  </span>
+                  {others.map((other) => {
+                    const isAttendingOther = other.attendanceStatus === "attending";
+                    return (
+                      <div key={other.id} className="flex items-center justify-between gap-2 text-xs">
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold text-[#2B271F] truncate">
+                            {splitEventTitle(other.title, other.brandPrefix).eventName}
+                          </div>
+                          <div className="text-[11px] text-[#6A6253]">
+                            {other.timeWindow} · {other.venueName}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActivePopoverEvent(other)}
+                          className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2B271F] text-[#FBF7EE] hover:bg-[#3D372E] transition-all cursor-pointer shadow-xs"
+                        >
+                          {isAttendingOther ? "View RSVP (Going)" : "View Gathering →"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Popover Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -820,6 +1107,13 @@ export default function MemberCalendar({
           </div>
         </div>
       )}
+
+      {/* Pottery Studio Face-Off Community Choice Ballot Modal */}
+      <PotteryPollModal
+        isOpen={isPotteryModalOpen}
+        onClose={() => setIsPotteryModalOpen(false)}
+        initialEmail={userEmail || undefined}
+      />
     </div>
   );
 }
