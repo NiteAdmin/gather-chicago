@@ -293,6 +293,7 @@ export default function SurveyForm({
   const [selectedGatherings, setSelectedGatherings] = useState<string[]>([]);
   const [customGathering, setCustomGathering] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [selectedDayPref, setSelectedDayPref] = useState<string>('Either works');
   const [selectedGuests, setSelectedGuests] = useState<string>('');
@@ -402,6 +403,14 @@ export default function SurveyForm({
     } else {
       setList([...list, item]);
     }
+  };
+
+  const handleDateToggle = (dateStr: string) => {
+    setAvailableDates((prev) =>
+      prev.includes(dateStr)
+        ? prev.filter((d) => d !== dateStr)
+        : [...prev, dateStr]
+    );
   };
 
   const applyAvailabilityResults = (busyIntervals: { start: Date; end: Date }[], source: 'google' | 'ics') => {
@@ -571,7 +580,9 @@ export default function SurveyForm({
       return;
     }
 
-    if (selectedDates.length === 0 && !trimmedCustomDate) {
+    const allChosenDates = Array.from(new Set([...selectedDates, ...availableDates]));
+
+    if (allChosenDates.length === 0 && !trimmedCustomDate) {
       setFormError('Please pick or type at least one date that works for you.');
       return;
     }
@@ -587,7 +598,7 @@ export default function SurveyForm({
     try {
       const selectedEventIds: string[] = [];
       ALL_COMMUNITY_EVENTS.forEach((ev) => {
-        if (isEventSelected(ev, selectedDates) && !selectedEventIds.includes(ev.id)) {
+        if (isEventSelected(ev, allChosenDates) && !selectedEventIds.includes(ev.id)) {
           selectedEventIds.push(ev.id);
         }
       });
@@ -600,7 +611,7 @@ export default function SurveyForm({
         phoneNumber: sanitizedPhone ? sanitizedPhone : null,
         smsOptIn: Boolean(hasSmsOptIn),
         quarterlyReminder: Boolean(quarterlyReminder),
-        dates: Array.isArray(selectedDates) ? selectedDates : [],
+        dates: allChosenDates,
         eventIds: selectedEventIds,
         gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
         customGathering: trimmedCustomGathering || null,
@@ -975,6 +986,12 @@ export default function SurveyForm({
           transition: 0.16s;
         }
 
+        input::placeholder,
+        textarea::placeholder {
+          color: #A8A29E;
+          opacity: 1;
+        }
+
         input:focus,
         textarea:focus {
           outline: 0;
@@ -1106,7 +1123,7 @@ export default function SurveyForm({
             cityName={cityName}
             selectedGatherings={selectedGatherings}
             customGathering={customGathering}
-            selectedDates={selectedDates}
+            selectedDates={Array.from(new Set([...selectedDates, ...availableDates]))}
             customDate={customDate}
             selectedTimes={selectedTimes}
             customTime={customTime}
@@ -1121,6 +1138,7 @@ export default function SurveyForm({
               setSelectedGatherings([]);
               setCustomGathering('');
               setSelectedDates([]);
+              setAvailableDates([]);
               setSelectedTimes([]);
               setSelectedDayPref('Either works');
               setSelectedGuests('');
@@ -1368,7 +1386,7 @@ export default function SurveyForm({
 
                           const isDaySelected = hasEvents
                             ? eventsForDay.some((ev) => isEventSelected(ev, selectedDates))
-                            : (selectedDates.includes(openDateKey) || selectedDates.some((d) => d.toLowerCase().includes(`${curConfig.monthShort.toLowerCase()} ${dayNum}`)));
+                            : availableDates.includes(openDateKey);
 
                           return (
                             <div
@@ -1386,7 +1404,7 @@ export default function SurveyForm({
                                   setActiveModalEventIndex(0);
                                   return;
                                 }
-                                toggleChip(selectedDates, setSelectedDates, openDateKey);
+                                handleDateToggle(openDateKey);
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -1400,7 +1418,7 @@ export default function SurveyForm({
                                     setActiveModalEventIndex(0);
                                     return;
                                   }
-                                  toggleChip(selectedDates, setSelectedDates, openDateKey);
+                                  handleDateToggle(openDateKey);
                                 }
                               }}
                               className={`min-h-[42px] sm:min-h-[58px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-visible group/cell ${
@@ -1521,7 +1539,7 @@ export default function SurveyForm({
                                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                                   isOptSelected
                                     ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                                    : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                                    : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
                                 }`}
                               >
                                 {isOptSelected ? `✓ ${opt}` : opt}
@@ -1530,20 +1548,27 @@ export default function SurveyForm({
                           })}
                         </div>
 
-                        {selectedDates.length > 0 && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-[#3D5634] font-semibold text-[11px] bg-[#EEF5EB] px-2 py-0.5 rounded-md border border-[#C5DEC0]">
-                              {selectedDates.length} choice{selectedDates.length === 1 ? '' : 's'} selected
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDates([])}
-                              className="text-[11px] text-[#8C8270] hover:text-[#A63A24] underline cursor-pointer bg-transparent border-none"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                        )}
+                        {(() => {
+                          const totalChoicesCount = availableDates.length + selectedDates.length;
+                          if (totalChoicesCount === 0) return null;
+                          return (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-[#3D5634] font-semibold text-[11px] bg-[#EEF5EB] px-2 py-0.5 rounded-md border border-[#C5DEC0]">
+                                {totalChoicesCount} choice{totalChoicesCount === 1 ? '' : 's'} selected
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAvailableDates([]);
+                                  setSelectedDates([]);
+                                }}
+                                className="text-[11px] text-[#8C8270] hover:text-[#A63A24] underline cursor-pointer bg-transparent border-none"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -1629,7 +1654,7 @@ export default function SurveyForm({
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                           isSelected
                             ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                            : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                            : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
                         }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
@@ -1642,6 +1667,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
+                  className="w-full text-sm text-[#2B271F] placeholder:text-[#A8A29E] !bg-white/60 focus:!bg-white !border-[#D9D2C7] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
