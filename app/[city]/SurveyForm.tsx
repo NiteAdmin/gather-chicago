@@ -397,12 +397,11 @@ export default function SurveyForm({
       typeof window !== 'undefined' &&
       window.location.search.includes('view=confirmation'));
 
-  const toggleChip = (list: string[], setList: (v: string[]) => void, item: string) => {
-    if (list.includes(item)) {
-      setList(list.filter((i) => i !== item));
-    } else {
-      setList([...list, item]);
-    }
+  const toggleChip = (list: string[], setList: (v: any) => void, item: string) => {
+    setList((prev: string[]) => {
+      const current = Array.isArray(prev) ? prev : list;
+      return current.includes(item) ? current.filter((i) => i !== item) : [...current, item];
+    });
   };
 
   const handleDateToggle = (dateStr: string) => {
@@ -694,6 +693,7 @@ export default function SurveyForm({
           max-width: 720px;
           margin: 0 auto;
           padding: 28px 20px 80px;
+          overflow-x: clip;
         }
 
         header.top {
@@ -748,6 +748,18 @@ export default function SurveyForm({
           padding: 24px 22px;
           box-shadow: var(--shadow);
           margin-bottom: 18px;
+          max-width: 100%;
+          overflow-x: clip;
+        }
+
+        @media (max-width: 640px) {
+          .wrap {
+            padding: 20px 12px 60px;
+          }
+          .card {
+            padding: 16px 10px;
+            border-radius: 16px;
+          }
         }
 
         .q {
@@ -1187,13 +1199,13 @@ export default function SurveyForm({
                 </div>
 
                 {/* Inline Auto-Detect Actions */}
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 p-2 rounded-xl bg-[#F7F3EB] border border-[#E5DDD0] mb-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 rounded-xl bg-[#F7F3EB] border border-[#E5DDD0] mb-5 w-full">
                   {/* Google Calendar Action */}
                   <button
                     type="button"
                     onClick={handleConnectGoogleCalendar}
                     disabled={isSyncingCalendar}
-                    className="flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-lg bg-[#2B271F] hover:bg-[#3D372E] text-[#FAF8F5] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 h-9 px-3 rounded-lg bg-[#2B271F] hover:bg-[#3D372E] text-[#FAF8F5] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
                     {isSyncingCalendar && calendarConnected === 'google' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E3D8C8]" />
@@ -1208,7 +1220,7 @@ export default function SurveyForm({
                     type="button"
                     onClick={handleTriggerIcsUpload}
                     disabled={isSyncingCalendar}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-white hover:bg-stone-50 border border-[#D9CFC1] text-[#3B3228] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-white hover:bg-stone-50 border border-[#D9CFC1] text-[#3B3228] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
                     {isSyncingCalendar && calendarConnected === 'ics' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-500" />
@@ -1272,20 +1284,59 @@ export default function SurveyForm({
                   const trailingEmptySlots = (7 - ((curConfig.startDayOfWeek + curConfig.daysInMonth) % 7)) % 7;
 
                   return (
-                    <div className="bg-[#FAF7F2] border border-[#D8CEBC] rounded-2xl p-3 sm:p-4 mb-4">
-                      {/* Month Switcher Header: ← September | October 2026 | November 2026 | December 2026 | → */}
+                    <div className="bg-[#FAF7F2] border border-[#D8CEBC] rounded-xl sm:rounded-2xl p-2 sm:p-4 mb-4 w-full max-w-full overflow-hidden">
+                      {/* Month Switcher Header: compact pager on mobile (< sm), segmented tabs on desktop (>= sm) */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 mb-2.5 border-b border-[#D8CEBC]/60">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F] block">
-                            COMMUNITY CALENDAR
-                          </span>
-                          <h3 className="text-sm sm:text-base font-bold font-serif-fraunces text-[#2B271F] m-0">
-                            {curConfig.name} Gathering Lineup
-                          </h3>
+                        <div className="flex items-center justify-between w-full sm:w-auto">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F] block">
+                              COMMUNITY CALENDAR
+                            </span>
+                            <h3 className="text-sm sm:text-base font-bold font-serif-fraunces text-[#2B271F] m-0">
+                              {curConfig.name} Gathering Lineup
+                            </h3>
+                          </div>
                         </div>
 
-                        {/* Month Switcher Buttons */}
-                        <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253] self-start sm:self-auto">
+                        {/* Mobile Month Pager (< sm) */}
+                        <div className="flex sm:hidden items-center justify-between w-full p-1 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+                          <button
+                            type="button"
+                            data-testid="month-prev"
+                            aria-label="Previous month"
+                            disabled={currentMonthIndex === 0}
+                            onClick={handlePrevMonth}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                              currentMonthIndex === 0
+                                ? "opacity-30 cursor-not-allowed"
+                                : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
+                            }`}
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            <span className="text-[11px] font-medium">Prev</span>
+                          </button>
+                          <span className="px-2 py-0.5 font-bold text-[#2B271F] text-xs">
+                            {curConfig.headerLabel}
+                          </span>
+                          <button
+                            type="button"
+                            data-testid="month-next"
+                            aria-label="Next month"
+                            disabled={currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1}
+                            onClick={handleNextMonth}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                              currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1
+                                ? "opacity-30 cursor-not-allowed"
+                                : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
+                            }`}
+                          >
+                            <span className="text-[11px] font-medium">Next</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Desktop Month Switcher Buttons (>= sm) */}
+                        <div className="hidden sm:flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
                           <button
                             type="button"
                             aria-label="Previous month"
@@ -1350,7 +1401,7 @@ export default function SurveyForm({
                       )}
 
                       {/* Day of Week Headers */}
-                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1">
+                      <div className="grid grid-cols-7 gap-1 text-center text-[9px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1 w-full">
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, idx) => (
                           <div
                             key={dayName}
@@ -1362,12 +1413,12 @@ export default function SurveyForm({
                       </div>
 
                       {/* Calendar 7-Column Days Grid */}
-                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 w-full">
                         {/* Leading empty cells */}
                         {Array.from({ length: curConfig.startDayOfWeek }).map((_, idx) => (
                           <div
                             key={`empty-${idx}`}
-                            className="min-h-[42px] sm:min-h-[58px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
+                            className="min-h-[40px] sm:min-h-[58px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
                           />
                         ))}
 
@@ -1421,7 +1472,7 @@ export default function SurveyForm({
                                   handleDateToggle(openDateKey);
                                 }
                               }}
-                              className={`min-h-[42px] sm:min-h-[58px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-visible group/cell ${
+                              className={`min-h-[40px] sm:min-h-[58px] p-0.5 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-hidden group/cell ${
                                 isDaySelected
                                   ? hasEvents
                                     ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25"
@@ -1471,7 +1522,7 @@ export default function SurveyForm({
                                           const idx = eventsForDay.findIndex((item) => item.id === ev.id);
                                           setActiveModalEventIndex(idx >= 0 ? idx : 0);
                                         }}
-                                        className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-1 py-0.5 leading-tight transition-all cursor-pointer ${
+                                        className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-0.5 sm:px-1 py-0.5 leading-tight transition-all cursor-pointer ${
                                           isEvSelected
                                             ? "bg-[#C8643F] text-white shadow-xs"
                                             : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
@@ -1489,7 +1540,7 @@ export default function SurveyForm({
                               {isPollDay && (
                                 <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
                                   <span
-                                    className="text-[10px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-1 inline-flex items-center justify-center gap-1 whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
+                                    className="text-[9px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-0.5 sm:px-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 truncate whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
                                     title={pollTitle}
                                   >
                                     🗳️ Vote

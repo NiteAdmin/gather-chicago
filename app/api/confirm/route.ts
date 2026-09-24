@@ -27,6 +27,13 @@ function checkRateLimit(ip: string): boolean {
   return false;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
+  ]);
+}
+
 export async function POST(req: Request) {
   console.log('--- CONFIRM EMAIL REQUEST RECEIVED ---');
 
@@ -129,7 +136,7 @@ export async function POST(req: Request) {
 
     // Duplicate Check: Log re-submission / update instead of bailing out with 400
     try {
-      const existingResponses = await fetchResponses();
+      const existingResponses = await withTimeout(fetchResponses(), 3000, []);
       const isDuplicate = existingResponses.some((r) => {
         const existingEmail = r.email ? r.email.trim().toLowerCase() : "";
         const existingPhone = r.phoneNumber ? r.phoneNumber.replace(/\D/g, "") : "";
@@ -151,26 +158,30 @@ export async function POST(req: Request) {
     // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
     let savedResponseId: string | null = null;
     try {
-      savedResponseId = await saveResponse({
-        city: typeof city === "string" ? city : "chicago",
-        cityName: typeof cityName === "string" ? cityName : "Chicago",
-        name: trimmedName,
-        email: trimmedEmail,
-        phoneNumber: sanitizedPhone ? sanitizedPhone : null,
-        smsOptIn: sanitizedSmsOptIn,
-        dates: Array.isArray(dates) ? dates : [],
-        eventIds: Array.isArray(eventIds) ? eventIds : [],
-        gatherings: Array.isArray(gatherings) ? gatherings : [],
-        customGathering: typeof body.customGathering === "string" ? body.customGathering.trim() : null,
-        customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
-        times: Array.isArray(body.times) ? body.times : [],
-        customTime: typeof body.customTime === "string" ? body.customTime.trim() : null,
-        dayPref: typeof body.dayPref === "string" ? body.dayPref.trim() : null,
-        guests: typeof body.guests === "string" ? body.guests.trim() : null,
-        drink: typeof body.drink === "string" ? body.drink.trim() : null,
-        notes: typeof body.notes === "string" ? body.notes.trim() : null,
-        quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
-      });
+      savedResponseId = await withTimeout(
+        saveResponse({
+          city: typeof city === "string" ? city : "chicago",
+          cityName: typeof cityName === "string" ? cityName : "Chicago",
+          name: trimmedName,
+          email: trimmedEmail,
+          phoneNumber: sanitizedPhone ? sanitizedPhone : null,
+          smsOptIn: sanitizedSmsOptIn,
+          dates: Array.isArray(dates) ? dates : [],
+          eventIds: Array.isArray(eventIds) ? eventIds : [],
+          gatherings: Array.isArray(gatherings) ? gatherings : [],
+          customGathering: typeof body.customGathering === "string" ? body.customGathering.trim() : null,
+          customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
+          times: Array.isArray(body.times) ? body.times : [],
+          customTime: typeof body.customTime === "string" ? body.customTime.trim() : null,
+          dayPref: typeof body.dayPref === "string" ? body.dayPref.trim() : null,
+          guests: typeof body.guests === "string" ? body.guests.trim() : null,
+          drink: typeof body.drink === "string" ? body.drink.trim() : null,
+          notes: typeof body.notes === "string" ? body.notes.trim() : null,
+          quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
+        }),
+        4500,
+        null
+      );
     } catch (dbErr) {
       console.error("Firestore server-side save error:", dbErr);
     }

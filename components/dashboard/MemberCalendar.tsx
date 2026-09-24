@@ -252,8 +252,43 @@ export default function MemberCalendar({
 
         {/* View Mode & Month Controls */}
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-          {/* Month Switcher (Sep / Oct / Nov / Dec) */}
-          <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+          {/* Mobile Month Pager (< sm) */}
+          <div className="flex sm:hidden items-center justify-between w-full p-1 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+            <button
+              type="button"
+              aria-label="Previous month"
+              disabled={currentMonthIndex === 0}
+              onClick={handlePrevMonth}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                currentMonthIndex === 0
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
+              }`}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-medium">Prev</span>
+            </button>
+            <span className="px-2 py-0.5 font-bold text-[#2B271F] text-xs">
+              {currentMonthConfig.headerLabel}
+            </span>
+            <button
+              type="button"
+              aria-label="Next month"
+              disabled={currentMonthIndex === AVAILABLE_MONTHS.length - 1}
+              onClick={handleNextMonth}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                currentMonthIndex === AVAILABLE_MONTHS.length - 1
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
+              }`}
+            >
+              <span className="text-[11px] font-medium">Next</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Desktop Month Switcher (>= sm) */}
+          <div className="hidden sm:flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
             <button
               type="button"
               aria-label="Previous month"
@@ -517,7 +552,7 @@ export default function MemberCalendar({
                       }
                     }
                   }}
-                  className={`min-h-[46px] sm:min-h-[62px] p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-visible min-w-0 group/cell ${
+                  className={`min-h-[44px] sm:min-h-[62px] p-0.5 sm:p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 group/cell ${
                     isPollDay
                       ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
                       : hasEvents
