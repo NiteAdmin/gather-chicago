@@ -26,8 +26,8 @@ interface PotteryPollModalProps {
 
 const DATE_OPTIONS = [
   'Sun, Oct 4 (Morning)',
-  'Sat, Oct 10 (Morning)',
-  'Flexible / Nov (Wed–Sun)',
+  'Sat, Nov 14 (Morning/Afternoon)',
+  'Flexible Nov (Wed–Sun)',
 ];
 
 export default function PotteryPollModal({
@@ -195,6 +195,9 @@ export default function PotteryPollModal({
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EDE4D3] text-[#C8643F]">
               <Sparkles className="w-3 h-3" />
               COMMUNITY POLL
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+              👥 All Adults
             </span>
           </div>
 

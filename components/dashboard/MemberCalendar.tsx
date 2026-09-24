@@ -34,8 +34,10 @@ export default function MemberCalendar({
   userEmail,
 }: MemberCalendarProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedMonth, setSelectedMonth] = useState<"2026-10" | "2026-11">("2026-10");
-  const [agendaMonthFilter, setAgendaMonthFilter] = useState<"all" | "2026-10" | "2026-11">("all");
+  const AVAILABLE_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as const;
+  type MonthKey = (typeof AVAILABLE_MONTHS)[number];
+  const [selectedMonth, setSelectedMonth] = useState<MonthKey>("2026-10");
+  const [agendaMonthFilter, setAgendaMonthFilter] = useState<"all" | MonthKey>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "attending" | "open">("all");
   const [activePopoverEvent, setActivePopoverEvent] = useState<ResolvedEvent | null>(null);
@@ -84,24 +86,68 @@ export default function MemberCalendar({
     };
   }, []);
 
-  // Month Configurations for Fall 2026
-  const monthConfigs = {
+  // Month Configurations for Fall/Winter 2026
+  const monthConfigs: Record<MonthKey, {
+    key: MonthKey;
+    name: string;
+    shortName: string;
+    headerLabel: string;
+    badgeLabel: string;
+    daysInMonth: number;
+    startDayOfWeek: number;
+  }> = {
+    "2026-09": {
+      key: "2026-09",
+      name: "September 2026",
+      shortName: "Sep 2026",
+      headerLabel: "September",
+      badgeLabel: "SEPTEMBER 2026 LINEUP",
+      daysInMonth: 30,
+      startDayOfWeek: 2, // Tuesday (Sep 1, 2026)
+    },
     "2026-10": {
-      key: "2026-10" as const,
+      key: "2026-10",
       name: "October 2026",
       shortName: "Oct 2026",
+      headerLabel: "October 2026",
       badgeLabel: "OCTOBER 2026 LINEUP",
       daysInMonth: 31,
       startDayOfWeek: 4, // Thursday (Oct 1, 2026)
     },
     "2026-11": {
-      key: "2026-11" as const,
+      key: "2026-11",
       name: "November 2026",
       shortName: "Nov 2026",
+      headerLabel: "November 2026",
       badgeLabel: "NOVEMBER 2026 LINEUP",
       daysInMonth: 30,
       startDayOfWeek: 0, // Sunday (Nov 1, 2026)
     },
+    "2026-12": {
+      key: "2026-12",
+      name: "December 2026",
+      shortName: "Dec 2026",
+      headerLabel: "December 2026",
+      badgeLabel: "DECEMBER 2026 LINEUP",
+      daysInMonth: 31,
+      startDayOfWeek: 2, // Tuesday (Dec 1, 2026)
+    },
+  };
+
+  const currentMonthIndex = AVAILABLE_MONTHS.indexOf(selectedMonth);
+  const handlePrevMonth = () => {
+    if (currentMonthIndex > 0) {
+      const prev = AVAILABLE_MONTHS[currentMonthIndex - 1];
+      setSelectedMonth(prev);
+      setAgendaMonthFilter(prev);
+    }
+  };
+  const handleNextMonth = () => {
+    if (currentMonthIndex < AVAILABLE_MONTHS.length - 1) {
+      const next = AVAILABLE_MONTHS[currentMonthIndex + 1];
+      setSelectedMonth(next);
+      setAgendaMonthFilter(next);
+    }
   };
 
   const currentMonthConfig = monthConfigs[selectedMonth];
@@ -206,64 +252,50 @@ export default function MemberCalendar({
 
         {/* View Mode & Month Controls */}
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-          {/* Month Switcher (Oct / Nov) */}
+          {/* Month Switcher (Sep / Oct / Nov / Dec) */}
           <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
             <button
               type="button"
               aria-label="Previous month"
-              disabled={selectedMonth === "2026-10"}
-              onClick={() => {
-                setSelectedMonth("2026-10");
-                setAgendaMonthFilter("2026-10");
-              }}
+              disabled={currentMonthIndex === 0}
+              onClick={handlePrevMonth}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                selectedMonth === "2026-10"
+                currentMonthIndex === 0
                   ? "opacity-30 cursor-not-allowed"
                   : "hover:text-[#2B271F] hover:bg-white/60"
               }`}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <button
-              type="button"
-              aria-label="Select October 2026"
-              onClick={() => {
-                setSelectedMonth("2026-10");
-                setAgendaMonthFilter("2026-10");
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                selectedMonth === "2026-10"
-                  ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
-                  : "hover:text-[#2B271F]"
-              }`}
-            >
-              Oct 2026
-            </button>
-            <button
-              type="button"
-              aria-label="Select November 2026"
-              onClick={() => {
-                setSelectedMonth("2026-11");
-                setAgendaMonthFilter("2026-11");
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                selectedMonth === "2026-11"
-                  ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
-                  : "hover:text-[#2B271F]"
-              }`}
-            >
-              Nov 2026
-            </button>
+            {AVAILABLE_MONTHS.map((mKey) => {
+              const mConf = monthConfigs[mKey];
+              const isCur = selectedMonth === mKey;
+              return (
+                <button
+                  key={mKey}
+                  type="button"
+                  aria-label={`Select ${mConf.name}`}
+                  onClick={() => {
+                    setSelectedMonth(mKey);
+                    setAgendaMonthFilter(mKey);
+                  }}
+                  className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    isCur
+                      ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
+                      : "hover:text-[#2B271F]"
+                  }`}
+                >
+                  {mConf.headerLabel}
+                </button>
+              );
+            })}
             <button
               type="button"
               aria-label="Next month"
-              disabled={selectedMonth === "2026-11"}
-              onClick={() => {
-                setSelectedMonth("2026-11");
-                setAgendaMonthFilter("2026-11");
-              }}
+              disabled={currentMonthIndex === AVAILABLE_MONTHS.length - 1}
+              onClick={handleNextMonth}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                selectedMonth === "2026-11"
+                currentMonthIndex === AVAILABLE_MONTHS.length - 1
                   ? "opacity-30 cursor-not-allowed"
                   : "hover:text-[#2B271F] hover:bg-white/60"
               }`}
@@ -409,6 +441,21 @@ export default function MemberCalendar({
             </span>
           </div>
 
+          {/* December Empty Month Banner */}
+          {selectedMonth === "2026-12" && (
+            <div className="mb-3 p-3.5 sm:p-4 bg-[#EDE4D3]/50 border border-dashed border-[#C8643F]/60 rounded-2xl flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">❄️</span>
+                <span className="font-semibold text-[#4C5A40]">
+                  December lineup coming soon — click any date to mark when you&apos;re free.
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-[#C8643F] uppercase tracking-wider hidden sm:inline bg-[#FBE8DF] px-2.5 py-1 rounded-full">
+                Winter Series
+              </span>
+            </div>
+          )}
+
           {/* Day of week headers */}
           <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-1.5 text-center text-[11px] font-bold text-[#8C8270] uppercase tracking-wider">
             {dayNames.map((d, i) => (
@@ -429,7 +476,7 @@ export default function MemberCalendar({
             {Array.from({ length: startDayOfWeek }).map((_, index) => (
               <div
                 key={`empty-${index}`}
-                className="min-h-[70px] sm:min-h-[78px] p-1 bg-[#F4EEE2]/40 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                className="min-h-[46px] sm:min-h-[62px] p-1 bg-[#F4EEE2]/40 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
               />
             ))}
 
@@ -438,11 +485,13 @@ export default function MemberCalendar({
               const dayEvents = eventsByDay[dayNum] || [];
               const hasEvents = dayEvents.length > 0;
               const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
-              const isPollDay = selectedMonth === "2026-10" && (dayNum === 4 || dayNum === 10);
+              const isPollDay =
+                (selectedMonth === "2026-10" && dayNum === 4) ||
+                (selectedMonth === "2026-11" && dayNum === 14);
               const pollTitle = isPollDay
-                ? dayNum === 4
+                ? selectedMonth === "2026-10"
                   ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
-                  : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 10 option)"
+                  : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Nov 14 option)"
                 : undefined;
 
               return (
@@ -468,7 +517,7 @@ export default function MemberCalendar({
                       }
                     }
                   }}
-                  className={`min-h-[52px] sm:min-h-[78px] p-1 sm:p-1.5 rounded-xl border transition-all relative flex flex-col justify-between overflow-visible min-w-0 group/cell ${
+                  className={`min-h-[46px] sm:min-h-[62px] p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-visible min-w-0 group/cell ${
                     isPollDay
                       ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
                       : hasEvents
@@ -510,7 +559,7 @@ export default function MemberCalendar({
                     )}
                   </div>
 
-                  {/* Neutral Community Poll Badge on Oct 4 & Oct 10 */}
+                  {/* Neutral Community Poll Badge on Oct 4 & Nov 14 */}
                   {isPollDay && (
                     <div className="mt-1 min-w-0 relative group/poll" title={pollTitle}>
                       <span
@@ -526,7 +575,7 @@ export default function MemberCalendar({
                           COMMUNITY POLL
                         </div>
                         <div className="text-xs font-bold font-serif-fraunces text-white leading-snug">
-                          Pottery Class vs. GnarWare Workshop
+                          {selectedMonth === "2026-10" ? "Lincoln Square Pottery Studio (Oct 4)" : "GnarWare Workshop (Nov 14)"}
                         </div>
                         <div className="text-[10px] text-[#EDE4D3] mt-1 flex items-center gap-1">
                           <span>Click to cast your vote</span>
@@ -610,13 +659,13 @@ export default function MemberCalendar({
             {Array.from({ length: trailingEmptySlots }).map((_, index) => (
               <div
                 key={`empty-trail-${index}`}
-                className="min-h-[70px] sm:min-h-[78px] p-1 bg-[#F4EEE2]/40 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                className="min-h-[46px] sm:min-h-[62px] p-1 bg-[#F4EEE2]/40 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
               />
             ))}
           </div>
 
-          {/* Community Poll Banner Strip below Month Grid (Oct 2026) */}
-          {selectedMonth === "2026-10" && (
+          {/* Community Poll Banner Strip below Month Grid (Oct 2026 & Nov 2026) */}
+          {(selectedMonth === "2026-10" || selectedMonth === "2026-11") && (
             <div className="mt-4 p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner text-xl">
@@ -625,7 +674,7 @@ export default function MemberCalendar({
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                      Sun, Oct 4 &amp; Sat, Oct 10
+                      {selectedMonth === "2026-10" ? "Sun, Oct 4 (Lincoln Square)" : "Sat, Nov 14 (GnarWare Pilsen)"}
                     </span>
                     {hasVoted ? (
                       <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -696,28 +745,24 @@ export default function MemberCalendar({
               >
                 All Gatherings ({filteredEvents.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setAgendaMonthFilter("2026-10")}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  agendaMonthFilter === "2026-10"
-                    ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
-                    : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
-                }`}
-              >
-                October 2026 ({filteredEvents.filter((e) => e.date.startsWith("2026-10")).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setAgendaMonthFilter("2026-11")}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  agendaMonthFilter === "2026-11"
-                    ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
-                    : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
-                }`}
-              >
-                November 2026 ({filteredEvents.filter((e) => e.date.startsWith("2026-11")).length})
-              </button>
+              {AVAILABLE_MONTHS.map((mKey) => {
+                const count = filteredEvents.filter((e) => e.date.startsWith(mKey)).length;
+                const mConf = monthConfigs[mKey];
+                return (
+                  <button
+                    key={mKey}
+                    type="button"
+                    onClick={() => setAgendaMonthFilter(mKey)}
+                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      agendaMonthFilter === mKey
+                        ? "bg-[#2B271F] text-[#FBF7EE] font-bold shadow-xs"
+                        : "bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F]"
+                    }`}
+                  >
+                    {mConf.headerLabel} ({count})
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -727,7 +772,11 @@ export default function MemberCalendar({
           }).length === 0 ? (
             <div className="text-center py-12 text-[#8C8270] bg-white border border-[#D8CEBC] rounded-2xl p-6">
               <Info className="w-6 h-6 mx-auto mb-2 text-[#C8643F]" />
-              <p className="text-sm font-semibold">No gatherings found for selected filters.</p>
+              <p className="text-sm font-semibold">
+                {agendaMonthFilter === "2026-12"
+                  ? "December lineup coming soon — check back shortly for holiday gatherings."
+                  : "No gatherings found for selected filters."}
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -742,8 +791,8 @@ export default function MemberCalendar({
             </div>
           ) : (
             <>
-              {/* Community Poll Agenda Card (Oct 4 & Oct 10) */}
-              {(agendaMonthFilter === "all" || agendaMonthFilter === "2026-10") &&
+              {/* Community Poll Agenda Card (Oct 4 & Nov 14) */}
+              {(agendaMonthFilter === "all" || agendaMonthFilter === "2026-10" || agendaMonthFilter === "2026-11") &&
                 filterStatus !== "attending" &&
                 (filterCategory === "all" || filterCategory === "culture") && (
                   <div className="p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -754,7 +803,7 @@ export default function MemberCalendar({
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                            Sun, Oct 4 &amp; Sat, Oct 10
+                            {agendaMonthFilter === "2026-11" ? "Sat, Nov 14 (GnarWare Pilsen)" : agendaMonthFilter === "2026-10" ? "Sun, Oct 4 (Lincoln Square)" : "Sun, Oct 4 & Sat, Nov 14"}
                           </span>
                           {hasVoted ? (
                             <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -838,6 +887,11 @@ export default function MemberCalendar({
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${style.bg} ${style.border} ${style.text}`}>
                           {style.label}
                         </span>
+                        {ev.audienceLabel && (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+                            {ev.audienceLabel}
+                          </span>
+                        )}
                         {isAttending ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#EEF5EB] text-[#3D5634] border border-[#C5DEC0] px-2.5 py-0.5 rounded-full">
                             <CheckCircle2 className="w-3 h-3" />
@@ -1004,6 +1058,11 @@ export default function MemberCalendar({
                   <span className="text-[11px] font-semibold text-[#6A6253] bg-[#EDE4D3] px-2.5 py-0.5 rounded-full">
                     {currentActiveEvent.category.toUpperCase()}
                   </span>
+                  {currentActiveEvent.audienceLabel && (
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+                      {currentActiveEvent.audienceLabel}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1.5">
                   <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">

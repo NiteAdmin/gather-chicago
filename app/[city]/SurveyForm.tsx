@@ -21,7 +21,16 @@ import {
   ArrowLeft,
   Clock,
   MapPin,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  ALL_COMMUNITY_EVENTS,
+  CommunityEvent,
+  splitEventTitle,
+} from '@/lib/eventsConfig';
 import {
   parseIcsBusyIntervals,
   getCandidateSlotIntervals,
@@ -160,6 +169,78 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
   },
 };
 
+export const AVAILABLE_CALENDAR_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as const;
+export type CalendarMonthKey = (typeof AVAILABLE_CALENDAR_MONTHS)[number];
+
+export const SURVEY_MONTH_CONFIGS: Record<CalendarMonthKey, {
+  key: CalendarMonthKey;
+  name: string;
+  headerLabel: string;
+  daysInMonth: number;
+  startDayOfWeek: number;
+  monthShort: string;
+}> = {
+  "2026-09": {
+    key: "2026-09",
+    name: "September 2026",
+    headerLabel: "September",
+    daysInMonth: 30,
+    startDayOfWeek: 2,
+    monthShort: "Sep",
+  },
+  "2026-10": {
+    key: "2026-10",
+    name: "October 2026",
+    headerLabel: "October 2026",
+    daysInMonth: 31,
+    startDayOfWeek: 4,
+    monthShort: "Oct",
+  },
+  "2026-11": {
+    key: "2026-11",
+    name: "November 2026",
+    headerLabel: "November 2026",
+    daysInMonth: 30,
+    startDayOfWeek: 0,
+    monthShort: "Nov",
+  },
+  "2026-12": {
+    key: "2026-12",
+    name: "December 2026",
+    headerLabel: "December 2026",
+    daysInMonth: 31,
+    startDayOfWeek: 2,
+    monthShort: "Dec",
+  },
+};
+
+export function getEventsForMonthAndDay(monthKey: string, dayNum: number, city: string = 'chicago'): CommunityEvent[] {
+  const dayStr = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+  const targetDate = `${monthKey}-${dayStr}`;
+  return ALL_COMMUNITY_EVENTS.filter(
+    (e) => e.city.toLowerCase() === city.toLowerCase() && e.date === targetDate
+  );
+}
+
+export function getEventSelectionKey(ev: CommunityEvent): string {
+  const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+  return `${ev.displayDate}: ${ev.chipLabel || cleanTitle}`;
+}
+
+export function isEventSelected(ev: CommunityEvent, dates: string[]): boolean {
+  const selKey = getEventSelectionKey(ev);
+  const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+  return dates.some((d) =>
+    d === selKey ||
+    d === ev.displayDate ||
+    d === ev.chipLabel ||
+    d === cleanTitle ||
+    d.toLowerCase().includes(cleanTitle.toLowerCase()) ||
+    (ev.chipLabel && d.toLowerCase().includes(ev.chipLabel.toLowerCase())) ||
+    d.includes(ev.id)
+  );
+}
+
 export function getVerifiedEventsForDay(dayNum: number): VerifiedOctoberDate[] {
   const item = VERIFIED_OCTOBER_DATES[dayNum];
   if (!item) return [];
@@ -216,6 +297,11 @@ export default function SurveyForm({
   const [selectedDayPref, setSelectedDayPref] = useState<string>('Either works');
   const [selectedGuests, setSelectedGuests] = useState<string>('');
 
+  // Multi-Month Calendar Navigation & Modal State
+  const [calendarMonth, setCalendarMonth] = useState<CalendarMonthKey>("2026-10");
+  const [activeEventModalEvents, setActiveEventModalEvents] = useState<CommunityEvent[] | null>(null);
+  const [activeModalEventIndex, setActiveModalEventIndex] = useState<number>(0);
+
   // Smart Calendar Availability State
   const [checkingCalendar, setCheckingCalendar] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<'google' | 'ics' | null>(null);
@@ -266,11 +352,12 @@ export default function SurveyForm({
   }, []);
 
   useEffect(() => {
-    if (multiEventModalDay !== null) {
+    if (activeEventModalEvents || multiEventModalDay !== null) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
+          setActiveEventModalEvents(null);
           setMultiEventModalDay(null);
         }
       };
@@ -280,7 +367,27 @@ export default function SurveyForm({
         window.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [multiEventModalDay]);
+  }, [activeEventModalEvents, multiEventModalDay]);
+
+  const toggleEventSelection = (ev: CommunityEvent) => {
+    const selKey = getEventSelectionKey(ev);
+    const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+    if (isEventSelected(ev, selectedDates)) {
+      setSelectedDates((prev) =>
+        prev.filter((d) =>
+          d !== selKey &&
+          d !== ev.displayDate &&
+          d !== ev.chipLabel &&
+          d !== cleanTitle &&
+          !d.toLowerCase().includes(cleanTitle.toLowerCase()) &&
+          !(ev.chipLabel && d.toLowerCase().includes(ev.chipLabel.toLowerCase())) &&
+          !d.includes(ev.id)
+        )
+      );
+    } else {
+      setSelectedDates((prev) => [...prev, selKey]);
+    }
+  };
 
   // Check if confirmation view is active to suppress floating auth modals
   const isConfirmationActive =
@@ -478,15 +585,12 @@ export default function SurveyForm({
     setSubmitting(true);
 
     try {
-      // 1. Verify anti-spam, duplicate uniqueness, save to Firestore, and dispatch email/SMS via API
       const selectedEventIds: string[] = [];
-      Object.values(VERIFIED_OCTOBER_DATES)
-        .flat()
-        .forEach((v) => {
-          if (v.eventId && selectedDates.includes(v.label)) {
-            selectedEventIds.push(v.eventId);
-          }
-        });
+      ALL_COMMUNITY_EVENTS.forEach((ev) => {
+        if (isEventSelected(ev, selectedDates) && !selectedEventIds.includes(ev.id)) {
+          selectedEventIds.push(ev.id);
+        }
+      });
 
       const payload = {
         city: rawCity.toLowerCase(),
@@ -1133,264 +1237,320 @@ export default function SurveyForm({
                   </span>
                 </div>
 
-                {/* Visual October 2026 Mini-Calendar Grid */}
-                <div className="bg-[#FAF7F2] border border-[#D8CEBC] rounded-2xl p-3 sm:p-4 mb-4">
-                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#D8CEBC]/60">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F] block">
-                        COMMUNITY CALENDAR
-                      </span>
-                      <h3 className="text-sm sm:text-base font-bold font-serif-fraunces text-[#2B271F] m-0">
-                        October 2026 Gathering Lineup
-                      </h3>
-                    </div>
-                    <span className="text-[11px] text-[#6A6253] font-medium hidden sm:inline">
-                      Tap dates to select your availability
-                    </span>
-                  </div>
+                {/* Visual Multi-Month Community Calendar Grid */}
+                {(() => {
+                  const curConfig = SURVEY_MONTH_CONFIGS[calendarMonth];
+                  const currentMonthIndex = AVAILABLE_CALENDAR_MONTHS.indexOf(calendarMonth);
+                  const handlePrevMonth = () => {
+                    if (currentMonthIndex > 0) {
+                      setCalendarMonth(AVAILABLE_CALENDAR_MONTHS[currentMonthIndex - 1]);
+                    }
+                  };
+                  const handleNextMonth = () => {
+                    if (currentMonthIndex < AVAILABLE_CALENDAR_MONTHS.length - 1) {
+                      setCalendarMonth(AVAILABLE_CALENDAR_MONTHS[currentMonthIndex + 1]);
+                    }
+                  };
+                  const trailingEmptySlots = (7 - ((curConfig.startDayOfWeek + curConfig.daysInMonth) % 7)) % 7;
 
-                  {/* Day of Week Headers */}
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1">
-                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, idx) => (
-                      <div
-                        key={dayName}
-                        className={`py-1 ${idx === 0 || idx === 6 ? "text-[#C8643F]" : ""}`}
-                      >
-                        {dayName}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Calendar 7-Column Days Grid */}
-                  <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
-                    {/* 4 Leading empty cells for Oct 1 (Thursday) */}
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                      <div
-                        key={`empty-${idx}`}
-                        className="min-h-[44px] sm:min-h-[64px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
-                      />
-                    ))}
-
-                    {/* 31 days of October 2026 */}
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
-                      const verifiedList = getVerifiedEventsForDay(dayNum);
-                      const isMultiEvent = verifiedList.length > 1;
-                      const hasEvent = verifiedList.length > 0;
-                      const isWeekend = (4 + dayNum - 1) % 7 === 0 || (4 + dayNum - 1) % 7 === 6;
-
-                      const dateKey = hasEvent ? verifiedList[0].label : `Oct ${dayNum}, 2026`;
-                      const isSelected = hasEvent
-                        ? verifiedList.some((v) =>
-                            selectedDates.includes(v.label) ||
-                            selectedDates.includes(v.dateStr) ||
-                            selectedDates.some((d) => d.toLowerCase().includes(`oct ${dayNum}`) || d.toLowerCase().includes(`october ${dayNum}`))
-                          )
-                        : selectedDates.includes(dateKey);
-
-                      const status = hasEvent ? slotStatusMap[verifiedList[0].label] : undefined;
-                      const isPollDay = isChicago && (dayNum === 4 || dayNum === 10);
-                      const pollTitle = isPollDay
-                        ? dayNum === 4
-                          ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
-                          : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 10 option)"
-                        : undefined;
-
-                      return (
-                        <div
-                          key={`day-${dayNum}`}
-                          role="button"
-                          tabIndex={0}
-                          title={isPollDay ? pollTitle : undefined}
-                          onClick={() => {
-                            if (isPollDay) {
-                              setIsPotteryModalOpen(true);
-                              return;
-                            }
-                            if (isMultiEvent) {
-                              setMultiEventModalDay(dayNum);
-                              return;
-                            }
-                            if (hasEvent) {
-                              toggleChip(selectedDates, setSelectedDates, verifiedList[0].label);
-                            } else {
-                              toggleChip(selectedDates, setSelectedDates, dateKey);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              if (isPollDay) {
-                                setIsPotteryModalOpen(true);
-                                return;
-                              }
-                              if (isMultiEvent) {
-                                setMultiEventModalDay(dayNum);
-                                return;
-                              }
-                              if (hasEvent) {
-                                toggleChip(selectedDates, setSelectedDates, verifiedList[0].label);
-                              } else {
-                                toggleChip(selectedDates, setSelectedDates, dateKey);
-                              }
-                            }
-                          }}
-                          className={`min-h-[46px] sm:min-h-[66px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-visible group/cell ${
-                            isSelected
-                              ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
-                              : isPollDay
-                              ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
-                              : hasEvent
-                              ? "bg-white border-[#C8643F]/70 shadow-xs hover:border-[#C8643F] hover:shadow-sm"
-                              : isWeekend
-                              ? "bg-[#FBF7EE] border-[#D8CEBC]/60 text-stone-600 hover:bg-white"
-                              : "bg-[#FAF7F2] border-[#D8CEBC]/40 text-stone-500 hover:bg-white"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between w-full leading-none">
-                            <span
-                              className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
-                                isSelected
-                                  ? "bg-white text-[#C8643F]"
-                                  : (hasEvent || isPollDay)
-                                  ? "bg-[#2B271F] text-white"
-                                  : "text-inherit"
-                              }`}
-                            >
-                              {dayNum}
-                            </span>
-                            {isSelected && (
-                              <Check className="w-3 h-3 text-white shrink-0 sm:block hidden" />
-                            )}
-                          </div>
-
-                          {/* Event Badge / Label for Verified Dates */}
-                          {hasEvent && (
-                            <div className="mt-0.5 sm:mt-1 space-y-0.5 min-w-0">
-                              {verifiedList.map((vEvent) => {
-                                const isEvSelected = selectedDates.includes(vEvent.label);
-                                const evTooltip = `${vEvent.label}${vEvent.timeWindow ? ` • ${vEvent.timeWindow}` : ""}${vEvent.venueName ? ` • ${vEvent.venueName}` : ""}`;
-                                return (
-                                  <span
-                                    key={vEvent.label}
-                                    role={isMultiEvent ? "button" : undefined}
-                                    onClick={
-                                      isMultiEvent
-                                        ? (e) => {
-                                            e.stopPropagation();
-                                            toggleChip(selectedDates, setSelectedDates, vEvent.label);
-                                          }
-                                        : undefined
-                                    }
-                                    className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-1 py-0.5 leading-tight transition-all ${
-                                      isEvSelected
-                                        ? "bg-[#C8643F] text-white shadow-xs"
-                                        : isSelected
-                                        ? "bg-white/20 text-white"
-                                        : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
-                                    }`}
-                                    title={evTooltip}
-                                  >
-                                    {isEvSelected ? `✓ ${vEvent.chip}` : vEvent.chip}
-                                  </span>
-                                );
-                              })}
-
-                              {/* Smart Calendar Free/Busy Pill if detected */}
-                              {status === 'free' && (
-                                <span
-                                  className={`text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider block mt-0.5 ${
-                                    isSelected ? "text-emerald-200" : "text-emerald-700"
-                                  }`}
-                                >
-                                  ✓ Free
-                                </span>
-                              )}
-                              {status === 'busy' && (
-                                <span
-                                  className={`text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider block mt-0.5 ${
-                                    isSelected ? "text-amber-200" : "text-amber-700"
-                                  }`}
-                                >
-                                  Busy
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Neutral Community Poll Badge on Oct 4 & Oct 10 */}
-                          {isPollDay && (
-                            <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
-                              <span
-                                className="text-[10px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-1 inline-flex items-center justify-center gap-1 whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
-                                title={pollTitle}
-                              >
-                                🗳️ Vote
-                              </span>
-
-                              {/* Matching Hover Popover Card */}
-                              <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-48 sm:w-56 p-2.5 bg-[#2B271F] text-white rounded-xl shadow-xl z-50 pointer-events-none opacity-0 group-hover/poll:opacity-100 transition-opacity duration-150 text-left hidden sm:block">
-                                <div className="text-[9px] font-bold text-[#E07A5F] tracking-widest uppercase mb-0.5">
-                                  COMMUNITY POLL
-                                </div>
-                                <div className="text-xs font-bold font-serif-fraunces text-white leading-snug">
-                                  Pottery Class vs. GnarWare Workshop
-                                </div>
-                                <div className="text-[10px] text-[#EDE4D3] mt-1 flex items-center gap-1">
-                                  <span>Click to cast your vote</span>
-                                </div>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2B271F]" />
-                              </div>
-                            </div>
-                          )}
+                  return (
+                    <div className="bg-[#FAF7F2] border border-[#D8CEBC] rounded-2xl p-3 sm:p-4 mb-4">
+                      {/* Month Switcher Header: ← September | October 2026 | November 2026 | December 2026 | → */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 mb-2.5 border-b border-[#D8CEBC]/60">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#C8643F] block">
+                            COMMUNITY CALENDAR
+                          </span>
+                          <h3 className="text-sm sm:text-base font-bold font-serif-fraunces text-[#2B271F] m-0">
+                            {curConfig.name} Gathering Lineup
+                          </h3>
                         </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Flexible Quick Toggles (Any Weekend / Down for Whatever) */}
-                  <div className="mt-3 pt-2.5 border-t border-[#D8CEBC]/60 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mr-1">
-                        Flexible:
-                      </span>
-                      {FLEXIBLE_DATES.map((opt) => {
-                        const isOptSelected = selectedDates.includes(opt);
-                        return (
+                        {/* Month Switcher Buttons */}
+                        <div className="flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253] self-start sm:self-auto">
                           <button
-                            key={opt}
                             type="button"
-                            onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                              isOptSelected
-                                ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                                : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                            aria-label="Previous month"
+                            disabled={currentMonthIndex === 0}
+                            onClick={handlePrevMonth}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              currentMonthIndex === 0
+                                ? "opacity-30 cursor-not-allowed"
+                                : "hover:text-[#2B271F] hover:bg-white/60"
                             }`}
                           >
-                            {isOptSelected ? `✓ ${opt}` : opt}
+                            <ChevronLeft className="w-3.5 h-3.5" />
                           </button>
-                        );
-                      })}
-                    </div>
-
-                    {selectedDates.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-[#3D5634] font-semibold text-[11px] bg-[#EEF5EB] px-2 py-0.5 rounded-md border border-[#C5DEC0]">
-                          {selectedDates.length} date{selectedDates.length === 1 ? '' : 's'} selected
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDates([])}
-                          className="text-[11px] text-[#8C8270] hover:text-[#A63A24] underline cursor-pointer bg-transparent border-none"
-                        >
-                          Clear
-                        </button>
+                          {AVAILABLE_CALENDAR_MONTHS.map((mKey) => {
+                            const mConf = SURVEY_MONTH_CONFIGS[mKey];
+                            const isCur = calendarMonth === mKey;
+                            return (
+                              <button
+                                key={mKey}
+                                type="button"
+                                aria-label={`Select ${mConf.name}`}
+                                onClick={() => setCalendarMonth(mKey)}
+                                className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                  isCur
+                                    ? "bg-[#FBF7EE] text-[#2B271F] shadow-xs font-bold"
+                                    : "hover:text-[#2B271F]"
+                                }`}
+                              >
+                                {mConf.headerLabel}
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            aria-label="Next month"
+                            disabled={currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1}
+                            onClick={handleNextMonth}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1
+                                ? "opacity-30 cursor-not-allowed"
+                                : "hover:text-[#2B271F] hover:bg-white/60"
+                            }`}
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Community Poll Banner Strip below Calendar (Chicago only) */}
-                {isChicago && (
+                      {/* December Empty Month Graceful Banner */}
+                      {calendarMonth === "2026-12" && (
+                        <div className="mb-3 p-3.5 sm:p-4 bg-[#EDE4D3]/50 border border-dashed border-[#C8643F]/60 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-lg">❄️</span>
+                            <span className="font-semibold text-[#4C5A40]">
+                              December lineup coming soon — click any date to mark when you&apos;re free.
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#C8643F] uppercase tracking-wider hidden sm:inline bg-[#FBE8DF] px-2.5 py-1 rounded-full">
+                            Holiday Series
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Day of Week Headers */}
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1">
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, idx) => (
+                          <div
+                            key={dayName}
+                            className={`py-1 ${idx === 0 || idx === 6 ? "text-[#C8643F]" : ""}`}
+                          >
+                            {dayName}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Calendar 7-Column Days Grid */}
+                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                        {/* Leading empty cells */}
+                        {Array.from({ length: curConfig.startDayOfWeek }).map((_, idx) => (
+                          <div
+                            key={`empty-${idx}`}
+                            className="min-h-[42px] sm:min-h-[58px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
+                          />
+                        ))}
+
+                        {/* Days 1 through daysInMonth */}
+                        {Array.from({ length: curConfig.daysInMonth }, (_, i) => i + 1).map((dayNum) => {
+                          const eventsForDay = getEventsForMonthAndDay(calendarMonth, dayNum, rawCity);
+                          const hasEvents = eventsForDay.length > 0;
+                          const isWeekend = (curConfig.startDayOfWeek + dayNum - 1) % 7 === 0 || (curConfig.startDayOfWeek + dayNum - 1) % 7 === 6;
+                          const openDateKey = `${curConfig.monthShort} ${dayNum}, 2026`;
+                          const isPollDay = isChicago && ((calendarMonth === "2026-10" && dayNum === 4) || (calendarMonth === "2026-11" && dayNum === 14));
+                          const pollTitle = isPollDay
+                            ? calendarMonth === "2026-10"
+                              ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
+                              : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Nov 14 option)"
+                            : undefined;
+
+                          const isDaySelected = hasEvents
+                            ? eventsForDay.some((ev) => isEventSelected(ev, selectedDates))
+                            : (selectedDates.includes(openDateKey) || selectedDates.some((d) => d.toLowerCase().includes(`${curConfig.monthShort.toLowerCase()} ${dayNum}`)));
+
+                          return (
+                            <div
+                              key={`day-${dayNum}`}
+                              role="button"
+                              tabIndex={0}
+                              title={isPollDay ? pollTitle : undefined}
+                              onClick={() => {
+                                if (isPollDay) {
+                                  setIsPotteryModalOpen(true);
+                                  return;
+                                }
+                                if (hasEvents) {
+                                  setActiveEventModalEvents(eventsForDay);
+                                  setActiveModalEventIndex(0);
+                                  return;
+                                }
+                                toggleChip(selectedDates, setSelectedDates, openDateKey);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  if (isPollDay) {
+                                    setIsPotteryModalOpen(true);
+                                    return;
+                                  }
+                                  if (hasEvents) {
+                                    setActiveEventModalEvents(eventsForDay);
+                                    setActiveModalEventIndex(0);
+                                    return;
+                                  }
+                                  toggleChip(selectedDates, setSelectedDates, openDateKey);
+                                }
+                              }}
+                              className={`min-h-[42px] sm:min-h-[58px] p-1 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-visible group/cell ${
+                                isDaySelected
+                                  ? hasEvents
+                                    ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25"
+                                    : "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                                  : isPollDay
+                                  ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                                  : hasEvents
+                                  ? "bg-white border-[#C8643F]/60 shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                                  : isWeekend
+                                  ? "bg-[#FBF7EE] border-[#D8CEBC]/60 text-stone-600 hover:bg-white"
+                                  : "bg-[#FAF7F2] border-[#D8CEBC]/40 text-stone-500 hover:bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full leading-none">
+                                <span
+                                  className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
+                                    isDaySelected && !hasEvents
+                                      ? "bg-white text-[#C8643F]"
+                                      : (hasEvents || isPollDay)
+                                      ? "bg-[#2B271F] text-white"
+                                      : "text-inherit"
+                                  }`}
+                                >
+                                  {dayNum}
+                                </span>
+                                {isDaySelected && (
+                                  <Check className={`w-3 h-3 shrink-0 sm:block hidden ${hasEvents ? "text-[#C8643F]" : "text-white"}`} />
+                                )}
+                              </div>
+
+                              {/* Event Badge / Label for Gatherings */}
+                              {hasEvents && (
+                                <div className="mt-0.5 sm:mt-1 space-y-0.5 min-w-0">
+                                  {eventsForDay.map((ev) => {
+                                    const isEvSelected = isEventSelected(ev, selectedDates);
+                                    const sTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                                    const chipText = ev.chipLabel || sTitle;
+                                    const evTooltip = `${chipText} • ${ev.timeWindow || ""} • ${ev.venueName || ""}`;
+
+                                    return (
+                                      <span
+                                        key={ev.id}
+                                        role="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveEventModalEvents(eventsForDay);
+                                          const idx = eventsForDay.findIndex((item) => item.id === ev.id);
+                                          setActiveModalEventIndex(idx >= 0 ? idx : 0);
+                                        }}
+                                        className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-1 py-0.5 leading-tight transition-all cursor-pointer ${
+                                          isEvSelected
+                                            ? "bg-[#C8643F] text-white shadow-xs"
+                                            : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
+                                        }`}
+                                        title={evTooltip}
+                                      >
+                                        {isEvSelected ? `✓ ${chipText}` : chipText}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Neutral Community Poll Badge on Oct 4 & Nov 14 */}
+                              {isPollDay && (
+                                <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
+                                  <span
+                                    className="text-[10px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-1 inline-flex items-center justify-center gap-1 whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
+                                    title={pollTitle}
+                                  >
+                                    🗳️ Vote
+                                  </span>
+
+                                  {/* Hover Popover Card */}
+                                  <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-48 sm:w-56 p-2.5 bg-[#2B271F] text-white rounded-xl shadow-xl z-50 pointer-events-none opacity-0 group-hover/poll:opacity-100 transition-opacity duration-150 text-left hidden sm:block">
+                                    <div className="text-[9px] font-bold text-[#E07A5F] tracking-widest uppercase mb-0.5">
+                                      COMMUNITY POLL
+                                    </div>
+                                    <div className="text-xs font-bold font-serif-fraunces text-white leading-snug">
+                                      {calendarMonth === "2026-10" ? "Lincoln Square Pottery Studio (Oct 4)" : "GnarWare Workshop (Nov 14)"}
+                                    </div>
+                                    <div className="text-[10px] text-[#EDE4D3] mt-1 flex items-center gap-1">
+                                      <span>Click to cast your vote</span>
+                                    </div>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2B271F]" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Trailing empty cells */}
+                        {Array.from({ length: trailingEmptySlots }).map((_, idx) => (
+                          <div
+                            key={`empty-trail-${idx}`}
+                            className="min-h-[42px] sm:min-h-[58px] rounded-xl bg-[#F4EEE2]/40 border border-dashed border-[#D8CEBC]/30 opacity-40"
+                          />
+                        ))}
+                      </div>
+
+                      {/* Flexible Quick Toggles (Any Weekend / Down for Whatever) */}
+                      <div className="mt-3 pt-2.5 border-t border-[#D8CEBC]/60 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mr-1">
+                            Flexible:
+                          </span>
+                          {FLEXIBLE_DATES.map((opt) => {
+                            const isOptSelected = selectedDates.includes(opt);
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                                  isOptSelected
+                                    ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                                    : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                                }`}
+                              >
+                                {isOptSelected ? `✓ ${opt}` : opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {selectedDates.length > 0 && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-[#3D5634] font-semibold text-[11px] bg-[#EEF5EB] px-2 py-0.5 rounded-md border border-[#C5DEC0]">
+                              {selectedDates.length} choice{selectedDates.length === 1 ? '' : 's'} selected
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDates([])}
+                              className="text-[11px] text-[#8C8270] hover:text-[#A63A24] underline cursor-pointer bg-transparent border-none"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Community Poll Banner Strip below Calendar (Chicago only - Oct & Nov) */}
+                {isChicago && (calendarMonth === "2026-10" || calendarMonth === "2026-11") && (
                   <div className="mb-4 p-4 sm:p-5 bg-[#FAF7F2] border border-dashed border-[#C8643F] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-3.5">
                       <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EDE4D3] flex items-center justify-center shrink-0 shadow-inner text-xl">
@@ -1399,7 +1559,7 @@ export default function SurveyForm({
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                            Sun, Oct 4 &amp; Sat, Oct 10
+                            {calendarMonth === "2026-10" ? "Sun, Oct 4 (Lincoln Square)" : "Sat, Nov 14 (GnarWare Pilsen)"}
                           </span>
                           {hasVoted ? (
                             <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -1452,25 +1612,34 @@ export default function SurveyForm({
                 )}
               </div>
 
-              {/* Step 2: Gatherings */}
+              {/* Step 2: Alternative Vibes & Suggestions */}
               <div className="q">
-                <div className="q-label">Which gatherings would you attend?</div>
-                <div className="chips">
-                  {GATHERINGS.map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      className={`chip ${selectedGatherings.includes(g) ? 'on' : ''}`}
-                      onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                    >
-                      {g}
-                    </button>
-                  ))}
+                <div className="q-label">Not interested in the above? Or open to more?</div>
+                <p className="text-xs text-[#6A6253] mt-1 mb-3">
+                  Suggest an idea or pick alternative vibes you&apos;d like to do.
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                  {GATHERINGS.map((g) => {
+                    const isSelected = selectedGatherings.includes(g);
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                            : "bg-white text-[#2B271F] border-[#D8CEBC] hover:border-[#C8643F]"
+                        }`}
+                      >
+                        {isSelected ? `✓ ${g}` : g}
+                      </button>
+                    );
+                  })}
                 </div>
                 <input
                   type="text"
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
-                  style={{ marginTop: '11px' }}
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
                 />
@@ -1664,96 +1833,163 @@ export default function SurveyForm({
         )}
       </div>
 
-      {/* Multi-Event Selector Modal for dates with multiple gatherings (e.g., Oct 17) */}
-      {multiEventModalDay !== null && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setMultiEventModalDay(null);
-          }}
-        >
-          <div className="relative w-full max-w-md bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 shadow-2xl animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setMultiEventModalDay(null)}
-              className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
-              aria-label="Close event selector"
-            >
-              ✕
-            </button>
+      {/* Event Detail Modal (Single & Multi-Event) */}
+      {activeEventModalEvents && activeEventModalEvents.length > 0 && (() => {
+        const curEvent = activeEventModalEvents[activeModalEventIndex] || activeEventModalEvents[0];
+        const sTitle = splitEventTitle(curEvent.title, curEvent.brandPrefix).eventName;
+        const isAttending = isEventSelected(curEvent, selectedDates);
 
-            <div className="text-[10px] font-bold text-[#C8643F] uppercase tracking-widest mb-1">
-              OCTOBER {multiEventModalDay} GATHERINGS
-            </div>
-            <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F] leading-tight mb-2">
-              Select Your Gathering(s)
-            </h3>
-            <p className="text-xs text-[#6A6253] mb-4">
-              We have multiple gatherings planned for this day. Check any you would like to join:
-            </p>
-
-            <div className="space-y-3">
-              {getVerifiedEventsForDay(multiEventModalDay).map((ev) => {
-                const isEvSelected = selectedDates.includes(ev.label);
-                return (
-                  <div
-                    key={ev.label}
-                    onClick={() => toggleChip(selectedDates, setSelectedDates, ev.label)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
-                      isEvSelected
-                        ? "bg-[#C8643F]/10 border-[#C8643F] shadow-xs"
-                        : "bg-white border-[#D8CEBC] hover:border-[#C8643F]"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#2B271F]">{ev.chip}</span>
-                        <span className="text-[10px] font-semibold text-[#8C8270] bg-[#EDE4D3] px-2 py-0.5 rounded-full">
-                          {ev.category.toUpperCase()}
-                        </span>
-                      </div>
-                      {ev.timeWindow && (
-                        <div className="text-[11px] text-[#6A6253] mt-1 font-medium">
-                          🕒 {ev.timeWindow} · 📍 {ev.venueName}
-                        </div>
-                      )}
-                      {ev.description && (
-                        <p className="text-[11px] text-[#6A6253] mt-1 leading-relaxed">
-                          {ev.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="shrink-0 mt-0.5">
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-md border text-xs font-bold ${
-                          isEvSelected
-                            ? "bg-[#C8643F] border-[#C8643F] text-white"
-                            : "border-[#D8CEBC] bg-white text-transparent"
-                        }`}
-                      >
-                        ✓
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-5 pt-3 border-t border-[#D8CEBC]/50 flex justify-end">
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setActiveEventModalEvents(null);
+            }}
+          >
+            <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in">
               <button
                 type="button"
-                onClick={() => setMultiEventModalDay(null)}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-[#2B271F] text-[#FBF7EE] hover:bg-[#3D372E] transition-all cursor-pointer shadow-xs"
+                onClick={() => setActiveEventModalEvents(null)}
+                className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
+                aria-label="Close gathering details"
               >
-                Save &amp; Continue
+                <X className="w-5 h-5" />
               </button>
+
+              {/* Multi-event tab switcher if more than 1 event exists on this day (e.g., Oct 17) */}
+              {activeEventModalEvents.length > 1 && (
+                <div className="mb-4">
+                  <div className="text-xs font-bold text-[#8C8270] uppercase tracking-wider mb-2">
+                    {activeEventModalEvents.length} Gatherings on this date
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1 bg-[#EDE4D3]/70 rounded-xl">
+                    {activeEventModalEvents.map((ev, idx) => {
+                      const isTabActive = idx === activeModalEventIndex;
+                      const tabTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                      const isTabAttending = isEventSelected(ev, selectedDates);
+                      return (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={() => setActiveModalEventIndex(idx)}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate cursor-pointer ${
+                            isTabActive
+                              ? "bg-[#2B271F] text-white shadow-xs"
+                              : "text-[#6A6253] hover:text-[#2B271F] hover:bg-white/50"
+                          }`}
+                        >
+                          <span className="truncate">{ev.chipLabel || tabTitle}</span>
+                          {isTabAttending && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="You're attending" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Eyebrow & Badges */}
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-[11px] font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
+                  {curEvent.displayDate}
+                </span>
+                <span className="text-[11px] font-semibold text-[#6A6253] bg-[#EDE4D3] px-2.5 py-0.5 rounded-full">
+                  {curEvent.category.toUpperCase()}
+                </span>
+                {curEvent.audienceLabel && (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+                    {curEvent.audienceLabel}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center mb-1">
+                <BrandName />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight mb-3">
+                {sTitle}
+              </h3>
+
+              {/* Attendance Status Banner */}
+              <div
+                className={`p-3 rounded-2xl border mb-4 flex items-center justify-between text-xs font-semibold ${
+                  isAttending
+                    ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
+                    : "bg-[#F5F1E8] border-[#D8CEBC] text-[#6A6253]"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className={`w-4 h-4 ${isAttending ? "text-emerald-600" : "text-[#8C8270]"}`} />
+                  <span>
+                    {isAttending
+                      ? "You're Attending — Marked in your survey availability"
+                      : "Spots Open — Mark your attendance to join"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Description */}
+              {curEvent.description && (
+                <p className="text-xs sm:text-sm text-[#6A6253] leading-relaxed mb-4">
+                  {curEvent.description}
+                </p>
+              )}
+
+              {/* Venue & Time Details */}
+              <div className="bg-white border border-[#D8CEBC] rounded-2xl p-4 space-y-3 text-xs text-[#2B271F] mb-6">
+                {curEvent.timeWindow && (
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 text-[#C8643F] shrink-0" />
+                    <div>
+                      <span className="text-[#8C8270] text-[11px] block">Time Window</span>
+                      <span className="font-semibold">{curEvent.timeWindow}</span>
+                    </div>
+                  </div>
+                )}
+
+                {curEvent.venueName && (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-[#4C5A40] shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-[#8C8270] text-[11px] block">Venue &amp; Location</span>
+                      <span className="font-semibold block">{curEvent.venueName}</span>
+                      {curEvent.venueAddress && (
+                        <span className="text-[11px] text-[#6A6253]">{curEvent.venueAddress}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleEventSelection(curEvent)}
+                  className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    isAttending
+                      ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
+                      : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
+                  }`}
+                >
+                  {isAttending ? "✓ Attending (Click to Remove)" : "I'm Attending This Gathering →"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveEventModalEvents(null)}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl text-xs font-semibold text-[#6A6253] hover:text-[#2B271F] bg-white border border-[#D8CEBC] cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Pottery Studio Face-Off Community Choice Ballot Modal */}
       <PotteryPollModal

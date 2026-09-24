@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BrandName } from '@/components/brand/BrandName';
 import { Vote, Eye, EyeOff } from 'lucide-react';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import PotteryPollModal from '@/app/components/PotteryPollModal';
+import { ALL_COMMUNITY_EVENTS, splitEventTitle } from '@/lib/eventsConfig';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -53,6 +56,121 @@ export default function ConfirmationCard({
   const [accountError, setAccountError] = useState<string | null>(null);
   const [accountSuccess, setAccountSuccess] = useState<string | null>(null);
   const [isExistingUser, setIsExistingUser] = useState(false);
+
+  // Community Vote State & Modal
+  const [pollVote, setPollVote] = useState<{ studioName: string; dateText: string } | null>(null);
+  const [isPollModalOpen, setIsPollModalOpen] = useState(false);
+
+  // Available Open Dates State & Inline Editor
+  const [currentDates, setCurrentDates] = useState<string[]>(selectedDates);
+  const [isEditingOpenDates, setIsEditingOpenDates] = useState(false);
+  const [editableOpenDates, setEditableOpenDates] = useState<string[]>([]);
+  const [newOpenDateInput, setNewOpenDateInput] = useState('');
+  const [savingDates, setSavingDates] = useState(false);
+
+  const loadVote = () => {
+    try {
+      const raw = localStorage.getItem('votedData_pottery-studio-faceoff');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const studioName =
+          parsed.selectedStudio === 'lincoln-square'
+            ? 'Lincoln Square Pottery Studio'
+            : parsed.selectedStudio === 'gnarware'
+            ? 'GnarWare Workshop (Pilsen)'
+            : parsed.selectedStudio || 'Pottery Studio';
+        const dateText =
+          parsed.preferredDate ||
+          (parsed.selectedStudio === 'lincoln-square' ? 'Sun, Oct 4' : 'Sat, Nov 14');
+        setPollVote({ studioName, dateText });
+      } else if (localStorage.getItem('hasVoted_pottery-studio-faceoff') === 'true') {
+        setPollVote({ studioName: 'Lincoln Square Pottery Studio', dateText: 'Sun, Oct 4' });
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    loadVote();
+    window.addEventListener('pollVoteUpdated', loadVote);
+    window.addEventListener('storage', loadVote);
+    return () => {
+      window.removeEventListener('pollVoteUpdated', loadVote);
+      window.removeEventListener('storage', loadVote);
+    };
+  }, []);
+
+  // Classify currentDates into Attending Gatherings and Open Dates
+  const attendingGatherings: string[] = [];
+  const openDates: string[] = [];
+  const preservedGatheringOriginalStrings: string[] = [];
+
+  const allDateInputs = [...currentDates, customDate].filter(Boolean) as string[];
+
+  allDateInputs.forEach((d) => {
+    const matchingEvent = ALL_COMMUNITY_EVENTS.find((ev) => {
+      const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+      return (
+        d === ev.displayDate ||
+        d === ev.chipLabel ||
+        d === cleanTitle ||
+        d === `${ev.displayDate}: ${ev.chipLabel || cleanTitle}` ||
+        d.includes(cleanTitle) ||
+        (ev.chipLabel && d.includes(ev.chipLabel)) ||
+        d.includes(ev.id)
+      );
+    });
+
+    if (matchingEvent) {
+      const label = matchingEvent.chipLabel || splitEventTitle(matchingEvent.title, matchingEvent.brandPrefix).eventName;
+      if (!attendingGatherings.includes(label)) {
+        attendingGatherings.push(label);
+      }
+      if (!preservedGatheringOriginalStrings.includes(d)) {
+        preservedGatheringOriginalStrings.push(d);
+      }
+    } else {
+      if (!openDates.includes(d)) {
+        openDates.push(d);
+      }
+    }
+  });
+
+  // Sync editableOpenDates whenever openDates changes or editor opens
+  useEffect(() => {
+    if (!isEditingOpenDates) {
+      setEditableOpenDates(openDates);
+    }
+  }, [currentDates, isEditingOpenDates]);
+
+  const handleAddOpenDate = () => {
+    const trimmed = newOpenDateInput.trim();
+    if (trimmed && !editableOpenDates.includes(trimmed)) {
+      setEditableOpenDates((prev) => [...prev, trimmed]);
+      setNewOpenDateInput('');
+    }
+  };
+
+  const handleSaveOpenDates = async () => {
+    setSavingDates(true);
+    try {
+      const updatedDates = [...preservedGatheringOriginalStrings, ...editableOpenDates];
+      setCurrentDates(updatedDates);
+
+      if (responseId) {
+        await updateDoc(doc(db, 'responses', responseId), {
+          dates: updatedDates,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      setIsEditingOpenDates(false);
+    } catch (err) {
+      console.error('Failed to update open dates in Firestore:', err);
+    } finally {
+      setSavingDates(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -138,28 +256,250 @@ export default function ConfirmationCard({
         Your availability and preferences for <strong>{cityName}</strong> are saved. We&apos;ll tally everyone&apos;s votes and email your invite to <span style={{ color: '#2B271F', fontWeight: 600 }}>{email}</span>.
       </p>
 
-      {/* Summary Box */}
-      <div style={{ backgroundColor: '#EDE4D3', borderRadius: '14px', padding: '16px 18px', textAlign: 'left', margin: '0 auto 24px', maxWidth: '480px', fontSize: '0.88rem', border: '1px solid #D8CEBC' }}>
-        <div style={{ fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#4C5A40', fontWeight: 700, marginBottom: '10px' }}>
+      {/* 3-Part Summary & "Thank You" Receipt */}
+      <div style={{ backgroundColor: '#EDE4D3', borderRadius: '16px', padding: '18px 20px', textAlign: 'left', margin: '0 auto 24px', maxWidth: '500px', fontSize: '0.88rem', border: '1px solid #D8CEBC' }}>
+        <div style={{ fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#4C5A40', fontWeight: 700, marginBottom: '14px' }}>
           Your Selected Choices
         </div>
 
+        {/* 1. Gatherings You're Attending */}
+        <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #D8CEBC' }}>
+          <div style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem', marginBottom: '4px' }}>
+            Gatherings You&apos;re Attending:
+          </div>
+          {attendingGatherings.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+              {attendingGatherings.map((g) => (
+                <span
+                  key={g}
+                  style={{
+                    backgroundColor: '#EEF5EB',
+                    color: '#3D5634',
+                    border: '1px solid #C5DEC0',
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  ✓ {g}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
+              No locked gatherings selected yet
+            </span>
+          )}
+        </div>
+
+        {/* 2. Community Vote */}
+        <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #D8CEBC' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem' }}>
+              Community Vote:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsPollModalOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#C8643F',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              {pollVote ? 'Edit' : 'Vote Now →'}
+            </button>
+          </div>
+          {pollVote ? (
+            <div style={{ color: '#2B271F', fontWeight: 600, fontSize: '0.85rem' }}>
+              🗳️ {pollVote.studioName} — {pollVote.dateText}
+            </div>
+          ) : (
+            <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
+              No vote cast yet — click Vote Now to choose your studio!
+            </span>
+          )}
+        </div>
+
+        {/* 3. Available For (Open Dates) */}
+        <div style={{ marginBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', paddingBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', borderBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '1px dashed #D8CEBC' : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem' }}>
+              Available For (Open Dates):
+            </span>
+            {!isEditingOpenDates && (
+              <button
+                type="button"
+                onClick={() => setIsEditingOpenDates(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#C8643F',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0,
+                }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
+          {!isEditingOpenDates ? (
+            openDates.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                {openDates.map((d) => (
+                  <span
+                    key={d}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      color: '#2B271F',
+                      border: '1px solid #D8CEBC',
+                      padding: '3px 10px',
+                      borderRadius: '9999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                No open dates marked
+              </span>
+            )
+          ) : (
+            <div style={{ marginTop: '8px', padding: '10px 12px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #D8CEBC' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                {editableOpenDates.map((od) => (
+                  <span
+                    key={od}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: '#F5EBE6',
+                      color: '#C8643F',
+                      border: '1px solid #F0D5C7',
+                      padding: '2px 8px',
+                      borderRadius: '9999px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>{od}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditableOpenDates((prev) => prev.filter((item) => item !== od))}
+                      style={{ background: 'none', border: 'none', color: '#C8643F', cursor: 'pointer', padding: 0, fontSize: '0.75rem', lineHeight: 1 }}
+                      aria-label={`Remove ${od}`}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. Oct 15, Nov 12..."
+                  value={newOpenDateInput}
+                  onChange={(e) => setNewOpenDateInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddOpenDate();
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#FAF7F2',
+                    border: '1px solid #D8CEBC',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    fontSize: '0.82rem',
+                    color: '#2B271F',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddOpenDate}
+                  style={{
+                    backgroundColor: '#2B271F',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditableOpenDates(openDates);
+                    setIsEditingOpenDates(false);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#6A6253',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingDates}
+                  onClick={handleSaveOpenDates}
+                  style={{
+                    backgroundColor: '#C8643F',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    opacity: savingDates ? 0.6 : 1,
+                  }}
+                >
+                  {savingDates ? 'Saving...' : 'Save Dates'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Additional preferences (Vibes, Times, Party) */}
         {allGatherings.length > 0 && (
-          <div style={{ marginBottom: '8px' }}>
-            <span style={{ color: '#6A6253', fontWeight: 500 }}>Vibes: </span>
+          <div style={{ marginBottom: '6px', fontSize: '0.82rem' }}>
+            <span style={{ color: '#6A6253', fontWeight: 500 }}>Alternative Vibes: </span>
             <span style={{ color: '#2B271F', fontWeight: 600 }}>{allGatherings.join(', ')}</span>
           </div>
         )}
 
-        {allDates.length > 0 && (
-          <div style={{ marginBottom: '8px' }}>
-            <span style={{ color: '#6A6253', fontWeight: 500 }}>Preferred Dates: </span>
-            <span style={{ color: '#2B271F', fontWeight: 600 }}>{allDates.join(', ')}</span>
-          </div>
-        )}
-
         {allTimes.length > 0 && (
-          <div style={{ marginBottom: (selectedDrink || selectedGuests) ? '8px' : '0' }}>
+          <div style={{ marginBottom: (selectedDrink || selectedGuests) ? '6px' : '0', fontSize: '0.82rem' }}>
             <span style={{ color: '#6A6253', fontWeight: 500 }}>Preferred Times: </span>
             <span style={{ color: '#2B271F', fontWeight: 600 }}>{allTimes.join(', ')}</span>
           </div>
@@ -363,6 +703,13 @@ export default function ConfirmationCard({
           </Link>
         </div>
       </div>
+
+      {/* Community Pottery Poll Modal */}
+      <PotteryPollModal
+        isOpen={isPollModalOpen}
+        onClose={() => setIsPollModalOpen(false)}
+        initialEmail={email}
+      />
     </div>
   );
 }

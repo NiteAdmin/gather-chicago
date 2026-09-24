@@ -5,6 +5,8 @@ import { splitEventTitle, SplitTitleResult } from "./formatters";
 export { splitEventTitle };
 export type { SplitTitleResult };
 
+export type EventAudience = 'family' | 'adults-21' | 'all-adults';
+
 export interface CommunityEvent {
   id: string;
   city: string;
@@ -16,6 +18,8 @@ export interface CommunityEvent {
   timeWindow: string; // e.g., '6:30 PM – 9:00 PM CDT'
   category: 'food' | 'outdoor' | 'social' | 'wellness' | 'culture' | 'comedy' | 'stand-up';
   categoryLabel?: string;
+  audience?: EventAudience;
+  audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '🍸 Adults (21+)', '👥 All Adults'
   icon: string; // fallback icon/emoji e.g. '🍕'
   iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
   venueName: string;
@@ -41,6 +45,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:30 AM (10:00 AM – 12:00 PM CDT)",
     category: "wellness",
     categoryLabel: "WELLNESS & MOVEMENT",
+    audience: "all-adults",
+    audienceLabel: "👥 All Adults",
     icon: "🧘",
     iconName: "Sparkles",
     venueName: "Moksha Yoga Center",
@@ -63,6 +69,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:00 AM – 1:00 PM CDT",
     category: "outdoor",
     categoryLabel: "COMMUNITY MARKET & OUTDOOR",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "👟",
     iconName: "Footprints",
     venueName: "Lincoln Square Ravenswood",
@@ -85,6 +93,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & CASUAL GATHERING",
+    audience: "adults-21",
+    audienceLabel: "🍸 Adults (21+)",
     icon: "🍕",
     iconName: "Pizza",
     venueName: "Little Lark",
@@ -107,6 +117,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & SOCIAL DINING",
+    audience: "adults-21",
+    audienceLabel: "🍸 Adults (21+)",
     icon: "🍕",
     iconName: "Pizza",
     venueName: "Little Lark",
@@ -129,6 +141,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "5:00 PM – 10:00 PM CDT",
     category: "social",
     categoryLabel: "ADULT SOCIAL & TASTING",
+    audience: "adults-21",
+    audienceLabel: "🍸 Adults (21+)",
     icon: "☕",
     iconName: "Coffee",
     venueName: "Jonquil Park",
@@ -151,6 +165,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & COMMUNITY DINNER",
+    audience: "adults-21",
+    audienceLabel: "🍸 Adults (21+)",
     icon: "🔥",
     iconName: "Flame",
     venueName: "Soul & Smoke",
@@ -173,6 +189,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:00 AM – 1:00 PM CDT",
     category: "outdoor",
     categoryLabel: "SEASONAL & ANIMALS",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "🌳",
     iconName: "Trees",
     venueName: "Lincoln Park Zoo",
@@ -195,6 +213,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "11:00 AM – 1:00 PM CDT",
     category: "outdoor",
     categoryLabel: "SEASONAL & OUTDOOR",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "🌳",
     iconName: "Trees",
     venueName: "Goebbert's Farm",
@@ -217,6 +237,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "7:00 PM – 8:30 PM CDT",
     category: "comedy",
     categoryLabel: "STAND-UP COMEDY",
+    audience: "adults-21",
+    audienceLabel: "🍸 Adults (21+)",
     icon: "🎤",
     iconName: "Mic",
     venueName: "Laugh Factory Chicago",
@@ -239,6 +261,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:00 AM – 6:00 PM CDT",
     category: "outdoor",
     categoryLabel: "SEASONAL & ANIMALS",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "🌳",
     iconName: "Trees",
     venueName: "Brookfield Zoo Chicago",
@@ -260,6 +284,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:00 AM – 12:00 PM CDT",
     category: "outdoor",
     categoryLabel: "LEGACY POLLED GATHERING",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "🏛️",
     iconName: "Trees",
     venueName: "Lincoln Park Conservatory",
@@ -284,6 +310,8 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "3:00 PM – 6:00 PM CST",
     category: "social",
     categoryLabel: "COMMUNITY SOCIAL & GAMES",
+    audience: "all-adults",
+    audienceLabel: "👥 All Adults",
     icon: "🎲",
     iconName: "Sparkles",
     venueName: "Bonus Round Cafe & Game Lounge",
@@ -305,6 +333,8 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "9:30 AM – 11:30 AM CST",
     category: "outdoor",
     categoryLabel: "OUTDOOR & ACTIVE",
+    audience: "all-adults",
+    audienceLabel: "👥 All Adults",
     icon: "👟",
     iconName: "Footprints",
     venueName: "The 606 (Bloomingdale Trail) & Ipsento Coffee",
@@ -326,6 +356,8 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 9:00 PM CST",
     category: "food",
     categoryLabel: "FOOD & COMMUNITY DINNER",
+    audience: "all-adults",
+    audienceLabel: "👥 All Adults",
     icon: "🥧",
     iconName: "Pizza",
     venueName: "The Joinery Community Loft & Hearth",
@@ -347,6 +379,8 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "2:00 PM – 4:30 PM CST",
     category: "social",
     categoryLabel: "COMMUNITY SOCIAL & CULTURE",
+    audience: "all-adults",
+    audienceLabel: "👥 All Adults",
     icon: "📚",
     iconName: "Coffee",
     venueName: "Wormhole Coffee & Lounge",
@@ -536,6 +570,7 @@ export interface CommunityPoll {
   category: string;
   status: "poll"; // STRICTLY 'poll'
   pollDates: string[];
+  audienceLabel?: string;
   options: PollOption[];
 }
 
@@ -544,7 +579,8 @@ export const chicagoPotteryPoll: CommunityPoll = {
   title: "Pottery Workshop Community Poll",
   category: "culture",
   status: "poll", // STRICTLY 'poll'
-  pollDates: ["2026-10-04", "2026-10-10"],
+  pollDates: ["2026-10-04", "2026-11-14"],
+  audienceLabel: "👥 All Adults",
   options: [
     {
       id: "lincoln-square",
@@ -552,7 +588,7 @@ export const chicagoPotteryPoll: CommunityPoll = {
       neighborhood: "Lincoln Square",
       address: "4150 N Lincoln Ave, Chicago, IL",
       price: "$60 / person (2 hrs)",
-      dates: "Oct 4 or Oct 10 (10 AM or 12 PM)",
+      dates: "Sun, Oct 4 (10 AM or 12 PM)",
       website: "https://www.comeplaywithclay.com/classes",
     },
     {
@@ -561,7 +597,7 @@ export const chicagoPotteryPoll: CommunityPoll = {
       neighborhood: "Pilsen",
       address: "1838 West Cermak Ave, Chicago, IL 60608",
       price: "$40 / person (2 hrs)",
-      dates: "Flexible Oct & Nov (Wed–Sun, 12 PM–8 PM)",
+      dates: "Sat, Nov 14 (Flexible Wed–Sun, 12 PM–8 PM)",
       website: "https://www.care.com/connect/gnarwareworkshop/providers/671-gnarware-workshop",
     },
   ],
