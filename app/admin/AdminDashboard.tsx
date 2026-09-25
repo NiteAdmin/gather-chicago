@@ -151,6 +151,17 @@ export default function AdminDashboard() {
   const [showChapterMenu, setShowChapterMenu] = useState(false);
   const [copiedVenue, setCopiedVenue] = useState(false);
   const [presetFilter, setPresetFilter] = useState<'all' | 'confirmed' | 'sms' | 'notes'>('all');
+  const [copiedPhones, setCopiedPhones] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
+
+  const formatSyncTime = (date: Date = new Date()) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
 
   const handleCopyVenue = (e?: React.MouseEvent) => {
     if (e) {
@@ -198,6 +209,7 @@ export default function AdminDashboard() {
     }
 
     setResponses(data.responses || []);
+    setLastSyncedTime(formatSyncTime());
     if (Array.isArray(data.users)) {
       setUsers(data.users);
     } else {
@@ -251,6 +263,7 @@ export default function AdminDashboard() {
       ]);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
+      setLastSyncedTime(formatSyncTime());
     } catch (err: any) {
       setAuthError(err.message || 'Incorrect admin passcode.');
     } finally {
@@ -270,6 +283,19 @@ export default function AdminDashboard() {
       } catch (err: any) {
         console.error('Failed to update city filter:', err);
       }
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await handleCityChange(selectedCity);
+      setLastSyncedTime(formatSyncTime());
+    } catch (err) {
+      console.error('Refresh error:', err);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
@@ -357,10 +383,41 @@ export default function AdminDashboard() {
   const writeInDates = responses.filter((r) => r.customDate).map((r) => `${r.customDate} — ${r.name}`);
   const writeInTimes = responses.filter((r) => r.customTime).map((r) => `${r.customTime} — ${r.name}`);
 
+  const writeInGatheringItems = responses
+    .filter((r) => Boolean(r.customGathering && r.customGathering.trim()))
+    .map((r) => ({ text: r.customGathering!.trim(), name: r.name, city: r.city }));
+  const writeInDateItems = responses
+    .filter((r) => Boolean(r.customDate && r.customDate.trim()))
+    .map((r) => ({ text: r.customDate!.trim(), name: r.name, city: r.city }));
+  const writeInTimeItems = responses
+    .filter((r) => Boolean(r.customTime && r.customTime.trim()))
+    .map((r) => ({ text: r.customTime!.trim(), name: r.name, city: r.city }));
+
   const smsOptedInResponses = responses.filter(
     (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
   );
   const smsReachRate = responses.length > 0 ? Math.round((smsOptedInResponses.length / responses.length) * 100) : 0;
+
+  const phoneNumbersList = Array.from(
+    new Set(
+      smsOptedInResponses
+        .map((r) => r.phoneNumber?.replace(/[^\d+]/g, ''))
+        .filter((p): p is string => Boolean(p && p.length >= 10))
+    )
+  );
+
+  const nativeSmsHref = `sms:?addresses=${encodeURIComponent(phoneNumbersList.join(','))}&body=${encodeURIComponent(smsMessage.trim())}`;
+
+  const handleCopyPhoneNumbers = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (phoneNumbersList.length === 0) return;
+    const text = phoneNumbersList.join(', ');
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedPhones(true);
+      setTimeout(() => setCopiedPhones(false), 2500);
+    }
+  };
 
   const selectedEvent: CommunityEvent =
     events.find((e) => e.id === selectedEventId) ||
@@ -381,6 +438,11 @@ export default function AdminDashboard() {
       status: 'confirmed',
       capacity: 30,
     };
+
+  const isTomorrowEvent =
+    selectedEvent.id === 'chi-sep-26-gathering' ||
+    selectedEvent.date === '2026-09-26' ||
+    selectedEvent.title.toLowerCase().includes('moksha');
 
   const eventAttendance = calculateEventAttendance(selectedEvent, users, responses);
   const eventCapacity = selectedEvent.capacity;
@@ -888,21 +950,51 @@ export default function AdminDashboard() {
 
   const renderBars = (pairs: [string, number][]) => {
     const max = Math.max(1, ...pairs.map((p) => p[1]));
+    const totalVotes = pairs.reduce((sum, p) => sum + p[1], 0);
+
     return (
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {pairs.map(([label, count], idx) => {
-          const pct = (count / max) * 100;
+          const pctOfMax = (count / max) * 100;
+          const pctOfTotal = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
           const isLead = idx === 0 && count > 0;
+
           return (
-            <div key={label} className="space-y-1">
-              <div className="flex justify-between text-xs sm:text-sm text-[#2B271F]">
-                <span className={isLead ? "font-semibold text-[#2B271F]" : "text-[#5A5243]"}>{label}</span>
-                <span className="font-bold text-[#2B271F]">{count}</span>
+            <div key={label} className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
+                <div className="flex items-center gap-2 truncate">
+                  {isLead ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2B271F] text-white shadow-2xs shrink-0">
+                      ★ #1 Top Choice
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-stone-500 w-4 text-center shrink-0">
+                      #{idx + 1}
+                    </span>
+                  )}
+                  <span className={`truncate ${isLead ? 'font-bold text-[#2B271F]' : 'font-medium text-stone-700'}`}>
+                    {label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-xs font-mono font-bold text-[#2B271F]">
+                    {count} {count === 1 ? 'vote' : 'votes'}
+                  </span>
+                  <span className="text-[11px] font-mono text-stone-400">
+                    ({pctOfTotal}%)
+                  </span>
+                </div>
               </div>
-              <div className="w-full bg-[#EBE3D5] rounded-lg h-2.5 overflow-hidden">
+              <div className="w-full bg-[#EBE3D5]/70 rounded-full h-2.5 overflow-hidden p-0.5">
                 <div
-                  className={`h-full rounded-lg transition-all duration-500 ${isLead ? 'bg-[#C8643F]' : 'bg-[#6E7F5E]'}`}
-                  style={{ width: `${pct}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isLead
+                      ? 'bg-[#C8643F]'
+                      : count > 0
+                      ? 'bg-[#7C8B6E]'
+                      : 'bg-stone-300'
+                  }`}
+                  style={{ width: `${Math.max(count > 0 ? 4 : 0, pctOfMax)}%` }}
                 />
               </div>
             </div>
@@ -1103,16 +1195,27 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Quick Refresh */}
-              <button
-                type="button"
-                onClick={() => handleCityChange(selectedCity)}
-                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
-                title="Refresh latest data"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-[#8C827A]" />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
+              {/* Quick Refresh with Interactive Sync Feedback & Timestamp */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                  title="Refresh latest data"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 text-[#8C827A] ${isRefreshing ? 'animate-spin text-[#C8643F]' : ''}`} />
+                  <span className="hidden sm:inline">
+                    {isRefreshing ? 'Syncing...' : 'Refresh'}
+                  </span>
+                </button>
+
+                {lastSyncedTime && (
+                  <span className="text-[11px] font-mono text-stone-500 whitespace-nowrap">
+                    Synced at {lastSyncedTime}
+                  </span>
+                )}
+              </div>
 
               {/* Quick Export CSV */}
               <button
@@ -1126,47 +1229,76 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* EVENT-DAY "HOST MISSION CONTROL" BAR */}
-          <div className="bg-[#2B271F] text-white rounded-2xl p-5 sm:p-6 shadow-md border border-[#3E3832] w-full min-w-0 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-white/10">
+          {/* PERSISTENT ADAPTIVE MISSION CONTROL COCKPIT */}
+          <div
+            className={`rounded-2xl p-5 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
+              isTomorrowEvent
+                ? 'bg-[#2B271F] text-white shadow-md border border-[#3E3832]'
+                : 'bg-[#FAF7F2] border border-[#EADBCC] text-[#2B271F] shadow-sm'
+            }`}
+          >
+            <div
+              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b ${
+                isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+              }`}
+            >
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
-                  <Sparkles className="w-3 h-3 text-white" />
-                  HOST MISSION CONTROL
-                </span>
-                <span className="text-white/30 hidden sm:inline">·</span>
-                <span className="text-xs text-stone-300 font-medium">
-                  Event-Day Cockpit
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Event Mode
-                </span>
+                {isTomorrowEvent ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
+                      <Sparkles className="w-3 h-3 text-white" />
+                      HOST MISSION CONTROL
+                    </span>
+                    <span className="text-white/30 hidden sm:inline">·</span>
+                    <span className="text-xs text-stone-300 font-medium">
+                      Event-Day Cockpit
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Event Tomorrow · {selectedEvent.timeWindow || '10:30 AM CDT'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#2B271F] text-white shadow-xs">
+                      <Compass className="w-3 h-3 text-white" />
+                      MISSION CONTROL
+                    </span>
+                    <span className="text-stone-300 hidden sm:inline">·</span>
+                    <span className="text-xs text-stone-600 font-medium">
+                      Chapter Planning Cockpit
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]">
+                      <Calendar className="w-3 h-3 text-[#C8643F]" />
+                      Upcoming Scheduled Event
+                    </span>
+                  </>
+                )}
               </div>
-              <div className="text-xs text-stone-400 font-mono">
-                {selectedEvent.displayDate || 'Sat, Sep 26'} · {selectedEvent.timeWindow || '10:30 AM CDT'}
+              <div className={`text-xs font-mono ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                {selectedEvent.displayDate || 'Upcoming'} · {selectedEvent.timeWindow || 'Time TBD'}
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
               {/* Event Callout (7 cols) */}
               <div className="lg:col-span-7 space-y-2 min-w-0">
-                <div className="text-xs font-mono uppercase tracking-wider text-stone-400">
-                  Active Event Focus
+                <div className={`text-xs font-mono uppercase tracking-wider ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                  {isTomorrowEvent ? 'Active Event Focus' : 'Scheduled Gathering Focus'}
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-white tracking-tight leading-snug break-words">
+                <h2 className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
                 </h2>
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-300 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+                <div className={`flex items-center gap-2 text-xs sm:text-sm flex-wrap ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-600'}`}>
+                  <span className={`inline-flex items-center gap-1.5 font-semibold ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                     <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
-                    {selectedEvent.displayDate || 'Tomorrow'}, {selectedEvent.timeWindow || '10:30 AM CDT'}
+                    {selectedEvent.displayDate || 'Date TBD'}, {selectedEvent.timeWindow || 'Time TBD'}
                   </span>
-                  <span className="text-white/30">·</span>
-                  <span className="inline-flex items-center gap-1.5 text-stone-300">
-                    <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                  <span className={isTomorrowEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className={`w-3.5 h-3.5 shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`} />
                     <span>
-                      {selectedEvent.venueName || 'Moksha Yoga Center'}
+                      {selectedEvent.venueName || 'Venue TBD'}
                       {selectedEvent.venueAddress ? ` (${selectedEvent.venueAddress})` : ''}
                     </span>
                   </span>
@@ -1174,21 +1306,29 @@ export default function AdminDashboard() {
               </div>
 
               {/* Live Headcount Status Indicator (5 cols) */}
-              <div className="lg:col-span-5 bg-white/5 border border-white/10 rounded-xl p-4 space-y-2.5">
+              <div
+                className={`rounded-xl p-4 space-y-2.5 ${
+                  isTomorrowEvent
+                    ? 'bg-white/5 border border-white/10'
+                    : 'bg-white border border-[#EADBCC] shadow-2xs'
+                }`}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[11px] font-mono uppercase tracking-wider text-stone-300">
-                      Live Headcount
+                    <Users className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-emerald-400' : 'text-[#C8643F]'}`} />
+                    <span className={`text-[11px] font-mono uppercase tracking-wider ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-500'}`}>
+                      {isTomorrowEvent ? 'Live Headcount' : 'Projected Headcount'}
                     </span>
                   </div>
-                  <span className="text-sm font-bold font-mono text-white">
+                  <span className={`text-sm font-bold font-mono ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                     {eventAttendance.confirmedCount} / {eventCapacity || 30} Confirmed
                   </span>
                 </div>
-                <div className="w-full bg-stone-700/60 h-2.5 rounded-full overflow-hidden p-0.5">
+                <div className={`w-full h-2.5 rounded-full overflow-hidden p-0.5 ${isTomorrowEvent ? 'bg-stone-700/60' : 'bg-stone-200/80'}`}>
                   <div
-                    className="bg-emerald-400 h-full rounded-full transition-all duration-500 ease-out"
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                      isTomorrowEvent ? 'bg-emerald-400' : 'bg-[#C8643F]'
+                    }`}
                     style={{
                       width: `${Math.min(
                         100,
@@ -1202,13 +1342,13 @@ export default function AdminDashboard() {
                     }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 pt-0.5">
+                <div className={`flex items-center justify-between text-[11px] font-mono pt-0.5 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                   <span>
                     {spotsLeft !== null
                       ? `${spotsLeft} spots remaining`
                       : 'Capacity tracked'}
                   </span>
-                  <span className="text-emerald-300 font-semibold">
+                  <span className={`font-semibold ${isTomorrowEvent ? 'text-emerald-300' : 'text-[#C8643F]'}`}>
                     {Math.round((eventAttendance.confirmedCount / (eventCapacity || 30)) * 100)}% Full
                   </span>
                 </div>
@@ -1216,22 +1356,30 @@ export default function AdminDashboard() {
             </div>
 
             {/* One-Tap Quick Actions */}
-            <div className="pt-3 border-t border-white/10 flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div
+              className={`pt-3 flex items-center gap-2 sm:gap-3 flex-wrap border-t ${
+                isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+              }`}
+            >
               {/* Copy Venue Address */}
               <button
                 type="button"
                 onClick={handleCopyVenue}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer shadow-xs"
+                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
+                  isTomorrowEvent
+                    ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
+                    : 'bg-white hover:bg-[#F3EFEB] text-[#2B271F] border border-[#D8CEBC]'
+                }`}
                 title="Copy venue address to clipboard"
               >
                 {copiedVenue ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-300 font-mono">Address Copied!</span>
+                    <Check className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                    <span className={`font-mono ${isTomorrowEvent ? 'text-emerald-300' : 'text-emerald-700'}`}>Address Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 text-stone-300" />
+                    <Copy className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-500'}`} />
                     <span>Copy Venue Address</span>
                   </>
                 )}
@@ -1242,10 +1390,14 @@ export default function AdminDashboard() {
                 href={`/${selectedEvent.city || 'chicago'}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer shadow-xs"
+                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
+                  isTomorrowEvent
+                    ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
+                    : 'bg-white hover:bg-[#F3EFEB] text-[#2B271F] border border-[#D8CEBC]'
+                }`}
                 title="Open public RSVP page in new tab"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-stone-300" />
+                <ExternalLink className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-500'}`} />
                 <span>View Public RSVP Page</span>
               </a>
 
@@ -1566,7 +1718,7 @@ export default function AdminDashboard() {
             {/* Left Col (col-span-12 lg:col-span-6): Date Polling, Write-In Demands, Time Preferences & Quick Splits */}
             <div className="col-span-12 lg:col-span-6 space-y-6">
               {/* Date Polling Results */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-5 border-b border-[#EBE3D5] w-full min-w-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-[#8C827A]" />
@@ -1587,55 +1739,100 @@ export default function AdminDashboard() {
               </div>
 
               {/* Write-In Demands & Requests */}
-              {(writeInGatherings.length > 0 || writeInDates.length > 0 || writeInTimes.length > 0) && (
-                <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs space-y-4">
+              {(writeInGatheringItems.length > 0 || writeInDateItems.length > 0 || writeInTimeItems.length > 0) && (
+                <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                   <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                     <PenLine className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
                       Write-In Demands &amp; Requests
                     </h3>
                   </div>
-                  {writeInGatherings.length > 0 && (
+                  {writeInGatheringItems.length > 0 && (
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2">
-                        Gathering Ideas &amp; Suggestions
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
+                        Gathering Ideas &amp; Suggestions ({writeInGatheringItems.length})
                       </span>
-                      <ul className="list-disc pl-5 space-y-1 text-xs text-[#2B271F]">
-                        {writeInGatherings.map((item, idx) => (
-                          <li key={idx}>{item}</li>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {writeInGatheringItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                          >
+                            <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                              &ldquo;{item.text}&rdquo;
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                              <span className="font-semibold text-stone-700">
+                                — {item.name || 'Anonymous Community Member'}
+                              </span>
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                {item.city ? formatCityName(item.city) : 'Intake Response'}
+                              </span>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
-                  {writeInDates.length > 0 && (
+                  {writeInDateItems.length > 0 && (
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2">
-                        Custom Dates
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
+                        Custom Dates Requested ({writeInDateItems.length})
                       </span>
-                      <ul className="list-disc pl-5 space-y-1 text-xs text-[#2B271F]">
-                        {writeInDates.map((item, idx) => (
-                          <li key={idx}>{item}</li>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {writeInDateItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                          >
+                            <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                              &ldquo;{item.text}&rdquo;
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                              <span className="font-semibold text-stone-700">
+                                — {item.name || 'Anonymous Community Member'}
+                              </span>
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                {item.city ? formatCityName(item.city) : 'Intake Response'}
+                              </span>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
-                  {writeInTimes.length > 0 && (
+                  {writeInTimeItems.length > 0 && (
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2">
-                        Custom Times
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
+                        Custom Times Requested ({writeInTimeItems.length})
                       </span>
-                      <ul className="list-disc pl-5 space-y-1 text-xs text-[#2B271F]">
-                        {writeInTimes.map((item, idx) => (
-                          <li key={idx}>{item}</li>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {writeInTimeItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                          >
+                            <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                              &ldquo;{item.text}&rdquo;
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                              <span className="font-semibold text-stone-700">
+                                — {item.name || 'Anonymous Community Member'}
+                              </span>
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                {item.city ? formatCityName(item.city) : 'Intake Response'}
+                              </span>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Time Preferences */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
                   <Clock className="w-4 h-4 text-[#8C827A]" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -1646,7 +1843,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Quick Splits */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs space-y-5">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                 <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                   <SlidersHorizontal className="w-4 h-4 text-[#8C827A]" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -1671,7 +1868,7 @@ export default function AdminDashboard() {
             {/* Right Col (col-span-12 lg:col-span-6): Gathering Demand */}
             <div className="col-span-12 lg:col-span-6 space-y-6">
               {/* Gathering Demand */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
                   <Sparkles className="w-4 h-4 text-[#E07A5F]" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -2149,8 +2346,8 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SMS BROADCAST PANEL */}
-          <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-6 shadow-xs space-y-4">
+          {/* SMS BROADCAST PANEL (SAFE NATIVE MODE) */}
+          <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
               <MessageSquare className="w-5 h-5 text-[#E07A5F]" />
               <div>
@@ -2158,7 +2355,7 @@ export default function AdminDashboard() {
                   SMS Broadcast Panel ({formatCityName(selectedCity)})
                 </h3>
                 <p className="text-xs text-[#6A6253]">
-                  Send an instant text message alert to attendees who opted into SMS updates.
+                  Draft and dispatch announcements to attendees who opted into SMS updates.
                 </p>
               </div>
             </div>
@@ -2166,16 +2363,9 @@ export default function AdminDashboard() {
             <div className="bg-[#EDE4D3]/50 border border-[#D8CEBC] rounded-xl p-3 text-xs text-[#4C5A40] font-semibold flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-[#4C5A40] shrink-0" />
               <span>
-                Sending to {smsOptedInResponses.length} opted-in attendee{smsOptedInResponses.length === 1 ? '' : 's'} {selectedCity !== 'all' ? `in ${formatCityName(selectedCity)}` : 'across all cities'}
+                {phoneNumbersList.length} opted-in attendee{phoneNumbersList.length === 1 ? '' : 's'} with verified phone numbers {selectedCity !== 'all' ? `in ${formatCityName(selectedCity)}` : 'across all cities'}
               </span>
             </div>
-
-            {smsToast && (
-              <div className={`p-3 rounded-xl text-xs font-semibold flex items-start gap-2 ${smsToast.type === 'success' ? 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]' : 'bg-[#FDF2F0] border border-[#F5C2BA] text-[#A63A24]'}`}>
-                {smsToast.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
-                <span>{smsToast.text}</span>
-              </div>
-            )}
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-center text-xs">
@@ -2194,15 +2384,50 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <button
-              type="button"
-              disabled={!smsMessage.trim() || smsOptedInResponses.length === 0}
-              onClick={() => setShowSmsConfirmModal(true)}
-              className="inline-flex items-center gap-2 bg-[#4C5A40] hover:bg-[#3B4732] text-white text-xs font-bold px-5 py-3 rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="w-4 h-4" />
-              <span>Send SMS Broadcast ({smsOptedInResponses.length} Recipients)</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+              {/* Copy Opted-In Phone Numbers */}
+              <button
+                type="button"
+                onClick={handleCopyPhoneNumbers}
+                disabled={phoneNumbersList.length === 0}
+                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-[#FAF7F2] text-[#2B271F] border border-[#D8CEBC] text-xs font-bold px-4 py-3 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Copy phone numbers to clipboard"
+              >
+                {copiedPhones ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span className="text-emerald-700 font-mono">
+                      {phoneNumbersList.length} Number{phoneNumbersList.length === 1 ? '' : 's'} Copied!
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-[#8C827A]" />
+                    <span>Copy Opted-In Phone Numbers</span>
+                  </>
+                )}
+              </button>
+
+              {/* Open in Native Messages */}
+              <button
+                type="button"
+                onClick={() => setShowSmsConfirmModal(true)}
+                disabled={phoneNumbersList.length === 0 || !smsMessage.trim()}
+                className="inline-flex items-center justify-center gap-2 bg-[#2B271F] hover:bg-[#403B33] text-white text-xs font-bold px-5 py-3 rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Open client-side SMS intent"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Open in Native Messages ({phoneNumbersList.length} Recipients)</span>
+              </button>
+            </div>
+
+            {/* Safety Note */}
+            <p className="text-[11px] text-[#6A6253] flex items-center gap-1.5 pt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>
+                <strong>Safe Native Mode:</strong> Messages are drafted locally on your device. No automated background carrier requests are sent.
+              </span>
+            </p>
           </div>
         </div>
       )}
@@ -2624,7 +2849,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ADMIN SMS BROADCAST CONFIRMATION MODAL */}
+      {/* ADMIN SAFE NATIVE SMS CONFIRMATION MODAL */}
       {showSmsConfirmModal && (
         <div className="fixed inset-0 bg-[#2B271F]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowSmsConfirmModal(false)}>
           <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -2632,7 +2857,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[#E07A5F]" />
                 <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                  Confirm SMS Broadcast
+                  Launch Native Messages
                 </h3>
               </div>
               <button
@@ -2645,25 +2870,19 @@ export default function AdminDashboard() {
             </div>
 
             <p className="text-xs text-[#2B271F] leading-relaxed">
-              Are you sure you want to send this text message to <strong>{smsOptedInResponses.length} opted-in attendee{smsOptedInResponses.length === 1 ? '' : 's'}</strong> ({formatCityName(selectedCity)})?
+              You are about to open your device&apos;s personal messaging app pre-filled for <strong>{phoneNumbersList.length} opted-in recipient{phoneNumbersList.length === 1 ? '' : 's'}</strong> ({formatCityName(selectedCity)}).
             </p>
 
-            <div className="p-3 bg-white border border-[#D8CEBC] rounded-xl text-xs text-[#2B271F] italic">
-              &ldquo;{smsMessage}&rdquo;
+            <div className="p-3 bg-white border border-[#D8CEBC] rounded-xl text-xs text-[#2B271F] italic space-y-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 not-italic block">Draft Preview</span>
+              <p>&ldquo;{smsMessage}&rdquo;</p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#6A6253] mb-1.5">
-                Admin Passcode *
-              </label>
-              <input
-                type="password"
-                value={adminPasscode}
-                onChange={(e) => setAdminPasscode(e.target.value)}
-                placeholder="Enter secret passcode"
-                className="w-full bg-white border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F]"
-                required
-              />
+            <div className="p-3 bg-[#EDF5EE] border border-[#BACFB2] rounded-xl text-[11px] text-[#3D6B42] flex items-start gap-2">
+              <Check className="w-4 h-4 text-[#3D6B42] shrink-0 mt-0.5" />
+              <span>
+                <strong>Safe Native Dispatch:</strong> This generates a client-side <code className="font-mono bg-white/70 px-1 py-0.5 rounded">sms:</code> intent. You review and hit send inside your device&apos;s messaging app.
+              </span>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -2674,24 +2893,14 @@ export default function AdminDashboard() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                disabled={sendingSms}
-                onClick={handleSendSmsBroadcast}
-                className="flex-2 py-2.5 px-4 rounded-xl bg-[#4C5A40] hover:bg-[#3B4732] text-white text-xs font-bold transition-colors cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              <a
+                href={nativeSmsHref}
+                onClick={() => setShowSmsConfirmModal(false)}
+                className="flex-2 py-2.5 px-4 rounded-xl bg-[#2B271F] hover:bg-[#403B33] text-white text-xs font-bold transition-colors cursor-pointer shadow-md text-center flex items-center justify-center gap-2"
               >
-                {sendingSms ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending SMS...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Confirm &amp; Send Texts</span>
-                  </>
-                )}
-              </button>
+                <ExternalLink className="w-4 h-4" />
+                <span>Open in Messages App →</span>
+              </a>
             </div>
           </div>
         </div>

@@ -74,6 +74,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Safe dry-run mode: Never fire live outbound network requests unless explicitly enabled in environment
+    const isLiveDispatchAllowed = process.env.ENABLE_LIVE_SMS_BROADCAST === "true";
+
+    if (!isLiveDispatchAllowed) {
+      console.log(`[SAFE NATIVE MODE] Mock dry-run broadcast to ${uniquePhones.length} recipients: ${trimmedMessage}`);
+      return NextResponse.json({
+        success: true,
+        isDryRun: true,
+        recipientCount: uniquePhones.length,
+        sentCount: uniquePhones.length,
+        failedCount: 0,
+        message: "Safe native dry-run: No live carrier requests dispatched.",
+      });
+    }
+
     console.log(`Broadcasting SMS to ${uniquePhones.length} recipients...`);
 
     // Send SMS texts in parallel using Twilio
