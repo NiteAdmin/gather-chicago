@@ -52,6 +52,7 @@ import {
   ResolvedEvent,
 } from "@/lib/userEvents";
 import { SurveyResponse } from "@/types/survey";
+import { formatAvailabilityDatesList } from "@/app/components/ConfirmationCard";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -489,6 +490,33 @@ export default function DashboardPage() {
           )
         );
 
+  // User's submitted survey parameters for comprehensive receipt card
+  const rawSurveyDates = Array.from(
+    new Set(userResponses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]))
+  );
+  const formattedDatesFree = formatAvailabilityDatesList(rawSurveyDates);
+
+  const rawSurveyTimes = Array.from(
+    new Set(userResponses.flatMap((r) => [...(r.times || []), r.customTime].filter(Boolean) as string[]))
+  );
+  const preferredTimeDisplay = rawSurveyTimes.length > 0 ? rawSurveyTimes.join(', ') : 'Any time';
+
+  const userGuestsRaw = userResponses.find((r) => r.guests)?.guests;
+  const partySizeDisplay = userGuestsRaw
+    ? userGuestsRaw === '1' || userGuestsRaw.toLowerCase().includes('just me')
+      ? 'Just me'
+      : `${userGuestsRaw} ${userGuestsRaw.toLowerCase().includes('guest') ? '' : 'guests'}`.trim()
+    : 'Just me';
+
+  const customIdeas = Array.from(
+    new Set(userResponses.flatMap((r) => [r.customGathering, r.notes].filter(Boolean) as string[]))
+  );
+
+  const userCitySlug =
+    userResponses.find((r) => r.cityName || r.city)?.cityName?.toLowerCase() ||
+    userResponses.find((r) => r.cityName || r.city)?.city?.toLowerCase() ||
+    'chicago';
+
   const renderPlans = () => (
     <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
       <div className="flex items-center justify-between mb-3.5">
@@ -571,7 +599,10 @@ export default function DashboardPage() {
             href="/"
             className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
           >
-            <BrandName className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight" />
+            <BrandName
+              className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight"
+              tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 align-super"
+            />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES
             </span>
@@ -722,51 +753,98 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Survey Vibe Tags */}
-              <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
+              {/* Comprehensive Survey Receipt Card: YOUR SURVEY PREFERENCES */}
+              <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-[#D8CEBC]/60">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#8C827A]" />
-                    <span>Your Survey Vibes</span>
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#C8643F]" />
+                    <span>YOUR SURVEY PREFERENCES</span>
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedEditorVibes(displayVibes.length > 0 ? displayVibes : AVAILABLE_VIBES.slice(0, 4));
-                      setIsEditingVibes(true);
-                    }}
+                  <Link
+                    href={`/${userCitySlug}?edit=true`}
                     className="text-[11px] font-semibold text-[#C8643F] hover:underline cursor-pointer"
                   >
                     Edit &rarr;
-                  </button>
+                  </Link>
                 </div>
 
-                {displayVibes.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {displayVibes.map((vibe, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-1 rounded-full text-xs bg-[#FAF7F2] border border-[#EBE3D5] text-[#6A6253]"
+                {/* 1. Dates Free */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#6A6253]">
+                    Dates Free:
+                  </div>
+                  {formattedDatesFree.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {formattedDatesFree.map((dateStr, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#C8643F]/10 text-[#C8643F] border border-[#C8643F]/30"
+                        >
+                          {dateStr}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#8C8270] italic">None specified</p>
+                  )}
+                </div>
+
+                {/* 2. Preferred Time */}
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#6A6253]">
+                    Preferred Time:
+                  </div>
+                  <p className="text-xs font-medium text-[#2B271F]">
+                    {preferredTimeDisplay}
+                  </p>
+                </div>
+
+                {/* 3. Party Size */}
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#6A6253]">
+                    Party Size:
+                  </div>
+                  <p className="text-xs font-medium text-[#2B271F]">
+                    {partySizeDisplay}
+                  </p>
+                </div>
+
+                {/* 4. Vibes & Suggestions */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#6A6253]">
+                    Vibes &amp; Suggestions:
+                  </div>
+                  {displayVibes.length > 0 || customIdeas.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {displayVibes.map((vibe, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#FAF7F2] border border-[#D8CEBC] text-[#2B271F]"
+                        >
+                          {vibe}
+                        </span>
+                      ))}
+                      {customIdeas.map((idea, idx) => (
+                        <span
+                          key={`idea-${idx}`}
+                          className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#FAF7F2] border border-[#D8CEBC] text-[#6A6253] italic"
+                        >
+                          &ldquo;{idea}&rdquo;
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-[#6A6253] space-y-1.5">
+                      <p className="text-[#8C8270] italic">You haven&apos;t set specific gathering vibes yet.</p>
+                      <Link
+                        href={`/${userCitySlug}`}
+                        className="inline-block text-xs font-semibold text-[#C8643F] underline underline-offset-2 cursor-pointer"
                       >
-                        {vibe}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-[#6A6253] space-y-2">
-                    <p>You haven&apos;t set specific gathering vibes yet.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedEditorVibes(AVAILABLE_VIBES.slice(0, 4));
-                        setIsEditingVibes(true);
-                      }}
-                      className="inline-block text-xs font-semibold text-[#C8643F] underline underline-offset-2 cursor-pointer text-left"
-                    >
-                      Take the 2-min survey &rarr;
-                    </button>
-                  </div>
-                )}
+                        Take the 2-min survey &rarr;
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             </aside>
 
@@ -1101,26 +1179,31 @@ export default function DashboardPage() {
 
       {/* FOOTER */}
       <footer className="border-t border-[#D8CEBC]/70 py-8 text-center text-xs text-[#6A6253] bg-[#EDE4D3]/40">
-        <div className="max-w-4xl mx-auto px-6 flex flex-wrap justify-center items-center gap-3 sm:gap-4">
-          <Link href="/" className="hover:text-[#2B271F] transition-colors">
-            Home
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/chicago" className="hover:text-[#2B271F] transition-colors">
-            Chicago Chapter
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/host" className="hover:text-[#2B271F] transition-colors">
-            Become a Host
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
-            Privacy Policy
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
-            Terms of Service
-          </Link>
+        <div className="max-w-4xl mx-auto px-6 space-y-2">
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
+            <Link href="/" className="hover:text-[#2B271F] transition-colors">
+              Home
+            </Link>
+            <span className="text-[#A89F91] select-none">&middot;</span>
+            <Link href="/chicago" className="hover:text-[#2B271F] transition-colors">
+              Chicago Chapter
+            </Link>
+            <span className="text-[#A89F91] select-none">&middot;</span>
+            <Link href="/host" className="hover:text-[#2B271F] transition-colors">
+              Become a Host
+            </Link>
+            <span className="text-[#A89F91] select-none">&middot;</span>
+            <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-[#A89F91] select-none">&middot;</span>
+            <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+          <p className="text-xs sm:text-sm font-bold text-[#2B271F] pt-1">
+            <BrandName tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super" />
+          </p>
         </div>
       </footer>
 

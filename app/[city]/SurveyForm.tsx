@@ -1778,7 +1778,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full min-h-[48px] rounded-2xl px-4 py-3 bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white outline-hidden transition-all text-sm shadow-2xs"
+                  className="w-full min-h-[48px] rounded-2xl px-4 py-3 bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white outline-hidden text-sm"
                 />
               </div>
 
@@ -1943,7 +1943,7 @@ export default function SurveyForm({
               {/* A2P 10DLC Footer Legal & Compliance Links */}
               <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)', lineHeight: '1.6' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong><BrandName tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
+                  <strong><BrandName tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
                   <button
                     type="button"
                     onClick={(e) => {

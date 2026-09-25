@@ -124,20 +124,31 @@ assert(
   'BrandName supports intelligent custom size, alignment, and color overrides'
 );
 assert(
-  footerRaw.includes('tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]"'),
-  'components/Footer.tsx uses legible terracotta TM with text-[11px] sm:text-xs'
+  footerRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
+  'components/Footer.tsx uses legible terracotta TM with text-xs sm:text-sm'
 );
 assert(
-  introPageRaw.includes('tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]"'),
+  introPageRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
   'app/components/IntroPage.tsx footer uses legible terracotta TM'
 );
 assert(
-  confirmationCardRaw.includes('tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]"'),
+  confirmationCardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
   'ConfirmationCard.tsx footer uses legible terracotta TM'
 );
 assert(
-  surveyFormRaw.includes('tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]"'),
+  surveyFormRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
   'SurveyForm.tsx footer uses legible terracotta TM'
+);
+
+const privacyRaw = fs.readFileSync('app/privacy/page.tsx', 'utf-8');
+const termsRaw = fs.readFileSync('app/terms/page.tsx', 'utf-8');
+assert(
+  privacyRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
+  'Privacy policy footer uses legible terracotta TM'
+);
+assert(
+  termsRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
+  'Terms of service footer uses legible terracotta TM'
 );
 
 // 4. Landing Page Hero & Host Card
@@ -228,6 +239,43 @@ assert(
 assert(
   surveyFormRaw.includes('overflow-x-hidden') || surveyFormRaw.includes('max-w-full'),
   'SurveyForm enforces viewport containment'
+);
+
+// 8. Dashboard Survey Preferences & Brand Standards
+console.log('\n8. DASHBOARD SURVEY PREFERENCES & BRAND STANDARDS AUDIT:');
+const dashboardRaw = fs.readFileSync('app/dashboard/page.tsx', 'utf-8');
+
+assert(
+  dashboardRaw.includes('YOUR SURVEY PREFERENCES'),
+  'Dashboard card header updated to YOUR SURVEY PREFERENCES'
+);
+assert(
+  dashboardRaw.includes('Dates Free:') && dashboardRaw.includes('formattedDatesFree'),
+  'Dashboard receipt renders formatted Dates Free'
+);
+assert(
+  dashboardRaw.includes('Preferred Time:') && dashboardRaw.includes('preferredTimeDisplay'),
+  'Dashboard receipt renders Preferred Time'
+);
+assert(
+  dashboardRaw.includes('Party Size:') && dashboardRaw.includes('partySizeDisplay'),
+  'Dashboard receipt renders Party Size'
+);
+assert(
+  dashboardRaw.includes('Vibes &amp; Suggestions:') || dashboardRaw.includes('Vibes & Suggestions:'),
+  'Dashboard receipt renders Vibes & Suggestions section'
+);
+assert(
+  dashboardRaw.includes('formatAvailabilityDatesList'),
+  'Dashboard reuses shared formatAvailabilityDatesList utility'
+);
+assert(
+  dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 align-super"'),
+  'Dashboard navbar logo uses text-xs sm:text-sm font-bold terracotta TM'
+);
+assert(
+  dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
+  'Dashboard footer uses text-xs sm:text-sm font-bold terracotta TM'
 );
 
 console.log('\n====================================================');

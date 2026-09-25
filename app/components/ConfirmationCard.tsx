@@ -518,7 +518,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
         <div style={{ marginBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', paddingBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', borderBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '1px dashed #D8CEBC' : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
             <span style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Your Survey Dates &amp; Vibes:
+              Your Survey Preferences:
             </span>
             {!isEditingPreferences && (
               <button
@@ -931,7 +931,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
       {/* Compliance / Entity Footer */}
       <div style={{ marginTop: '28px', paddingTop: '16px', borderTop: '1px solid #D8CEBC', fontSize: '0.78rem', color: '#6A6253', lineHeight: '1.6' }}>
         <div style={{ marginBottom: '4px' }}>
-          <strong><BrandName tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
+          <strong><BrandName tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
           <button
             type="button"
             onClick={(e) => {
