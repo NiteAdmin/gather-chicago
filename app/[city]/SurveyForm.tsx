@@ -70,6 +70,7 @@ export interface VerifiedOctoberDate {
   category: string;
   timeWindow?: string;
   venueName?: string;
+  venueAddress?: string;
   description?: string;
   eventId?: string;
 }
@@ -95,6 +96,16 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     venueName: "Little Lark",
     eventId: "chi-2026-10-05-little-lark-pizza",
   },
+  6: {
+    day: 6,
+    dateStr: "Tue, Oct 6",
+    label: "Tue, Oct 6: Taco Tuesdays",
+    chip: "Taco Tuesdays",
+    category: "food",
+    timeWindow: "6:00 PM – 8:00 PM CDT",
+    venueName: "Local Taqueria",
+    eventId: "chi-2026-10-06-taco-tuesdays",
+  },
   8: {
     day: 8,
     dateStr: "Thu, Oct 8",
@@ -115,6 +126,16 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     venueName: "Jonquil Park",
     eventId: "chi-2026-10-09-wine-fest",
   },
+  13: {
+    day: 13,
+    dateStr: "Tue, Oct 13",
+    label: "Tue, Oct 13: Taco Tuesdays",
+    chip: "Taco Tuesdays",
+    category: "food",
+    timeWindow: "6:00 PM – 8:00 PM CDT",
+    venueName: "Local Taqueria",
+    eventId: "chi-2026-10-13-taco-tuesdays",
+  },
   16: {
     day: 16,
     dateStr: "Fri, Oct 16",
@@ -122,7 +143,8 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     chip: "Soul & Smoke",
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
-    venueName: "Location TBD",
+    venueName: "Soul & Smoke",
+    venueAddress: "3057 N Rockwell St, Chicago, IL 60618",
     eventId: "chi-2026-10-16-soul-smoke",
   },
   17: [
@@ -149,11 +171,21 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
       eventId: "chi-2026-10-17-goebberts-farm",
     },
   ],
+  20: {
+    day: 20,
+    dateStr: "Tue, Oct 20",
+    label: "Tue, Oct 20: Taco Tuesdays",
+    chip: "Taco Tuesdays",
+    category: "food",
+    timeWindow: "6:00 PM – 8:00 PM CDT",
+    venueName: "Local Taqueria",
+    eventId: "chi-2026-10-20-taco-tuesdays",
+  },
   23: {
     day: 23,
     dateStr: "Fri, Oct 23",
-    label: "Fri, Oct 23: Stand-Up Comedy",
-    chip: "Comedy Night",
+    label: "Fri, Oct 23: Stand Up Comedy",
+    chip: "Stand Up Comedy",
     category: "comedy",
     timeWindow: "7:00 PM – 8:30 PM CDT",
     venueName: "Laugh Factory Chicago",
@@ -168,6 +200,16 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     timeWindow: "10:00 AM – 6:00 PM CDT",
     venueName: "Brookfield Zoo Chicago",
     eventId: "chi-2026-10-25-boo-zoo",
+  },
+  27: {
+    day: 27,
+    dateStr: "Tue, Oct 27",
+    label: "Tue, Oct 27: Taco Tuesdays",
+    chip: "Taco Tuesdays",
+    category: "food",
+    timeWindow: "6:00 PM – 8:00 PM CDT",
+    venueName: "Local Taqueria",
+    eventId: "chi-2026-10-27-taco-tuesdays",
   },
 };
 
@@ -249,14 +291,23 @@ export function getVerifiedEventsForDay(dayNum: number): VerifiedOctoberDate[] {
   return Array.isArray(item) ? item : [item];
 }
 
+export function getWeekendDatesForMonth(monthKey: CalendarMonthKey): string[] {
+  const conf = SURVEY_MONTH_CONFIGS[monthKey];
+  if (!conf) return [];
+  const weekendDates: string[] = [];
+  for (let dayNum = 1; dayNum <= conf.daysInMonth; dayNum++) {
+    const dayOfWeek = (conf.startDayOfWeek + dayNum - 1) % 7;
+    // 0 is Sunday, 6 is Saturday
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      weekendDates.push(`${conf.monthShort} ${dayNum}, 2026`);
+    }
+  }
+  return weekendDates;
+}
+
 const DATES = Object.values(VERIFIED_OCTOBER_DATES)
   .flat()
   .map((d) => d.label);
-
-const FLEXIBLE_DATES = [
-  "Any October Weekend",
-  "Down for Whatever",
-];
 
 function formatCityName(slug: string): string {
   if (!slug) return 'Chicago';
@@ -1387,21 +1438,6 @@ export default function SurveyForm({
                         </div>
                       </div>
 
-                      {/* December Empty Month Graceful Banner */}
-                      {calendarMonth === "2026-12" && (
-                        <div className="mb-3 p-3.5 sm:p-4 bg-[#EDE4D3]/50 border border-dashed border-[#C8643F]/60 rounded-2xl flex items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-lg">❄️</span>
-                            <span className="font-semibold text-[#4C5A40]">
-                              December lineup coming soon — click any date to mark when you&apos;re free.
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-[#C8643F] uppercase tracking-wider hidden sm:inline bg-[#FBE8DF] px-2.5 py-1 rounded-full">
-                            Holiday Series
-                          </span>
-                        </div>
-                      )}
-
                       {/* Day of Week Headers */}
                       <div className="grid grid-cols-7 gap-1 text-center text-[9px] sm:text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mb-1 w-full">
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, idx) => (
@@ -1437,9 +1473,9 @@ export default function SurveyForm({
                               : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Nov 14 option)"
                             : undefined;
 
-                          const isDaySelected = hasEvents
-                            ? eventsForDay.some((ev) => isEventSelected(ev, selectedDates))
-                            : availableDates.includes(openDateKey);
+                          const isDateMarkedAvailable = availableDates.includes(openDateKey);
+                          const isEventAttending = hasEvents && eventsForDay.some((ev) => isEventSelected(ev, selectedDates));
+                          const isDaySelected = isDateMarkedAvailable || isEventAttending;
 
                           return (
                             <div
@@ -1475,10 +1511,10 @@ export default function SurveyForm({
                                 }
                               }}
                               className={`min-h-[40px] sm:min-h-[58px] p-0.5 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-hidden group/cell ${
-                                isDaySelected
-                                  ? hasEvents
-                                    ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25"
-                                    : "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                                isDateMarkedAvailable
+                                  ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                                  : isEventAttending
+                                  ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25"
                                   : isPollDay
                                   ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
                                   : hasEvents
@@ -1491,8 +1527,10 @@ export default function SurveyForm({
                               <div className="flex items-center justify-between w-full leading-none">
                                 <span
                                   className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
-                                    isDaySelected && !hasEvents
+                                    isDateMarkedAvailable
                                       ? "bg-white text-[#C8643F]"
+                                      : isEventAttending
+                                      ? "bg-[#2B271F] text-white"
                                       : (hasEvents || isPollDay)
                                       ? "bg-[#2B271F] text-white"
                                       : "text-inherit"
@@ -1501,7 +1539,7 @@ export default function SurveyForm({
                                   {dayNum}
                                 </span>
                                 {isDaySelected && (
-                                  <Check className={`w-3 h-3 shrink-0 sm:block hidden ${hasEvents ? "text-[#C8643F]" : "text-white"}`} />
+                                  <Check className={`w-3 h-3 shrink-0 sm:block hidden ${isDateMarkedAvailable ? "text-white" : "text-[#C8643F]"}`} />
                                 )}
                               </div>
 
@@ -1527,7 +1565,11 @@ export default function SurveyForm({
                                         }}
                                         className={`flex items-center gap-0.5 text-[8px] sm:text-[9.5px] font-bold rounded px-0.5 sm:px-1 py-0.5 leading-tight transition-all cursor-pointer min-w-0 ${
                                           isEvSelected
-                                            ? "bg-[#C8643F] text-white shadow-xs"
+                                            ? isDateMarkedAvailable
+                                              ? "bg-white text-[#C8643F] shadow-xs"
+                                              : "bg-[#C8643F] text-white shadow-xs"
+                                            : isDateMarkedAvailable
+                                            ? "bg-white/25 text-white hover:bg-white/40"
                                             : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
                                         }`}
                                         title={evTooltip}
@@ -1549,7 +1591,11 @@ export default function SurveyForm({
                               {isPollDay && (
                                 <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
                                   <span
-                                    className="text-[9px] sm:text-[11px] font-bold text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 rounded-md py-0.5 px-0.5 sm:px-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 truncate whitespace-nowrap leading-tight w-full hover:bg-[#C8643F]/20 transition-colors"
+                                    className={`text-[9px] sm:text-[11px] font-bold rounded-md py-0.5 px-0.5 sm:px-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 truncate whitespace-nowrap leading-tight w-full transition-colors ${
+                                      isDateMarkedAvailable
+                                        ? "text-white bg-white/20 border border-dashed border-white/60 hover:bg-white/30"
+                                        : "text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 hover:bg-[#C8643F]/20"
+                                    }`}
                                     title={pollTitle}
                                   >
                                     🗳️ Vote
@@ -1583,7 +1629,7 @@ export default function SurveyForm({
                         ))}
                       </div>
 
-                      {/* Flexible Quick Toggles (Any Weekend / Down for Whatever) */}
+                      {/* Flexible Quick Toggles (Dynamic Weekends / Down for Whatever) */}
                       <div className="mt-3 pt-2.5 border-t border-[#D8CEBC]/60 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mr-1">
@@ -1591,27 +1637,54 @@ export default function SurveyForm({
                           </span>
                           {(() => {
                             const activeMonthName = SURVEY_MONTH_CONFIGS[calendarMonth]?.name.split(' ')[0] || 'October';
-                            const dynamicFlexibleDates = [
-                              `Any ${activeMonthName} Weekend`,
-                              "Down for Whatever",
-                            ];
-                            return dynamicFlexibleDates.map((opt) => {
-                              const isOptSelected = selectedDates.includes(opt);
-                              return (
+                            const activeWeekendDates = getWeekendDatesForMonth(calendarMonth);
+                            const areAllWeekendsSelected =
+                              activeWeekendDates.length > 0 &&
+                              activeWeekendDates.every((d) => availableDates.includes(d));
+
+                            const handleToggleAllWeekends = () => {
+                              if (areAllWeekendsSelected) {
+                                setAvailableDates((prev) =>
+                                  prev.filter((d) => !activeWeekendDates.includes(d))
+                                );
+                              } else {
+                                setAvailableDates((prev) =>
+                                  Array.from(new Set([...prev, ...activeWeekendDates]))
+                                );
+                              }
+                            };
+
+                            const weekendBtnLabel = `Select All ${activeMonthName} Weekends`;
+                            const isDownForWhateverSelected = selectedDates.includes("Down for Whatever");
+
+                            return (
+                              <>
                                 <button
-                                  key={opt}
                                   type="button"
-                                  onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
+                                  data-testid="toggle-all-weekends"
+                                  onClick={handleToggleAllWeekends}
                                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                                    isOptSelected
+                                    areAllWeekendsSelected
                                       ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
                                       : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
                                   }`}
                                 >
-                                  {isOptSelected ? `✓ ${opt}` : opt}
+                                  {areAllWeekendsSelected ? `✓ ${weekendBtnLabel}` : weekendBtnLabel}
                                 </button>
-                              );
-                            });
+
+                                <button
+                                  type="button"
+                                  onClick={() => toggleChip(selectedDates, setSelectedDates, "Down for Whatever")}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                                    isDownForWhateverSelected
+                                      ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                                      : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
+                                  }`}
+                                >
+                                  {isDownForWhateverSelected ? "✓ Down for Whatever" : "Down for Whatever"}
+                                </button>
+                              </>
+                            );
                           })()}
                         </div>
 
@@ -1710,15 +1783,19 @@ export default function SurveyForm({
                 <p className="text-xs text-[#6A6253] mt-1 mb-3">
                   Suggest an idea or pick alternative vibes you&apos;d like to do.
                 </p>
-                <div className="chips mb-3">
+                <div className="flex flex-wrap items-center gap-1.5 mb-3">
                   {GATHERINGS.map((g) => {
                     const isSelected = selectedGatherings.includes(g);
                     return (
                       <button
                         key={g}
                         type="button"
-                        className={`chip ${isSelected ? 'on' : ''}`}
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#C8643F] text-white border-[#C8643F]"
+                            : "bg-white/80 border-[#D9D2C7] text-[#2B271F] hover:bg-white hover:border-[#C8643F]/50"
+                        }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
                       </button>
@@ -1730,7 +1807,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full text-sm text-[#2B271F] placeholder:text-[#8C8270] !bg-[#F4EEE2]/60 focus:!bg-white !border-[#D8CEBC] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
+                  className="w-full text-sm text-[#2B271F] placeholder-[#A8A29E] !bg-white/70 focus:!bg-white !border-[#D9D2C7] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
@@ -1859,6 +1936,7 @@ export default function SurveyForm({
                   placeholder="Optional — a cause, a vibe, a request…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  className="w-full text-sm text-[#2B271F] placeholder-[#A8A29E] !bg-white/70 focus:!bg-white !border-[#D9D2C7] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all"
                 />
               </div>
 
