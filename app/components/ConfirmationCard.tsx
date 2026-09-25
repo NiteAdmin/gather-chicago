@@ -931,7 +931,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
       {/* Compliance / Entity Footer */}
       <div style={{ marginTop: '28px', paddingTop: '16px', borderTop: '1px solid #D8CEBC', fontSize: '0.78rem', color: '#6A6253', lineHeight: '1.6' }}>
         <div style={{ marginBottom: '4px' }}>
-          <strong><BrandName /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
+          <strong><BrandName tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
           <button
             type="button"
             onClick={(e) => {

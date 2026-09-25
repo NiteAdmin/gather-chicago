@@ -27,7 +27,7 @@ export default function Footer({ className = '' }: FooterProps) {
       </div>
       <div className="space-y-1 pt-1">
         <p className="text-xs sm:text-sm font-bold text-[#2B271F]">
-          <BrandName />
+          <BrandName tmClassName="text-[11px] sm:text-xs font-semibold ml-0.5 align-super text-[#C8643F]" />
         </p>
         <p className="text-[11px] sm:text-xs text-[#6A6253]">
           Consensus-driven community gatherings <span className="mx-1 text-[#A89F91]">&middot;</span> A portion of every ticket supports local community initiatives.
