@@ -1,6 +1,7 @@
 /**
  * Calendar utilities for generating Google Calendar URLs and RFC 5545-compliant .ics files.
  */
+import { CommunityEvent, splitEventTitle } from "@/lib/eventsConfig";
 
 export interface CalendarEventOptions {
   cityName: string;
@@ -189,5 +190,80 @@ export function generateCalendarDetails(options: CalendarEventOptions) {
     icsContent,
     fileName: `actually-lets-${cityDisplayName.toLowerCase().replace(/\s+/g, '-')}.ics`,
   };
+}
+
+/**
+ * Generates a direct Google Calendar template URL for a CommunityEvent.
+ * Format: https://calendar.google.com/calendar/render?action=TEMPLATE&text={title}&dates={start}/{end}&details={desc}&location={address}
+ */
+export function buildGoogleCalendarUrl(ev: CommunityEvent, dateStr?: string): string {
+  const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+  const eventTitle = `Actually, Let's — ${cleanTitle}`;
+  const address = ev.venueAddress || ev.venueName || "Chicago, IL";
+  const desc = `${ev.description || ''}\n\nOrganized by Actually, Let's™ · Chicago Chapter\nhttps://actuallylets.com`.trim();
+
+  let year = 2026;
+  let month = 10;
+  let day = 16;
+
+  if (ev.date && /^\d{4}-\d{2}-\d{2}$/.test(ev.date)) {
+    const parts = ev.date.split('-').map(Number);
+    year = parts[0];
+    month = parts[1];
+    day = parts[2];
+  }
+
+  if (dateStr) {
+    const dMatch = dateStr.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})/i);
+    if (dMatch) {
+      day = parseInt(dMatch[1], 10);
+    }
+  }
+
+  let startHour = 18;
+  let startMinute = 0;
+  let endHour = 20;
+  let endMinute = 30;
+
+  if (ev.timeWindow) {
+    const timeMatches = Array.from(ev.timeWindow.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)/gi));
+    if (timeMatches.length > 0) {
+      let h1 = parseInt(timeMatches[0][1], 10);
+      const m1 = timeMatches[0][2] ? parseInt(timeMatches[0][2], 10) : 0;
+      const p1 = timeMatches[0][3].toUpperCase();
+      if (p1 === 'PM' && h1 < 12) h1 += 12;
+      if (p1 === 'AM' && h1 === 12) h1 = 0;
+      startHour = h1;
+      startMinute = m1;
+
+      if (timeMatches.length > 1) {
+        let h2 = parseInt(timeMatches[1][1], 10);
+        const m2 = timeMatches[1][2] ? parseInt(timeMatches[1][2], 10) : 0;
+        const p2 = timeMatches[1][3].toUpperCase();
+        if (p2 === 'PM' && h2 < 12) h2 += 12;
+        if (p2 === 'AM' && h2 === 12) h2 = 0;
+        endHour = h2;
+        endMinute = m2;
+      } else {
+        endHour = (startHour + 2) % 24;
+        endMinute = startMinute;
+      }
+    }
+  }
+
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+  const startIso = `${year}${pad(month)}${pad(day)}T${pad(startHour)}${pad(startMinute)}00`;
+  const endIso = `${year}${pad(month)}${pad(day)}T${pad(endHour)}${pad(endMinute)}00`;
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: eventTitle,
+    dates: `${startIso}/${endIso}`,
+    details: desc,
+    location: address,
+    ctz: 'America/Chicago',
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 

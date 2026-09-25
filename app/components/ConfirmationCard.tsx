@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BrandName } from '@/components/brand/BrandName';
-import { Vote, Eye, EyeOff } from 'lucide-react';
+import { Vote, Eye, EyeOff, Calendar } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import PotteryPollModal from '@/app/components/PotteryPollModal';
-import { ALL_COMMUNITY_EVENTS, splitEventTitle } from '@/lib/eventsConfig';
+import { ALL_COMMUNITY_EVENTS, CommunityEvent, splitEventTitle } from '@/lib/eventsConfig';
+import { buildGoogleCalendarUrl } from '@/lib/calendar';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -101,8 +102,52 @@ export default function ConfirmationCard({
     };
   }, []);
 
+interface AttendingGatheringItem {
+  id: string;
+  rawInput: string;
+  title: string;
+  displayLine: string;
+  calendarUrl: string;
+}
+
+function getAttendingEventTitle(ev: CommunityEvent): string {
+  if (ev.id === 'chi-2026-10-05-little-lark-pizza' || ev.id.includes('pizza-wine')) {
+    return 'Little Lark Pizza & Wine';
+  }
+  if (ev.id === 'chi-2026-10-08-little-lark-pinsa' || ev.id.includes('pinsa-night')) {
+    return 'Little Lark Pinsa Night';
+  }
+  if (ev.chipLabel && ev.chipLabel.length > 2) {
+    return ev.chipLabel;
+  }
+  return splitEventTitle(ev.title, ev.brandPrefix).eventName;
+}
+
+function getAttendingEventDate(ev: CommunityEvent, inputString?: string): string {
+  if (inputString) {
+    const match = inputString.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}/i);
+    if (match) return match[0];
+  }
+  if (ev.displayDate) {
+    if (ev.displayDate.includes('&')) {
+      return ev.displayDate.split('&')[0].trim();
+    }
+    if (ev.displayDate.includes('–')) {
+      return ev.displayDate.split('–')[0].trim();
+    }
+    return ev.displayDate;
+  }
+  return '';
+}
+
+function getAttendingEventTime(ev: CommunityEvent): string {
+  if (!ev.timeWindow) return '';
+  const match = ev.timeWindow.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i);
+  return match ? match[1].toUpperCase() : '';
+}
+
   // Classify currentDates into Attending Gatherings and Open Dates
-  const attendingGatherings: string[] = [];
+  const attendingGatherings: AttendingGatheringItem[] = [];
   const openDates: string[] = [];
   const preservedGatheringOriginalStrings: string[] = [];
 
@@ -118,17 +163,31 @@ export default function ConfirmationCard({
         d === `${ev.displayDate}: ${ev.chipLabel || cleanTitle}` ||
         d.includes(cleanTitle) ||
         (ev.chipLabel && d.includes(ev.chipLabel)) ||
-        d.includes(ev.id)
+        d.includes(ev.id) ||
+        (ev.id.includes('pizza') && (d.includes('Pizza') || d.includes('pizza-wine') || d.includes('Little Lark'))) ||
+        (ev.id.includes('pinsa') && (d.includes('Pinsa') || d.includes('pinsa-night')))
       );
     });
 
     if (matchingEvent) {
-      const label = matchingEvent.chipLabel || splitEventTitle(matchingEvent.title, matchingEvent.brandPrefix).eventName;
-      if (!attendingGatherings.includes(label)) {
-        attendingGatherings.push(label);
-      }
       if (!preservedGatheringOriginalStrings.includes(d)) {
         preservedGatheringOriginalStrings.push(d);
+      }
+      if (!attendingGatherings.some((item) => item.id === matchingEvent.id)) {
+        const title = getAttendingEventTitle(matchingEvent);
+        const dateStr = getAttendingEventDate(matchingEvent, d);
+        const timeStr = getAttendingEventTime(matchingEvent);
+        const metaPart = [dateStr, timeStr].filter(Boolean).join(' · ');
+        const displayLine = metaPart ? `${title} — ${metaPart}` : title;
+        const calendarUrl = buildGoogleCalendarUrl(matchingEvent, dateStr);
+
+        attendingGatherings.push({
+          id: matchingEvent.id,
+          rawInput: d,
+          title,
+          displayLine,
+          calendarUrl,
+        });
       }
     } else {
       if (!openDates.includes(d)) {
@@ -263,27 +322,54 @@ export default function ConfirmationCard({
         </div>
 
         {/* 1. Gatherings You're Attending */}
-        <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #D8CEBC' }}>
-          <div style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem', marginBottom: '4px' }}>
+        <div style={{ marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px dashed #D8CEBC' }}>
+          <div style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px' }}>
             Gatherings You&apos;re Attending:
           </div>
           {attendingGatherings.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-              {attendingGatherings.map((g) => (
-                <span
-                  key={g}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+              {attendingGatherings.map((item) => (
+                <div
+                  key={item.id}
                   style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
                     backgroundColor: '#EEF5EB',
-                    color: '#3D5634',
                     border: '1px solid #C5DEC0',
-                    padding: '3px 10px',
-                    borderRadius: '9999px',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    textAlign: 'left',
                   }}
                 >
-                  ✓ {g}
-                </span>
+                  <span
+                    style={{
+                      color: '#3D5634',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span style={{ color: '#4C5A40', fontWeight: 700 }}>✓</span>
+                    <span>{item.displayLine}</span>
+                  </span>
+                  {item.calendarUrl && (
+                    <a
+                      href={item.calendarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[#C8643F] hover:underline text-xs font-semibold px-2.5 py-1 rounded-full bg-white border border-[#D8CEBC] hover:border-[#C8643F]/50 transition-colors shadow-2xs"
+                      title="Add to Google Calendar"
+                    >
+                      <Calendar style={{ width: '13px', height: '13px', color: '#C8643F' }} />
+                      <span>Add to Calendar</span>
+                    </a>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
@@ -520,7 +606,7 @@ export default function ConfirmationCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Vote style={{ width: '20px', height: '20px', color: '#C8643F', flexShrink: 0 }} />
           <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: '1.18rem', color: '#2B271F', margin: 0 }}>
-            We&apos;re tallying {cityName}&apos;s votes
+            We&apos;re tallying {cityName} votes
           </h3>
         </div>
 

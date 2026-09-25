@@ -88,22 +88,22 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
   5: {
     day: 5,
     dateStr: "Mon, Oct 5",
-    label: "Mon, Oct 5: Free Pizza & Wine",
-    chip: "Pizza & Wine",
+    label: "Mon, Oct 5: Little Lark Pizza & Wine",
+    chip: "Little Lark Pizza & Wine",
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
     venueName: "Little Lark",
-    eventId: "chi-2026-10-05-pizza-wine",
+    eventId: "chi-2026-10-05-little-lark-pizza",
   },
   8: {
     day: 8,
     dateStr: "Thu, Oct 8",
-    label: "Thu, Oct 8: Pinsa Night",
-    chip: "Pinsa Night",
+    label: "Thu, Oct 8: Little Lark Pinsa Night",
+    chip: "Little Lark Pinsa Night",
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
     venueName: "Little Lark",
-    eventId: "chi-2026-10-08-pinsa-night",
+    eventId: "chi-2026-10-08-little-lark-pinsa",
   },
   9: {
     day: 9,
@@ -1589,23 +1589,30 @@ export default function SurveyForm({
                           <span className="text-[11px] font-bold text-[#8C8270] uppercase tracking-wider mr-1">
                             Flexible:
                           </span>
-                          {FLEXIBLE_DATES.map((opt) => {
-                            const isOptSelected = selectedDates.includes(opt);
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                                  isOptSelected
-                                    ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                                    : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
-                                }`}
-                              >
-                                {isOptSelected ? `✓ ${opt}` : opt}
-                              </button>
-                            );
-                          })}
+                          {(() => {
+                            const activeMonthName = SURVEY_MONTH_CONFIGS[calendarMonth]?.name.split(' ')[0] || 'October';
+                            const dynamicFlexibleDates = [
+                              `Any ${activeMonthName} Weekend`,
+                              "Down for Whatever",
+                            ];
+                            return dynamicFlexibleDates.map((opt) => {
+                              const isOptSelected = selectedDates.includes(opt);
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => toggleChip(selectedDates, setSelectedDates, opt)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                                    isOptSelected
+                                      ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                                      : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
+                                  }`}
+                                >
+                                  {isOptSelected ? `✓ ${opt}` : opt}
+                                </button>
+                              );
+                            });
+                          })()}
                         </div>
 
                         {(() => {

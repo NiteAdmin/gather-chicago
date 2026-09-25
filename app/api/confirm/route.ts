@@ -4,14 +4,25 @@ import { fetchResponses, saveResponse } from "@/lib/firebase";
 import { sendSms } from "@/lib/twilio";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
-// In-memory sliding window IP rate limiter (3 requests per 15 minutes)
+// In-memory sliding window IP rate limiter (25 requests per 15 minutes to accommodate community testers & shared Wi-Fi)
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const MAX_REQUESTS_PER_WINDOW = 3;
+const MAX_REQUESTS_PER_WINDOW = 25;
 const ipRequestMap = new Map<string, number[]>();
 
-function checkRateLimit(ip: string): boolean {
-  if (process.env.NODE_ENV === "development" || ip === "127.0.0.1" || ip === "::1" || ip === "localhost") {
-    return false;
+interface RateLimitResult {
+  limited: boolean;
+  retryAfterSeconds?: number;
+}
+
+function checkRateLimit(ip: string): RateLimitResult {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.BYPASS_RATE_LIMIT === "true" ||
+    ip === "127.0.0.1" ||
+    ip === "::1" ||
+    ip === "localhost"
+  ) {
+    return { limited: false };
   }
   const now = Date.now();
   const timestamps = (ipRequestMap.get(ip) || []).filter(
@@ -19,12 +30,15 @@ function checkRateLimit(ip: string): boolean {
   );
 
   if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    return true; // Rate limited
+    const oldestTimestamp = timestamps[0] || now;
+    const retryAfterMs = Math.max(0, RATE_LIMIT_WINDOW_MS - (now - oldestTimestamp));
+    const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+    return { limited: true, retryAfterSeconds };
   }
 
   timestamps.push(now);
   ipRequestMap.set(ip, timestamps);
-  return false;
+  return { limited: false };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
@@ -44,11 +58,21 @@ export async function POST(req: Request) {
     "127.0.0.1";
 
   // IP Rate Limiting Check
-  if (checkRateLimit(ip)) {
-    console.warn(`Rate limit exceeded for IP: ${ip}`);
+  const rateLimitStatus = checkRateLimit(ip);
+  if (rateLimitStatus.limited) {
+    const retryMinutes = Math.max(1, Math.ceil((rateLimitStatus.retryAfterSeconds || 60) / 60));
+    console.warn(`Rate limit exceeded for IP: ${ip} (retry in ${retryMinutes}m)`);
     return NextResponse.json(
-      { error: "Too many RSVP requests from this IP. Please try again later." },
-      { status: 429 }
+      {
+        error: `Too many RSVP requests from this connection. Please try again in about ${retryMinutes} minute${retryMinutes === 1 ? '' : 's'}.`,
+        retryAfter: rateLimitStatus.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimitStatus.retryAfterSeconds || 60),
+        },
+      }
     );
   }
 
