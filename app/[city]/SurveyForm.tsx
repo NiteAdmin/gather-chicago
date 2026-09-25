@@ -864,7 +864,7 @@ export default function SurveyForm({
           font-weight: 500;
           padding: 12px 16px;
           min-height: 46px;
-          border-radius: 16px;
+          border-radius: 16px; /* Uniform rounded-2xl curvature synchronized across survey chips, suggestion buttons, and inputs */
           cursor: pointer;
           transition: 0.16s;
           text-align: left;
