@@ -166,8 +166,8 @@ assert(
 // 5. Harmonize Suggestion Section
 console.log('\n5. SUGGESTION SECTION STYLING AUDIT:');
 assert(
-  surveyFormRaw.includes('rounded-xl px-4 py-2.5 text-sm font-medium transition-all border'),
-  'Suggestion buttons styled as rounded-xl px-4 py-2.5 text-sm matching option buttons'
+  surveyFormRaw.includes('rounded-xl py-2.5 px-3.5') && surveyFormRaw.includes('text-xs sm:text-sm font-medium'),
+  'Suggestion buttons styled as rounded-xl py-2.5 px-3.5 text-xs sm:text-sm matching option buttons'
 );
 assert(
   !surveyFormRaw.includes('rounded-full px-3.5 py-1.5'),
@@ -187,9 +187,9 @@ assert(
   'Suggestion pills active state styled with terracotta bg-[#C8643F] text-white'
 );
 assert(
-  surveyFormRaw.includes('rounded-xl px-4 py-3') &&
+  surveyFormRaw.includes('rounded-xl py-3 px-4') &&
   surveyFormRaw.includes('bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white'),
-  'Custom idea input box styled with rounded-xl px-4 py-3 and warm biscuit bg-[#FAF8F5]'
+  'Custom idea input box styled with rounded-xl py-3 px-4 and warm biscuit bg-[#FAF8F5]'
 );
 
 // 6. Confirmation Receipt Dates & Vibes

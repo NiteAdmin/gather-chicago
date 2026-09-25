@@ -1752,7 +1752,7 @@ export default function SurveyForm({
                         key={g}
                         type="button"
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                        className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all border cursor-pointer ${
+                        className={`transition-all rounded-xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium cursor-pointer border ${
                           isSelected
                             ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
                             : "bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB] hover:bg-[#E8E3DB]"
@@ -1768,7 +1768,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full text-sm sm:text-base bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white rounded-xl px-4 py-3 outline-hidden transition-all shadow-2xs"
+                  className="w-full rounded-xl py-3 px-4 bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white outline-hidden transition-all text-xs sm:text-sm shadow-2xs"
                 />
               </div>
 
