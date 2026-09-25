@@ -9,12 +9,27 @@ export type EventAudience = 'family' | 'adults' | 'all-adults' | '21+' | 'adults
 
 export function getAudienceBadge(audience?: EventAudience | string, label?: string): string | undefined {
   if (label) {
-    return label.replace(/\bAll Adults\b/gi, "Adults").replace(/\bALL ADULTS\b/gi, "Adults");
+    const clean = label
+      .replace(/🍸\s*/g, '👥 ')
+      .replace(/\s*\(\s*21\+\s*\)/gi, '')
+      .replace(/\bAll Adults\b/gi, 'Adults')
+      .replace(/\bALL ADULTS\b/gi, 'Adults')
+      .trim();
+    if (clean === 'Adults' || clean.toLowerCase() === 'adults') {
+      return '👥 Adults';
+    }
+    return clean;
   }
   if (!audience) return undefined;
   if (audience === 'family') return '👨‍👩‍👧 Family Friendly';
-  if (audience === 'adults' || audience === 'all-adults') return '👥 Adults';
-  if (audience === '21+' || audience === 'adults-21') return '🍸 Adults (21+)';
+  if (
+    audience === 'adults' ||
+    audience === 'all-adults' ||
+    audience === '21+' ||
+    audience === 'adults-21'
+  ) {
+    return '👥 Adults';
+  }
   return undefined;
 }
 
@@ -22,10 +37,14 @@ export function getAudienceIcon(audience?: EventAudience | string, label?: strin
   if (audience === 'family' || label?.toLowerCase().includes('family')) {
     return '👨‍👩‍👧';
   }
-  if (audience === '21+' || audience === 'adults-21' || label?.includes('21+')) {
-    return '🍸';
-  }
-  if (audience === 'adults' || audience === 'all-adults' || label?.toLowerCase().includes('adult')) {
+  if (
+    audience === 'adults' ||
+    audience === 'all-adults' ||
+    audience === '21+' ||
+    audience === 'adults-21' ||
+    label?.toLowerCase().includes('adult') ||
+    label?.includes('21+')
+  ) {
     return '👥';
   }
   return null;
@@ -43,7 +62,7 @@ export interface CommunityEvent {
   category: 'food' | 'outdoor' | 'social' | 'wellness' | 'culture' | 'comedy' | 'stand-up';
   categoryLabel?: string;
   audience?: EventAudience;
-  audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '🍸 Adults (21+)', '👥 Adults'
+  audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '👥 Adults'
   icon: string; // fallback icon/emoji e.g. '🍕'
   iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
   venueName: string;
@@ -141,8 +160,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & SOCIAL DINING",
-    audience: "adults-21",
-    audienceLabel: "🍸 Adults (21+)",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🍕",
     iconName: "Pizza",
     venueName: "Little Lark",
@@ -165,8 +184,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "5:00 PM – 10:00 PM CDT",
     category: "social",
     categoryLabel: "ADULT SOCIAL & TASTING",
-    audience: "adults-21",
-    audienceLabel: "🍸 Adults (21+)",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "☕",
     iconName: "Coffee",
     venueName: "Jonquil Park",
@@ -189,8 +208,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & COMMUNITY DINNER",
-    audience: "adults-21",
-    audienceLabel: "🍸 Adults (21+)",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🔥",
     iconName: "Flame",
     venueName: "Location TBD",
@@ -261,8 +280,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "7:00 PM – 8:30 PM CDT",
     category: "comedy",
     categoryLabel: "STAND-UP COMEDY",
-    audience: "adults-21",
-    audienceLabel: "🍸 Adults (21+)",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🎤",
     iconName: "Mic",
     venueName: "Laugh Factory Chicago",
