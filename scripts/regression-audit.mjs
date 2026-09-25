@@ -172,8 +172,22 @@ assert(
 
 const adminDashboardRaw = fs.readFileSync('app/admin/AdminDashboard.tsx', 'utf-8');
 assert(
-  adminDashboardRaw.includes('<Footer') || adminDashboardRaw.includes('<BrandName'),
-  'app/admin/AdminDashboard.tsx mounts standardized brand Footer component'
+  adminDashboardRaw.includes('<Footer') && adminDashboardRaw.includes("import Footer from '@/components/Footer'"),
+  'Standard <Footer /> component remains mounted on the admin route'
+);
+assert(
+  adminDashboardRaw.includes('onClick={exportCSV}') && adminDashboardRaw.includes('const exportCSV = () =>'),
+  'AdminDashboard.tsx binds and implements exportCSV handler'
+);
+
+const adminBrandTerracotta =
+  adminDashboardRaw.includes('text-[#C8643F] flex items-center">\n                  <BrandName') ||
+  /text-#(?:C8643F|C86D51)[^>]*>\s*<BrandName/i.test(adminDashboardRaw) ||
+  /tmClassName="[^"]*#(?:C8643F|C86D51)/i.test(adminDashboardRaw) ||
+  /<span className="col-span-2 font-bold text-#(?:C8643F|C86D51)">\s*<BrandName/i.test(adminDashboardRaw);
+assert(
+  !adminBrandTerracotta,
+  'AdminDashboard.tsx contains NO rogue terracotta (#C8643F / #C86D51) on brand labels'
 );
 
 const pageViews = [
@@ -346,6 +360,7 @@ const brandKeyFiles = [
   'app/host/page.tsx',
   'app/dashboard/page.tsx',
   'app/components/IntroPage.tsx',
+  'app/admin/AdminDashboard.tsx',
 ];
 brandKeyFiles.forEach((f) => {
   const c = fs.readFileSync(f, 'utf-8');

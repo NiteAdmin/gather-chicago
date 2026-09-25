@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
+import { adminDb } from '@/lib/firebaseAdmin';
 import { collection, getDocs } from 'firebase/firestore';
 
 export async function POST(request: Request) {
@@ -7,16 +8,26 @@ export async function POST(request: Request) {
     const { passcode, city } = await request.json().catch(() => ({}));
 
     // Check passcode against environment variable
-    if (!passcode || passcode !== process.env.ADMIN_SECRET) {
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
+    if (!passcode || passcode !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized passcode' }, { status: 401 });
     }
 
-    // Fetch responses using client SDK instance on server side
-    const snapshot = await getDocs(collection(db, 'responses'));
-    let responses = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Fetch responses using adminDb if available, fallback to client db
+    let responses: any[] = [];
+    if (adminDb) {
+      const snap = await adminDb.collection('responses').get();
+      responses = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } else {
+      const snapshot = await getDocs(collection(db, 'responses'));
+      responses = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
 
     // Filter by city if specified and not 'all'
     if (city && typeof city === 'string' && city.toLowerCase() !== 'all') {
@@ -31,11 +42,19 @@ export async function POST(request: Request) {
     // Fetch registered users to hydrate active event RSVPs
     let users: any[] = [];
     try {
-      const usersSnap = await getDocs(collection(db, 'users'));
-      users = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      if (adminDb) {
+        const usersSnap = await adminDb.collection('users').get();
+        users = usersSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      } else {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        users = usersSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      }
     } catch (usersErr) {
       console.warn('Could not fetch users in admin results route:', usersErr);
     }

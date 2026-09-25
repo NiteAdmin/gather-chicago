@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
-import { BroadcastRecord } from '@/lib/firebase';
+import { db, BroadcastRecord } from '@/lib/firebase';
 import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
 import { BrandName } from '@/components/brand/BrandName';
@@ -242,6 +243,53 @@ export default function AdminDashboard() {
     }
   };
 
+  // Real-time synchronization & clean unmount hygiene
+  useEffect(() => {
+    if (!authenticated) return;
+    const activeSecret = adminPasscode.trim() || passcode.trim();
+    if (!activeSecret) return;
+
+    let unsubBroadcasts: (() => void) | undefined;
+    try {
+      const q = query(
+        collection(db, 'broadcasts'),
+        orderBy('dispatchedAt', 'desc'),
+        limit(50)
+      );
+      unsubBroadcasts = onSnapshot(
+        q,
+        (snap) => {
+          const loaded = snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          } as BroadcastRecord));
+          if (loaded.length > 0) {
+            setBroadcasts(loaded);
+          }
+        },
+        (err) => {
+          console.warn('Live sync broadcasts listener notice:', err);
+        }
+      );
+    } catch (e) {
+      console.warn('Live sync onSnapshot initialization error:', e);
+    }
+
+    // Periodic live sync polling (every 30s) to keep responses and RSVPs fresh during active host sessions
+    const intervalId = setInterval(() => {
+      fetchResults(activeSecret, selectedCity).catch((e) =>
+        console.warn('Periodic live sync error:', e)
+      );
+    }, 30000);
+
+    return () => {
+      if (typeof unsubBroadcasts === 'function') {
+        unsubBroadcasts();
+      }
+      clearInterval(intervalId);
+    };
+  }, [authenticated, adminPasscode, passcode, selectedCity]);
+
   // Tally helper for analytics
   const computeTally = (field: keyof SurveyResponse, optionsOrder: string[]) => {
     const counts: Record<string, number> = {};
@@ -307,10 +355,13 @@ export default function AdminDashboard() {
   const eventAttendance = calculateEventAttendance(selectedEvent, users, responses);
   const eventCapacity = selectedEvent.capacity;
   const spotsLeft = eventCapacity !== undefined ? Math.max(0, eventCapacity - eventAttendance.confirmedCount) : null;
-  const capacityPercent =
+  const rawCapacityPercent =
     eventCapacity && eventCapacity > 0
-      ? Math.min(100, Math.round((eventAttendance.confirmedCount / eventCapacity) * 100))
+      ? Math.round((eventAttendance.confirmedCount / eventCapacity) * 100)
       : 0;
+  const capacityPercent = Math.min(100, rawCapacityPercent);
+  const isAtCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount >= eventCapacity);
+  const isOverCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount > eventCapacity);
 
   const filteredResponses = responses.filter((r) => {
     // 0. Event Attendance filter
@@ -620,44 +671,48 @@ export default function AdminDashboard() {
   const exportCSV = () => {
     const headers = [
       'City',
-      'Timestamp',
+      'RSVP Timestamp',
       'Name',
       'Email',
       'Phone Number',
-      'SMS Opt-In',
-      'Will bring',
-      'Gatherings',
-      'Write-in gathering',
+      'SMS Opt-In Status',
+      'Guest Count',
+      'Dietary / Drink',
+      'Gatherings / Vibes',
+      'Write-in Gathering',
       'Dates that work',
-      'Write-in date',
+      'Write-in Date',
       'Times',
-      'Write-in time',
-      'Day pref',
-      'Drink',
+      'Write-in Time',
+      'Day Preference',
       'Notes',
     ];
 
-    const escapeCsv = (str: any) => `"${String(str == null ? '' : str).replace(/"/g, '""')}"`;
+    const escapeCsv = (str: any) => {
+      if (str == null) return '""';
+      const clean = String(str).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ').replace(/"/g, '""');
+      return `"${clean}"`;
+    };
 
     const csvLines = [headers.map(escapeCsv).join(',')];
 
     responses.forEach((r) => {
       const line = [
-        r.city || 'chicago',
+        formatCityName(r.city || 'chicago'),
         r.createdAt ? (r.createdAt.seconds ? new Date(r.createdAt.seconds * 1000).toISOString() : String(r.createdAt)) : '',
-        r.name,
-        r.email,
+        r.name || '',
+        r.email || '',
         r.phoneNumber ? `'${r.phoneNumber}` : '',
-        r.smsOptIn ? 'Yes' : 'No',
-        r.guests,
-        (r.gatherings || []).join('; '),
+        r.smsOptIn ? 'Opted-In' : 'No',
+        r.guests || '1',
+        r.drink || '',
+        (Array.isArray(r.gatherings) ? r.gatherings : []).join('; '),
         r.customGathering || '',
-        (r.dates || []).join('; '),
+        (Array.isArray(r.dates) ? r.dates : []).join('; '),
         r.customDate || '',
-        (r.times || []).join('; '),
+        (Array.isArray(r.times) ? r.times : []).join('; '),
         r.customTime || '',
         r.dayPref || '',
-        r.drink || '',
         r.notes || '',
       ];
       csvLines.push(line.map(escapeCsv).join(','));
@@ -676,42 +731,55 @@ export default function AdminDashboard() {
   const exportFilteredCSV = () => {
     const headers = [
       'City',
+      'RSVP Timestamp',
       'Name',
       'Email',
-      'Phone',
-      'Bringing',
-      'Interests',
+      'Phone Number',
+      'SMS Opt-In Status',
+      'Guest Count',
+      'Event Attendance Status',
+      'Dietary / Drink',
+      'Interests / Vibes',
       'Preferred Dates',
       'Preferred Times',
       'Notes',
     ];
 
-    const escapeCsv = (str: any) => `"${String(str == null ? '' : str).replace(/"/g, '""')}"`;
+    const escapeCsv = (str: any) => {
+      if (str == null) return '""';
+      const clean = String(str).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ').replace(/"/g, '""');
+      return `"${clean}"`;
+    };
 
     const csvLines = [headers.map(escapeCsv).join(',')];
 
     filteredResponses.forEach((r) => {
+      const isAttending = isContactAttendingEvent(r, selectedEvent, users);
       const allGaths = [
         ...(Array.isArray(r.gatherings) ? r.gatherings : []),
-        ...(r.customGathering ? [`"${r.customGathering}"`] : []),
+        ...(r.customGathering ? [r.customGathering] : []),
       ].join('; ');
 
       const allDates = [
         ...(Array.isArray(r.dates) ? r.dates : []),
-        ...(r.customDate ? [`"${r.customDate}"`] : []),
+        ...(r.customDate ? [r.customDate] : []),
       ].join('; ');
 
       const allTimes = [
         ...(Array.isArray(r.times) ? r.times : []),
-        ...(r.customTime ? [`"${r.customTime}"`] : []),
+        ...(r.customTime ? [r.customTime] : []),
       ].join('; ');
 
       const line = [
         formatCityName(r.city || 'chicago'),
+        r.createdAt ? (r.createdAt.seconds ? new Date(r.createdAt.seconds * 1000).toISOString() : String(r.createdAt)) : '',
         r.name || '',
         r.email || '',
         r.phoneNumber ? `'${r.phoneNumber}` : '',
-        r.guests || '',
+        r.smsOptIn ? 'Opted-In' : 'No',
+        r.guests || '1',
+        isAttending ? `Confirmed for ${selectedEvent.displayDate}` : 'Survey Only',
+        r.drink || '',
         allGaths,
         allDates,
         allTimes,
@@ -982,8 +1050,8 @@ export default function AdminDashboard() {
             {/* Main Gathering Info & Actions Row */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
               <div className="space-y-1">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
-                  <BrandName />
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#2B271F] flex items-center">
+                  <BrandName tmClassName="text-[#2B271F]" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
@@ -1052,16 +1120,23 @@ export default function AdminDashboard() {
                   <div className="bg-[#FAF7F2] border border-[#D8CEBC] px-3 py-1.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
                     <Users className="w-3.5 h-3.5 text-[#8C827A] shrink-0" />
                     {selectedEvent.capacity ? (
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-36 bg-[#EBE3D5] rounded-full overflow-hidden">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <div className="h-2 w-28 sm:w-36 bg-[#EBE3D5] rounded-full overflow-hidden shrink-0">
                           <div
-                            className="h-full bg-[#5F7A60] rounded-full transition-all duration-500"
-                            style={{ width: `${capacityPercent}%` }}
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isAtCapacity ? 'bg-[#C8643F]' : rawCapacityPercent >= 80 ? 'bg-[#D97706]' : 'bg-[#5F7A60]'
+                            }`}
+                            style={{ width: `${Math.min(100, rawCapacityPercent)}%` }}
                           />
                         </div>
                         <span className="font-semibold text-[#6A6253] whitespace-nowrap text-xs">
-                          {eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled ({capacityPercent}%)
+                          {eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled ({rawCapacityPercent}%)
                         </span>
+                        {isAtCapacity && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8] shrink-0">
+                            {isOverCapacity ? 'Full / Over Capacity' : 'At Capacity'}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="font-semibold text-[#6A6253] text-xs">Capacity: Open</span>
@@ -1876,8 +1951,8 @@ export default function AdminDashboard() {
                     {Boolean(activeModalEventTitle || selectedEvent?.title) && (
                       <>
                         <span className="text-[#6A6253]">Target Gathering:</span>
-                        <span className="col-span-2 font-bold text-[#C8643F]">
-                          <BrandName /> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
+                        <span className="col-span-2 font-bold text-[#2B271F]">
+                          <BrandName tmClassName="text-[#2B271F]" /> — {splitEventTitle(activeModalEventTitle || selectedEvent?.title).eventName}
                         </span>
                       </>
                     )}
