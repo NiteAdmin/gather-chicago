@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { fetchResponses, saveResponse } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 import { sendSms } from "@/lib/twilio";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
@@ -109,34 +110,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, botTrapped: true });
     }
 
-    // Cloudflare Turnstile Server-Side Token Verification
-    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || "0x4AAAAAAEHoBK71fRuK8Zu2";
-    if (turnstileToken && turnstileSecret) {
-      try {
-        const verifyFormData = new URLSearchParams();
-        verifyFormData.append("secret", turnstileSecret);
-        verifyFormData.append("response", turnstileToken);
-        if (ip) verifyFormData.append("remoteip", ip);
+    // Enforce Cloudflare Turnstile
+    if (!turnstileToken || typeof turnstileToken !== "string" || !turnstileToken.trim()) {
+      console.warn("[CONFIRM API] Missing Turnstile bot verification token.");
+      return NextResponse.json(
+        { error: "Turnstile bot verification token is required" },
+        { status: 400 }
+      );
+    }
 
-        const verifyRes = await fetch(
-          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-          {
-            method: "POST",
-            body: verifyFormData,
-          }
-        );
+    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+    if (!turnstileSecret) {
+      console.error("[CONFIRM API] TURNSTILE_SECRET_KEY is not configured in environment variables.");
+      return NextResponse.json(
+        { error: "Server security configuration error" },
+        { status: 500 }
+      );
+    }
 
-        const verifyOutcome = await verifyRes.json();
-        if (!verifyOutcome.success) {
-          console.warn("Turnstile verification failed:", verifyOutcome);
-          return NextResponse.json(
-            { error: "Turnstile bot verification failed. Please try again." },
-            { status: 403 }
-          );
+    try {
+      const verifyFormData = new URLSearchParams();
+      verifyFormData.append("secret", turnstileSecret);
+      verifyFormData.append("response", turnstileToken.trim());
+      if (ip) verifyFormData.append("remoteip", ip);
+
+      const verifyRes = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          body: verifyFormData,
         }
-      } catch (tsError) {
-        console.error("Turnstile verification API error:", tsError);
+      );
+
+      const verifyOutcome = await verifyRes.json();
+      if (!verifyOutcome.success) {
+        console.warn("[CONFIRM API] Turnstile verification failed:", verifyOutcome);
+        return NextResponse.json(
+          { error: "Turnstile bot verification failed or token is invalid" },
+          { status: 400 }
+        );
       }
+    } catch (tsError: any) {
+      console.error("[CONFIRM API] Turnstile verification API error:", tsError);
+      return NextResponse.json(
+        { error: "Failed to verify Turnstile token" },
+        { status: 400 }
+      );
     }
 
     const trimmedName = typeof name === "string" ? name.trim().slice(0, 100) : "";
@@ -161,67 +180,98 @@ export async function POST(req: Request) {
       dates,
       gatherings,
       customGathering: trimmedCustomGathering,
-      turnstileVerified: Boolean(turnstileToken),
+      turnstileVerified: true,
     });
 
     if (!trimmedName || !trimmedEmail || !trimmedEmail.includes("@")) {
-      console.error('Validation failed: Name or email missing');
+      console.error('[CONFIRM API] Validation failed: Name or email missing');
       return NextResponse.json(
         { error: "Name and a valid email address are required" },
         { status: 400 }
       );
     }
 
-    // Duplicate Check: Log re-submission / update instead of bailing out with 400
-    try {
-      const existingResponses = await withTimeout(fetchResponses(), 3000, []);
-      const isDuplicate = existingResponses.some((r) => {
-        const existingEmail = r.email ? r.email.trim().toLowerCase() : "";
-        const existingPhone = r.phoneNumber ? r.phoneNumber.replace(/\D/g, "") : "";
-
-        const emailMatch = existingEmail && existingEmail === trimmedEmail;
-        const phoneMatch =
-          sanitizedPhone && sanitizedPhone.length > 0 && existingPhone && existingPhone === sanitizedPhone;
-
-        return emailMatch || phoneMatch;
-      });
-
-      if (isDuplicate) {
-        console.log(`[RSVP UPDATE]: Existing RSVP detected for email: ${trimmedEmail}. Saving updated response and triggering confirmation email.`);
-      }
-    } catch (fetchErr) {
-      console.warn("Could not fetch existing responses for duplicate check:", fetchErr);
-    }
-
-    // Save to Firestore with sanitized payload (mapping all undefined values to null or arrays)
-    let savedResponseId: string | null = null;
-    try {
-      savedResponseId = await withTimeout(
-        saveResponse({
-          city: typeof city === "string" ? city.slice(0, 50) : "chicago",
-          cityName: typeof cityName === "string" ? cityName.slice(0, 50) : "Chicago",
-          name: trimmedName,
-          email: trimmedEmail,
-          phoneNumber: sanitizedPhone ? sanitizedPhone : null,
-          smsOptIn: sanitizedSmsOptIn,
-          dates: Array.isArray(dates) ? dates.slice(0, 50).map((d) => String(d).slice(0, 100)) : [],
-          eventIds: Array.isArray(eventIds) ? eventIds.slice(0, 50).map((e) => String(e).slice(0, 100)) : [],
-          gatherings: Array.isArray(gatherings) ? gatherings.slice(0, 50).map((g) => String(g).slice(0, 100)) : [],
-          customGathering: trimmedCustomGathering,
-          customDate: trimmedCustomDate,
-          times: Array.isArray(body.times) ? body.times.slice(0, 20).map((t: any) => String(t).slice(0, 100)) : [],
-          customTime: trimmedCustomTime,
-          dayPref: typeof body.dayPref === "string" ? body.dayPref.trim().slice(0, 50) : null,
-          guests: typeof body.guests === "string" ? body.guests.trim().slice(0, 50) : null,
-          drink: typeof body.drink === "string" ? body.drink.trim().slice(0, 50) : null,
-          notes: trimmedNotes,
-          quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
-        }),
-        4500,
-        null
+    // Verify Firebase Admin SDK initialization
+    if (!adminDb) {
+      console.error("[CONFIRM API] Firebase Admin SDK is not initialized.");
+      return NextResponse.json(
+        { success: false, error: "Server database configuration error" },
+        { status: 500 }
       );
-    } catch (dbErr) {
-      console.error("Firestore server-side save error:", dbErr);
+    }
+    const db = adminDb;
+
+    const persistedCitySlug = (typeof city === "string" ? city.trim().slice(0, 50) : "chicago").toLowerCase();
+    const persistedCityName = typeof cityName === "string" ? cityName.slice(0, 50) : (persistedCitySlug.charAt(0).toUpperCase() + persistedCitySlug.slice(1));
+
+    const surveyDocData = {
+      city: persistedCitySlug,
+      cityName: persistedCityName,
+      name: trimmedName,
+      email: trimmedEmail,
+      phoneNumber: sanitizedPhone ? sanitizedPhone : null,
+      smsOptIn: sanitizedSmsOptIn,
+      dates: Array.isArray(dates) ? dates.slice(0, 50).map((d) => String(d).slice(0, 100)) : [],
+      eventIds: Array.isArray(eventIds) ? eventIds.slice(0, 50).map((e) => String(e).slice(0, 100)) : [],
+      gatherings: Array.isArray(gatherings) ? gatherings.slice(0, 50).map((g) => String(g).slice(0, 100)) : [],
+      customGathering: trimmedCustomGathering,
+      customDate: trimmedCustomDate,
+      times: Array.isArray(body.times) ? body.times.slice(0, 20).map((t: any) => String(t).slice(0, 100)) : [],
+      customTime: trimmedCustomTime,
+      dayPref: typeof body.dayPref === "string" ? body.dayPref.trim().slice(0, 50) : null,
+      guests: typeof body.guests === "string" ? body.guests.trim().slice(0, 50) : null,
+      drink: typeof body.drink === "string" ? body.drink.trim().slice(0, 50) : null,
+      notes: trimmedNotes,
+      quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
+    };
+
+    // Save to Firestore using Firebase Admin SDK (Eliminating silent data loss: fail-closed on error or timeout)
+    let savedResponseId: string;
+    try {
+      const dbSaveTask = async (): Promise<string> => {
+        // Idempotent duplicate check: If a response exists for (email, city), update it
+        const existingQuery = await db
+          .collection("responses")
+          .where("email", "==", trimmedEmail)
+          .where("city", "==", persistedCitySlug)
+          .limit(1)
+          .get();
+
+        if (!existingQuery.empty) {
+          const docDoc = existingQuery.docs[0];
+          await docDoc.ref.update({
+            ...surveyDocData,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          console.log(`[CONFIRM API] Idempotently updated existing response ${docDoc.id} for ${trimmedEmail}`);
+          return docDoc.id;
+        }
+
+        const newDocRef = await db.collection("responses").add({
+          ...surveyDocData,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        console.log(`[CONFIRM API] Persisted new response ${newDocRef.id} for ${trimmedEmail}`);
+        return newDocRef.id;
+      };
+
+      // Strict timeout: Fail closed if Firestore write does not complete within 5000ms
+      const timeoutTask = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore write timed out after 5000ms")), 5000)
+      );
+
+      savedResponseId = await Promise.race([dbSaveTask(), timeoutTask]);
+    } catch (dbErr: any) {
+      console.error("[CONFIRM API] Critical database failure. Failing closed to prevent silent data loss:", dbErr);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to persist survey response to database. Please try again.",
+          details: dbErr?.message || "Database operation rejected or timed out",
+        },
+        { status: 500 }
+      );
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;

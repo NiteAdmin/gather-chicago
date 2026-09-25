@@ -339,6 +339,64 @@ assert(
   `Zero hardcoded admin123 secrets across all administrative API routes (found ${admin123Count})`
 );
 
+// 11. Server-Side Persistence & Security Rules Lockdown (Phase 2B & 2C)
+console.log('\n11. SERVER-SIDE PERSISTENCE & SECURITY RULES LOCKDOWN AUDIT:');
+const gitignoreRaw = fs.readFileSync('.gitignore', 'utf-8');
+const firebaseAdminRaw = fs.readFileSync('lib/firebaseAdmin.ts', 'utf-8');
+const firestoreRulesRaw = fs.readFileSync('firestore.rules', 'utf-8');
+
+// Gitignore hygiene
+assert(
+  gitignoreRaw.includes('*firebase-adminsdk*.json'),
+  '.gitignore contains *firebase-adminsdk*.json'
+);
+assert(
+  gitignoreRaw.includes('.env*.local') || gitignoreRaw.includes('.env*'),
+  '.gitignore ignores .env*.local credentials'
+);
+
+// Firebase Admin SDK Initialization
+assert(
+  firebaseAdminRaw.includes('initializeApp') && firebaseAdminRaw.includes('getFirestore') && firebaseAdminRaw.includes('adminDb'),
+  'lib/firebaseAdmin.ts correctly initializes Firebase Admin SDK and exports adminDb'
+);
+
+// app/api/confirm/route.ts migration & fail-closed behavior
+assert(
+  confirmRouteRaw.includes("import { adminDb } from '@/lib/firebaseAdmin'") || confirmRouteRaw.includes('import { adminDb } from "@/lib/firebaseAdmin"'),
+  'app/api/confirm/route.ts imports adminDb from @/lib/firebaseAdmin'
+);
+assert(
+  !confirmRouteRaw.includes('saveResponse('),
+  'app/api/confirm/route.ts eliminates client SDK saveResponse write calls'
+);
+assert(
+  confirmRouteRaw.includes('if (!adminDb)'),
+  'app/api/confirm/route.ts guards against uninitialized adminDb'
+);
+assert(
+  confirmRouteRaw.includes('process.env.TURNSTILE_SECRET_KEY') && confirmRouteRaw.includes('challenges.cloudflare.com/turnstile/v0/siteverify'),
+  'app/api/confirm/route.ts mandates Turnstile verification via process.env.TURNSTILE_SECRET_KEY'
+);
+assert(
+  confirmRouteRaw.includes('status: 500') && confirmRouteRaw.includes('Critical database failure'),
+  'app/api/confirm/route.ts fails closed with HTTP 500 on database write failure (eliminates silent data loss)'
+);
+
+// Firestore Rules Lockdown
+assert(
+  firestoreRulesRaw.includes('match /responses/{responseId}') && firestoreRulesRaw.includes('allow create: if false;'),
+  'firestore.rules prohibits direct client creates on /responses'
+);
+assert(
+  firestoreRulesRaw.includes('request.auth != null') && firestoreRulesRaw.includes('request.auth.token.email_verified == true'),
+  'firestore.rules restricts reads and updates to verified authenticated users matching email'
+);
+assert(
+  firestoreRulesRaw.includes('match /broadcasts/{broadcastId}') && firestoreRulesRaw.includes('allow write: if false;'),
+  'firestore.rules prevents direct client writes on /broadcasts'
+);
+
 console.log('\n====================================================');
 console.log(`AUDIT COMPLETE: ${passes} PASSED, ${failures} FAILED`);
 console.log('====================================================');
