@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Download,
   Check,
+  Copy,
   Mail,
   Lock,
   MessageSquare,
@@ -134,6 +135,17 @@ export default function AdminDashboard() {
   const [loadingBroadcasts, setLoadingBroadcasts] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [resendingEmail, setResendingEmail] = useState<string | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+  const handleCopyEmail = (email: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(email);
+      setCopiedEmail(email);
+      setTimeout(() => setCopiedEmail((prev) => (prev === email ? null : prev)), 2000);
+    }
+  };
 
   // Contact list search and filter controls state
   const [searchQuery, setSearchQuery] = useState('');
@@ -1021,35 +1033,37 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Quick Pill Switcher for Chapter Gatherings */}
-            <div className="flex flex-wrap items-center gap-2 w-full min-w-0 py-1 text-xs">
-              <span className="text-[11px] font-bold text-[#8C827A] uppercase tracking-wider shrink-0">
-                Quick Toggle:
+            {/* Quick Pill Switcher: Next 3 Upcoming Dates Tab Strip */}
+            <div className="flex items-center gap-2 w-full min-w-0 py-1 text-xs overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 shrink-0">
+                Upcoming:
               </span>
-              {events.map((ev) => {
-                const isSelected = ev.id === selectedEvent.id;
-                const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
-                return (
-                  <button
-                    key={ev.id}
-                    type="button"
-                    onClick={() => setSelectedEventId(ev.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer max-w-full truncate shrink-0 ${
-                      isSelected
-                        ? 'bg-[#C8643F] text-white shadow-xs'
-                        : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
-                    }`}
-                  >
-                    {ev.icon ? `${ev.icon} ` : ''}
-                    {ev.displayDate}: {cleanName.length > 24 ? `${cleanName.slice(0, 24)}…` : cleanName}
-                  </button>
-                );
-              })}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {events.slice(0, 3).map((ev) => {
+                  const isSelected = ev.id === selectedEvent.id;
+                  const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => setSelectedEventId(ev.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                        isSelected
+                          ? 'bg-[#2B271F] text-[#FDFBF7] shadow-xs'
+                          : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
+                      }`}
+                    >
+                      {ev.icon ? `${ev.icon} ` : ''}
+                      {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Main Gathering Info & Actions Row */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
-              <div className="space-y-1">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pt-1">
+              <div className="space-y-1.5 max-w-2xl">
                 <div className="text-[11px] font-bold uppercase tracking-widest text-[#2B271F] flex items-center">
                   <BrandName tmClassName="text-[#2B271F]" />
                 </div>
@@ -1082,18 +1096,6 @@ export default function AdminDashboard() {
                       )}
                     </span>
                   )}
-                  {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
-                    <a
-                      href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#C8643F] hover:underline inline-flex items-center gap-1 font-semibold"
-                    >
-                      <Ticket className="w-3.5 h-3.5" />
-                      <span>{selectedEvent.externalUrlLabel || 'RSVP / Ticket Page'}</span>
-                      <ExternalLink className="w-3 h-3 inline" />
-                    </a>
-                  )}
                 </div>
 
                 {selectedEvent.hostAnnouncement ? (
@@ -1107,59 +1109,76 @@ export default function AdminDashboard() {
                 ) : null}
               </div>
 
-              {/* Dynamic Event Stats, Capacity Gauge & Action Controls */}
-              <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 shrink-0">
-                {/* Status Badges & Capacity Gauge Progress Bar */}
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <div className="bg-[#EDF5EE] border border-[#BACFB2] text-[#3B5730] px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs">
-                    <UserCheck className="w-3.5 h-3.5 text-[#3D6B42]" />
-                    <span>Confirmed RSVPs: {eventAttendance.confirmedCount}</span>
+              {/* Dynamic Event Stats, Elegant Horizontal Attendance Gauge & Grouped Action Toolbar */}
+              <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3.5 shrink-0">
+                {/* Elegant Grouped Horizontal Attendance Gauge */}
+                <div className="bg-white border border-[#EADBCC] rounded-2xl p-3 sm:px-4 sm:py-2.5 flex items-center gap-3 sm:gap-4 shadow-xs w-full sm:w-auto">
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-[#EDF5EE] border border-[#BACFB2]/50 flex items-center justify-center">
+                      <UserCheck className="w-4 h-4 text-[#3D6B42]" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500">Confirmed</span>
+                      <span className="text-base font-bold text-[#2B271F] font-serif-fraunces leading-none">
+                        {eventAttendance.confirmedCount} <span className="text-xs font-sans font-normal text-stone-500">RSVPs</span>
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Inline Capacity Gauge */}
-                  <div className="bg-[#FAF7F2] border border-[#D8CEBC] px-3 py-1.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
-                    <Users className="w-3.5 h-3.5 text-[#8C827A] shrink-0" />
-                    {selectedEvent.capacity ? (
-                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                        <div className="h-2 w-28 sm:w-36 bg-[#EBE3D5] rounded-full overflow-hidden shrink-0">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isAtCapacity ? 'bg-[#C8643F]' : rawCapacityPercent >= 80 ? 'bg-[#D97706]' : 'bg-[#5F7A60]'
-                            }`}
-                            style={{ width: `${Math.min(100, rawCapacityPercent)}%` }}
-                          />
+                  {selectedEvent.capacity ? (
+                    <>
+                      <div className="h-6 w-px bg-[#EADBCC] shrink-0" />
+                      <div className="flex items-center gap-3 min-w-[150px] sm:min-w-[170px]">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center text-[10px] font-mono text-stone-500 mb-1">
+                            <span>{eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled</span>
+                            <span className="font-semibold text-[#2B271F]">{rawCapacityPercent}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-[#EBE3D5] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isAtCapacity ? 'bg-[#C8643F]' : rawCapacityPercent >= 80 ? 'bg-[#D97706]' : 'bg-[#5F7A60]'
+                              }`}
+                              style={{ width: `${Math.min(100, rawCapacityPercent)}%` }}
+                            />
+                          </div>
                         </div>
-                        <span className="font-semibold text-[#6A6253] whitespace-nowrap text-xs">
-                          {eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled ({rawCapacityPercent}%)
-                        </span>
                         {isAtCapacity && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8] shrink-0">
-                            {isOverCapacity ? 'Full / Over Capacity' : 'At Capacity'}
+                            {isOverCapacity ? 'Over' : 'Full'}
                           </span>
                         )}
                       </div>
-                    ) : (
-                      <span className="font-semibold text-[#6A6253] text-xs">Capacity: Open</span>
-                    )}
-                  </div>
-
-                  {broadcasts.length > 0 && (
-                    <div className="bg-[#EDE4D3] border border-[#D8CEBC] text-[#2B271F] px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs">
-                      <Megaphone className="w-3.5 h-3.5 text-[#E07A5F]" />
-                      <span>{broadcasts[0].totalDispatched} Broadcasted</span>
-                    </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="h-6 w-px bg-[#EADBCC] shrink-0" />
+                      <span className="text-xs text-stone-500 font-mono">Open Capacity</span>
+                    </>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2">
+                {/* Grouped Action Buttons: Secondary (RSVP Page, History) & Primary (Update Announcement) */}
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end">
+                  {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
+                    <a
+                      href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] hover:border-[#2B271F] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                    >
+                      <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
+                      <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
+                      <ExternalLink className="w-3 h-3 text-[#8C827A]" />
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowHistoryDrawer(true)}
                     className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
                   >
                     <History className="w-3.5 h-3.5 text-[#8C827A]" />
-                    <span>Broadcast History ({broadcasts.length})</span>
+                    <span>History ({broadcasts.length})</span>
                   </button>
                   <button
                     type="button"
@@ -1197,52 +1216,52 @@ export default function AdminDashboard() {
             {/* KPI GRID - 4 BALANCED METRIC CARDS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Metric 1: Intake Responses */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Intake Responses</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Intake Responses</span>
                   <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{responses.length}</div>
-                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Verified survey submissions</span>
+                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Verified survey submissions</span>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-[#FDF2F0] border border-[#F5C2BA] flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5 text-[#E07A5F]" />
+                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <Users className="w-5 h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 2: Projected Attendance */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Projected Attendance</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Projected Attendance</span>
                   <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{totalEstimatedGuests}</div>
-                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Survey signups + guests</span>
+                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Survey signups + guests</span>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-[#EDF5EE] border border-[#D4E8D6] flex items-center justify-center shrink-0">
-                  <UserCheck className="w-5 h-5 text-[#5F7A60]" />
+                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <UserCheck className="w-5 h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 3: SMS Reach */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">SMS Reach</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">SMS Reach</span>
                   <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{smsReachRate}%</div>
-                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">{smsOptedInResponses.length} opted-in numbers</span>
+                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">{smsOptedInResponses.length} opted-in numbers</span>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-[#EDF5EE] border border-[#D4E8D6] flex items-center justify-center shrink-0">
-                  <MessageSquare className="w-5 h-5 text-[#5F7A60]" />
+                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <MessageSquare className="w-5 h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 4: Leading Day */}
-              <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">Leading Day</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Leading Day</span>
                   <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {topDateOption ? topDateOption.split(',')[0] : '—'}
                   </div>
-                  <span className="text-[11px] text-[#8C827A] mt-0.5 block">Top polled chapter date</span>
+                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Top polled chapter date</span>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-[#FAF0EB] border border-[#EED4C8] flex items-center justify-center shrink-0">
-                  <CalendarDays className="w-5 h-5 text-[#C8643F]" />
+                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <CalendarDays className="w-5 h-5 text-stone-600" />
                 </div>
               </div>
             </div>
@@ -1513,20 +1532,20 @@ export default function AdminDashboard() {
             </div>
 
             {/* Table Scroll Wrapper */}
-            <div className="w-full overflow-x-auto border border-[#EBE3D5] rounded-2xl bg-white shadow-xs">
+            <div className="w-full overflow-x-auto max-h-[700px] border border-[#EBE3D5] rounded-2xl bg-white shadow-xs">
               <table className="min-w-[1200px] w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#FAF7F2] border-b border-[#EBE3D5]">
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">City</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Name</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Email</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Phone</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Guests</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Interests / Gatherings</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Preferred Dates</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Preferred Times</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253]">Notes</th>
-                    <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#6A6253] text-center">Actions</th>
+                <thead className="sticky top-0 z-10 bg-[#F9F6F0]">
+                  <tr className="border-b border-[#EBE3D5]">
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">City</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Name</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Email</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Phone</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Guests</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Interests / Gatherings</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Preferred Dates</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Preferred Times</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0]">Notes</th>
+                    <th className="py-3 px-4 text-xs font-mono font-semibold uppercase tracking-wider text-stone-500 bg-[#F9F6F0] text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EBE3D5]">
@@ -1539,8 +1558,28 @@ export default function AdminDashboard() {
                   ) : (
                     filteredResponses.map((r, idx) => {
                       const rawGatherings = Array.isArray(r.gatherings) ? r.gatherings : [];
+                      const allGaths = [
+                        ...rawGatherings,
+                        ...(r.customGathering ? [`"${r.customGathering}"`] : []),
+                      ];
+                      const visibleGaths = allGaths.slice(0, 2);
+                      const remainingGaths = allGaths.length - 2;
+
                       const rawDates = Array.isArray(r.dates) ? r.dates : [];
+                      const allDates = [
+                        ...rawDates,
+                        ...(r.customDate ? [r.customDate] : []),
+                      ];
+                      const visibleDates = allDates.slice(0, 2);
+                      const remainingDates = allDates.length - 2;
+
                       const rawTimes = Array.isArray(r.times) ? r.times : [];
+                      const allTimes = [
+                        ...rawTimes,
+                        ...(r.customTime ? [r.customTime] : []),
+                      ];
+                      const visibleTimes = allTimes.slice(0, 2);
+                      const remainingTimes = allTimes.length - 2;
 
                       return (
                         <tr key={r.id || idx} className="hover:bg-[#FAF7F2]/60 transition-colors">
@@ -1550,12 +1589,31 @@ export default function AdminDashboard() {
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5] font-bold whitespace-nowrap">
                             {r.name || '—'}
                           </td>
-                          <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
+                          <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5] min-w-[220px] whitespace-nowrap">
                             {r.email ? (
-                              <a href={`mailto:${r.email}`} className="text-[#C8643F] hover:underline break-all">
-                                {r.email}
-                              </a>
-                            ) : '—'}
+                              <div className="flex items-center gap-1.5 group/email">
+                                <a
+                                  href={`mailto:${r.email}`}
+                                  className="text-[#2B271F] hover:text-[#C8643F] hover:underline font-mono text-xs transition-colors"
+                                >
+                                  {r.email}
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyEmail(r.email, e)}
+                                  title={copiedEmail === r.email ? "Copied to clipboard!" : "Copy email address"}
+                                  className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                                >
+                                  {copiedEmail === r.email ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-stone-400 font-mono text-xs">—</span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5] whitespace-nowrap">
                             {r.phoneNumber ? (
@@ -1577,52 +1635,64 @@ export default function AdminDashboard() {
                             {r.guests || '—'}
                           </td>
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
-                            <div className="flex flex-wrap gap-1.5 max-w-xs">
-                              {rawGatherings.map((g, gIdx) => (
+                            <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
+                              {visibleGaths.map((g, gIdx) => (
                                 <span
                                   key={gIdx}
-                                  className="inline-block bg-[#F4EEE2] border border-[#D8CEBC] text-[#2B271F] text-[11px] font-medium px-2 py-0.5 rounded-md"
+                                  className="inline-block bg-[#F4EEE2] border border-[#D8CEBC] text-[#2B271F] text-[11px] font-medium px-2 py-0.5 rounded-md truncate max-w-[130px]"
+                                  title={g}
                                 >
                                   {g}
                                 </span>
                               ))}
-                              {r.customGathering && (
-                                <span className="inline-flex items-center gap-1 bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F] text-[11px] font-medium px-2 py-0.5 rounded-md">
-                                  <PenLine className="w-2.5 h-2.5" /> &ldquo;{r.customGathering}&rdquo;
+                              {remainingGaths > 0 && (
+                                <span
+                                  className="inline-block bg-[#EADBCC]/60 border border-[#D8CEBC] text-[#6A6253] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
+                                  title={allGaths.slice(2).join(', ')}
+                                >
+                                  +{remainingGaths} more
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
-                            <div className="flex flex-wrap gap-1.5">
-                              {rawDates.map((d, dIdx) => (
+                            <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
+                              {visibleDates.map((d, dIdx) => (
                                 <span
                                   key={dIdx}
-                                  className="inline-block bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] text-[11px] font-medium px-2 py-0.5 rounded-md"
+                                  className="inline-block bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] text-[11px] font-medium px-2 py-0.5 rounded-md truncate max-w-[130px]"
+                                  title={d}
                                 >
                                   {d}
                                 </span>
                               ))}
-                              {r.customDate && (
-                                <span className="inline-flex items-center gap-1 bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F] text-[11px] font-medium px-2 py-0.5 rounded-md">
-                                  <PenLine className="w-2.5 h-2.5" /> {r.customDate}
+                              {remainingDates > 0 && (
+                                <span
+                                  className="inline-block bg-[#D4E8D6]/70 border border-[#BACFB2] text-[#3D6B42] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
+                                  title={allDates.slice(2).join(', ')}
+                                >
+                                  +{remainingDates} more
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
-                            <div className="flex flex-wrap gap-1.5">
-                              {rawTimes.map((t, tIdx) => (
+                            <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
+                              {visibleTimes.map((t, tIdx) => (
                                 <span
                                   key={tIdx}
-                                  className="inline-block bg-[#F0F4F8] border border-[#C8D6E5] text-[#2B4C6F] text-[11px] font-medium px-2 py-0.5 rounded-md"
+                                  className="inline-block bg-[#F0F4F8] border border-[#C8D6E5] text-[#2B4C6F] text-[11px] font-medium px-2 py-0.5 rounded-md truncate max-w-[130px]"
+                                  title={t}
                                 >
                                   {t}
                                 </span>
                               ))}
-                              {r.customTime && (
-                                <span className="inline-flex items-center gap-1 bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F] text-[11px] font-medium px-2 py-0.5 rounded-md">
-                                  <PenLine className="w-2.5 h-2.5" /> {r.customTime}
+                              {remainingTimes > 0 && (
+                                <span
+                                  className="inline-block bg-[#D3E0EE]/70 border border-[#C8D6E5] text-[#2B4C6F] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
+                                  title={allTimes.slice(2).join(', ')}
+                                >
+                                  +{remainingTimes} more
                                 </span>
                               )}
                             </div>
@@ -1643,17 +1713,17 @@ export default function AdminDashboard() {
                                 onClick={() => handleResendInvite(r)}
                                 disabled={resendingEmail === r.email || broadcasts.length === 0}
                                 title={broadcasts.length === 0 ? 'Announce winning date first' : `Email event details to ${r.email}`}
-                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#C8643F] text-[#C8643F] bg-white hover:bg-[#FAF0EB] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs whitespace-nowrap"
+                                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg text-stone-600 hover:text-[#2B271F] hover:bg-[#FAF7F2] border border-transparent hover:border-[#D8CEBC] transition-all disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-transparent disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shadow-2xs"
                               >
                                 {resendingEmail === r.email ? (
                                   <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    <span>Sending...</span>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C8643F]" />
+                                    <span className="text-stone-500 font-mono text-[11px]">Sending…</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Mail className="w-3.5 h-3.5 mr-1" />
-                                    <span>Email Details</span>
+                                    <Mail className="w-3.5 h-3.5 text-stone-400 group-hover:text-[#2B271F]" />
+                                    <span>Send Details</span>
                                   </>
                                 )}
                               </button>
