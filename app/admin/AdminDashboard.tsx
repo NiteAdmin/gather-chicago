@@ -147,6 +147,24 @@ export default function AdminDashboard() {
     }
   };
 
+  // Executive Dashboard & Event-Day Mode State
+  const [showChapterMenu, setShowChapterMenu] = useState(false);
+  const [copiedVenue, setCopiedVenue] = useState(false);
+  const [presetFilter, setPresetFilter] = useState<'all' | 'confirmed' | 'sms' | 'notes'>('all');
+
+  const handleCopyVenue = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const addressToCopy = selectedEvent.venueAddress || '2528 W Armitage Ave, Chicago, IL';
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(addressToCopy);
+      setCopiedVenue(true);
+      setTimeout(() => setCopiedVenue(false), 2000);
+    }
+  };
+
   // Contact list search and filter controls state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAttendance, setFilterAttendance] = useState<'all' | 'attending' | 'survey_only'>('all');
@@ -375,7 +393,65 @@ export default function AdminDashboard() {
   const isAtCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount >= eventCapacity);
   const isOverCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount > eventCapacity);
 
+  const CHAPTERS = [
+    {
+      id: 'chicago',
+      name: 'Chicago Chapter',
+      subtitle: `Event Tomorrow · ${eventAttendance.confirmedCount > 0 ? eventAttendance.confirmedCount : 13} RSVPs`,
+      status: 'live',
+      badgeColor: 'bg-emerald-500',
+    },
+    {
+      id: 'austin',
+      name: 'Austin',
+      subtitle: 'Polling Open',
+      status: 'polling',
+      badgeColor: 'bg-amber-500',
+    },
+    {
+      id: 'new-york',
+      name: 'New York',
+      subtitle: 'Coming Soon',
+      status: 'soon',
+      badgeColor: 'bg-stone-300',
+    },
+    {
+      id: 'san-francisco',
+      name: 'San Francisco',
+      subtitle: 'Coming Soon',
+      status: 'soon',
+      badgeColor: 'bg-stone-300',
+    },
+    {
+      id: 'all',
+      name: 'All Chapters',
+      subtitle: `Global roll-up (${responses.length} responses)`,
+      status: 'all',
+      badgeColor: 'bg-[#C8643F]',
+    },
+  ];
+
+  const confirmedForTomorrowCount = responses.filter((r) =>
+    isContactAttendingEvent(r, selectedEvent, users)
+  ).length;
+  const withNotesCount = responses.filter((r) => Boolean((r.notes && r.notes.trim()) || (r.drink && r.drink.trim()))).length;
+
   const filteredResponses = responses.filter((r) => {
+    // -1. Segmented Preset Filter
+    if (presetFilter === 'confirmed') {
+      if (!isContactAttendingEvent(r, selectedEvent, users)) {
+        return false;
+      }
+    } else if (presetFilter === 'sms') {
+      if (!r.smsOptIn || !r.phoneNumber) {
+        return false;
+      }
+    } else if (presetFilter === 'notes') {
+      if (!r.notes && !r.drink) {
+        return false;
+      }
+    }
+
     // 0. Event Attendance filter
     if (filterAttendance === 'attending') {
       if (!isContactAttendingEvent(r, selectedEvent, users)) {
@@ -909,10 +985,16 @@ export default function AdminDashboard() {
                   EXECUTIVE HOST ADMIN
                 </span>
                 <span className="text-[#D8CEBC]">·</span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#FAF7F2] border border-[#EBE3D5] text-[#2B271F]">
+                <button
+                  type="button"
+                  onClick={() => setShowChapterMenu((prev) => !prev)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#FAF7F2] border border-[#EBE3D5] text-[#2B271F] hover:border-[#C8643F] transition-colors cursor-pointer"
+                  title="Switch chapter market"
+                >
                   <MapPin className="w-3.5 h-3.5 text-[#E07A5F]" />
                   <span>{formatCityName(selectedCity)} Chapter</span>
-                </span>
+                  <ChevronDown className="w-3 h-3 text-stone-400" />
+                </button>
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6]">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -927,22 +1009,98 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full md:w-auto min-w-0">
-              {/* City Switcher */}
+              {/* Executive Multi-Market Selector */}
               <div className="relative flex-1 sm:flex-none min-w-0">
-                <select
-                  value={selectedCity}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full sm:w-auto min-w-0 bg-[#FAF7F2] border border-[#EBE3D5] text-[#2B271F] text-xs font-semibold rounded-xl px-3.5 py-2.5 pr-8 focus:outline-none focus:border-[#C8643F] cursor-pointer appearance-none shadow-xs"
+                <button
+                  type="button"
+                  onClick={() => setShowChapterMenu((prev) => !prev)}
+                  className="w-full sm:w-auto min-w-[220px] bg-[#FAF7F2] border border-[#EADBCC] text-stone-800 text-xs font-semibold rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-sm hover:border-[#C8643F] transition-all cursor-pointer"
+                  title="Switch chapter market"
                 >
-                  <option value="all">All Chapter Cities</option>
-                  <option value="chicago">Chicago Chapter</option>
-                  <option value="san-francisco">San Francisco</option>
-                  <option value="new-york">New York</option>
-                  <option value="austin">Austin</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#8C827A]">
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                </div>
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        selectedCity === 'chicago'
+                          ? 'bg-emerald-500 animate-pulse'
+                          : selectedCity === 'austin'
+                          ? 'bg-amber-500'
+                          : selectedCity === 'all'
+                          ? 'bg-[#C8643F]'
+                          : 'bg-stone-400'
+                      }`}
+                    />
+                    <span className="truncate">
+                      {selectedCity === 'all'
+                        ? 'All Chapters'
+                        : `${formatCityName(selectedCity)} Chapter`}
+                    </span>
+                    <span className="text-[10px] text-stone-500 font-normal hidden lg:inline">
+                      {selectedCity === 'chicago'
+                        ? `(Event Tomorrow)`
+                        : selectedCity === 'austin'
+                        ? `(Polling Open)`
+                        : selectedCity === 'all'
+                        ? `(Global)`
+                        : `(Coming Soon)`}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-stone-500 shrink-0 transition-transform ${
+                      showChapterMenu ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {showChapterMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowChapterMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-80 bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-40 space-y-1">
+                      <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
+                        <span>Executive Multi-Market Switcher</span>
+                        <span>5 Markets</span>
+                      </div>
+                      {CHAPTERS.map((ch) => {
+                        const isSelected = selectedCity === ch.id;
+                        return (
+                          <button
+                            key={ch.id}
+                            type="button"
+                            onClick={() => {
+                              handleCityChange(ch.id);
+                              setShowChapterMenu(false);
+                            }}
+                            className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                              isSelected
+                                ? 'bg-white shadow-xs border border-[#EADBCC]'
+                                : 'hover:bg-white/70'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ch.badgeColor}`} />
+                                <span className="text-xs font-bold text-stone-800">{ch.name}</span>
+                                {ch.id === 'chicago' && (
+                                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6]">
+                                    Live Event
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-stone-500 mt-0.5 truncate pl-3">
+                                {ch.subtitle}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-4 h-4 text-[#C8643F] shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Quick Refresh */}
@@ -964,6 +1122,142 @@ export default function AdminDashboard() {
               >
                 <Download className="w-3.5 h-3.5 text-[#8C827A]" />
                 <span>Export CSV</span>
+              </button>
+            </div>
+          </div>
+
+          {/* EVENT-DAY "HOST MISSION CONTROL" BAR */}
+          <div className="bg-[#2B271F] text-white rounded-2xl p-5 sm:p-6 shadow-md border border-[#3E3832] w-full min-w-0 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
+                  <Sparkles className="w-3 h-3 text-white" />
+                  HOST MISSION CONTROL
+                </span>
+                <span className="text-white/30 hidden sm:inline">·</span>
+                <span className="text-xs text-stone-300 font-medium">
+                  Event-Day Cockpit
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Event Mode
+                </span>
+              </div>
+              <div className="text-xs text-stone-400 font-mono">
+                {selectedEvent.displayDate || 'Sat, Sep 26'} · {selectedEvent.timeWindow || '10:30 AM CDT'}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+              {/* Event Callout (7 cols) */}
+              <div className="lg:col-span-7 space-y-2 min-w-0">
+                <div className="text-xs font-mono uppercase tracking-wider text-stone-400">
+                  Active Event Focus
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-white tracking-tight leading-snug break-words">
+                  {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
+                </h2>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-300 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+                    <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
+                    {selectedEvent.displayDate || 'Tomorrow'}, {selectedEvent.timeWindow || '10:30 AM CDT'}
+                  </span>
+                  <span className="text-white/30">·</span>
+                  <span className="inline-flex items-center gap-1.5 text-stone-300">
+                    <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                    <span>
+                      {selectedEvent.venueName || 'Moksha Yoga Center'}
+                      {selectedEvent.venueAddress ? ` (${selectedEvent.venueAddress})` : ''}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Headcount Status Indicator (5 cols) */}
+              <div className="lg:col-span-5 bg-white/5 border border-white/10 rounded-xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-stone-300">
+                      Live Headcount
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold font-mono text-white">
+                    {eventAttendance.confirmedCount} / {eventCapacity || 30} Confirmed
+                  </span>
+                </div>
+                <div className="w-full bg-stone-700/60 h-2.5 rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="bg-emerald-400 h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(
+                          6,
+                          Math.round(
+                            (eventAttendance.confirmedCount / (eventCapacity || 30)) * 100
+                          )
+                        )
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 pt-0.5">
+                  <span>
+                    {spotsLeft !== null
+                      ? `${spotsLeft} spots remaining`
+                      : 'Capacity tracked'}
+                  </span>
+                  <span className="text-emerald-300 font-semibold">
+                    {Math.round((eventAttendance.confirmedCount / (eventCapacity || 30)) * 100)}% Full
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* One-Tap Quick Actions */}
+            <div className="pt-3 border-t border-white/10 flex items-center gap-2 sm:gap-3 flex-wrap">
+              {/* Copy Venue Address */}
+              <button
+                type="button"
+                onClick={handleCopyVenue}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer shadow-xs"
+                title="Copy venue address to clipboard"
+              >
+                {copiedVenue ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300 font-mono">Address Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-stone-300" />
+                    <span>Copy Venue Address</span>
+                  </>
+                )}
+              </button>
+
+              {/* View Public RSVP Page */}
+              <a
+                href={`/${selectedEvent.city || 'chicago'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer shadow-xs"
+                title="Open public RSVP page in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-stone-300" />
+                <span>View Public RSVP Page</span>
+              </a>
+
+              {/* Update Announcement Modal */}
+              <button
+                type="button"
+                onClick={() => handleOpenAdminModal(selectedEvent)}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#C8643F] hover:bg-[#b05230] text-white transition-all cursor-pointer shadow-xs sm:ml-auto"
+                title="Open announcement modal for this event"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                <span>Update Announcement</span>
               </button>
             </div>
           </div>
@@ -1418,6 +1712,97 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Segmented Filter Preset Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              <button
+                type="button"
+                onClick={() => setPresetFilter('all')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  presetFilter === 'all'
+                    ? 'bg-[#2B271F] text-white shadow-xs'
+                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] border border-[#EBE3D5]'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>All Responses</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    presetFilter === 'all'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#F3EFEB] text-[#6A6253]'
+                  }`}
+                >
+                  {responses.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPresetFilter('confirmed')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  presetFilter === 'confirmed'
+                    ? 'bg-[#2B271F] text-white shadow-xs'
+                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] border border-[#EBE3D5]'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Confirmed for Tomorrow</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    presetFilter === 'confirmed'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#EDF5EE] text-[#3D6B42]'
+                  }`}
+                >
+                  {confirmedForTomorrowCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPresetFilter('sms')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  presetFilter === 'sms'
+                    ? 'bg-[#2B271F] text-white shadow-xs'
+                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] border border-[#EBE3D5]'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>SMS Opt-Ins</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    presetFilter === 'sms'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#FAF0EB] text-[#C8643F]'
+                  }`}
+                >
+                  {smsOptedInResponses.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPresetFilter('notes')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  presetFilter === 'notes'
+                    ? 'bg-[#2B271F] text-white shadow-xs'
+                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] border border-[#EBE3D5]'
+                }`}
+              >
+                <PenLine className="w-3.5 h-3.5 text-blue-500" />
+                <span>With Dietary / Notes</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    presetFilter === 'notes'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#F3EFEB] text-[#6A6253]'
+                  }`}
+                >
+                  {withNotesCount}
+                </span>
+              </button>
+            </div>
+
             {/* Filter Toolbar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 bg-[#F5EFE6]/60 border border-[#EBE3D5] rounded-xl">
               {/* Search Bar */}
@@ -1521,8 +1906,9 @@ export default function AdminDashboard() {
                     setFilterGathering('all');
                     setFilterTime('all');
                     setFilterDate('all');
+                    setPresetFilter('all');
                   }}
-                  disabled={!searchQuery && filterAttendance === 'all' && filterGathering === 'all' && filterTime === 'all' && filterDate === 'all'}
+                  disabled={!searchQuery && filterAttendance === 'all' && filterGathering === 'all' && filterTime === 'all' && filterDate === 'all' && presetFilter === 'all'}
                   className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-white border-[#D8CEBC] text-[#6A6253] hover:border-[#C8643F] hover:text-[#C8643F]"
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1" />
@@ -1618,21 +2004,44 @@ export default function AdminDashboard() {
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5] whitespace-nowrap">
                             {r.phoneNumber ? (
                               <div className="space-y-1">
-                                <div className="font-mono text-xs">{formatPhoneNumber(r.phoneNumber)}</div>
+                                <div className="font-mono text-xs font-semibold text-[#2B271F]">{formatPhoneNumber(r.phoneNumber)}</div>
                                 {r.smsOptIn ? (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6] font-medium">
-                                    <Check className="w-3 h-3" /> SMS Opt-In
+                                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[#E8EFE9] text-[#2D5A38] border border-[#C8DEC9] font-semibold">
+                                    <Check className="w-3 h-3 text-[#2D5A38]" /> SMS Opt-In
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full bg-[#F3EFEB] text-[#8C827A] font-medium">
+                                  <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-[#F3EFEB] text-[#8C827A] font-medium">
                                     No SMS
                                   </span>
                                 )}
                               </div>
-                            ) : '—'}
+                            ) : (
+                              <span className="text-stone-400 font-mono text-xs">—</span>
+                            )}
                           </td>
-                          <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
-                            {r.guests || '—'}
+                          <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5] whitespace-nowrap">
+                            {(() => {
+                              const rawG = r.guests;
+                              if (!rawG || rawG === '1' || rawG.toLowerCase() === 'just me') {
+                                return (
+                                  <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md bg-[#FAF7F2] text-[#6A6253] border border-[#EBE3D5]">
+                                    Just Me
+                                  </span>
+                                );
+                              }
+                              let badgeText = rawG;
+                              if (rawG === '2') badgeText = '+1 Guest';
+                              else if (rawG === '3') badgeText = '+2 Guests';
+                              else if (rawG === '4+') badgeText = '+3 Guests';
+                              else if (!badgeText.startsWith('+')) badgeText = `+${badgeText} Guests`;
+
+                              return (
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-md bg-[#E8EFE9] text-[#2D5A38] border border-[#D4E8D6]">
+                                  <Users className="w-3 h-3" />
+                                  {badgeText}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-3.5 px-4 text-sm text-[#2B271F] border-b border-[#EBE3D5]">
                             <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
