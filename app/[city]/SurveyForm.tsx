@@ -96,16 +96,6 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     venueName: "Little Lark",
     eventId: "chi-2026-10-05-little-lark-pizza",
   },
-  6: {
-    day: 6,
-    dateStr: "Tue, Oct 6",
-    label: "Tue, Oct 6: Taco Tuesdays",
-    chip: "Taco Tuesdays",
-    category: "food",
-    timeWindow: "6:00 PM – 8:00 PM CDT",
-    venueName: "Local Taqueria",
-    eventId: "chi-2026-10-06-taco-tuesdays",
-  },
   8: {
     day: 8,
     dateStr: "Thu, Oct 8",
@@ -125,16 +115,6 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     timeWindow: "5:00 PM – 10:00 PM CDT",
     venueName: "Jonquil Park",
     eventId: "chi-2026-10-09-wine-fest",
-  },
-  13: {
-    day: 13,
-    dateStr: "Tue, Oct 13",
-    label: "Tue, Oct 13: Taco Tuesdays",
-    chip: "Taco Tuesdays",
-    category: "food",
-    timeWindow: "6:00 PM – 8:00 PM CDT",
-    venueName: "Local Taqueria",
-    eventId: "chi-2026-10-13-taco-tuesdays",
   },
   16: {
     day: 16,
@@ -171,16 +151,6 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
       eventId: "chi-2026-10-17-goebberts-farm",
     },
   ],
-  20: {
-    day: 20,
-    dateStr: "Tue, Oct 20",
-    label: "Tue, Oct 20: Taco Tuesdays",
-    chip: "Taco Tuesdays",
-    category: "food",
-    timeWindow: "6:00 PM – 8:00 PM CDT",
-    venueName: "Local Taqueria",
-    eventId: "chi-2026-10-20-taco-tuesdays",
-  },
   23: {
     day: 23,
     dateStr: "Fri, Oct 23",
@@ -200,16 +170,6 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     timeWindow: "10:00 AM – 6:00 PM CDT",
     venueName: "Brookfield Zoo Chicago",
     eventId: "chi-2026-10-25-boo-zoo",
-  },
-  27: {
-    day: 27,
-    dateStr: "Tue, Oct 27",
-    label: "Tue, Oct 27: Taco Tuesdays",
-    chip: "Taco Tuesdays",
-    category: "food",
-    timeWindow: "6:00 PM – 8:00 PM CDT",
-    venueName: "Local Taqueria",
-    eventId: "chi-2026-10-27-taco-tuesdays",
   },
 };
 
