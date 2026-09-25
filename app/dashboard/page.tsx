@@ -601,7 +601,7 @@ export default function DashboardPage() {
           >
             <BrandName
               className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight"
-              tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"
+              tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"
             />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES
@@ -1202,7 +1202,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <p className="text-xs sm:text-sm font-bold text-[#2B271F] pt-1">
-            <BrandName tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super" />
+            <BrandName tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super" />
           </p>
           <p className="text-[11px] sm:text-xs text-[#6A6253]">
             Consensus-driven community gatherings <span className="mx-1 text-[#A89F91]">&middot;</span> A portion of every ticket supports local community initiatives.
