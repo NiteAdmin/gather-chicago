@@ -35,7 +35,14 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // 1. Admin Authentication Check
-    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE || "admin123";
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
+    if (!expectedSecret) {
+      console.error("[SECURITY] Admin secret is not configured in environment variables.");
+      return NextResponse.json(
+        { success: false, error: "Server authentication misconfiguration" },
+        { status: 500 }
+      );
+    }
     const authHeader = req.headers.get("authorization")?.replace("Bearer ", "");
     const headerSecret = req.headers.get("x-admin-secret");
     const activeSecret = adminSecret || authHeader || headerSecret;

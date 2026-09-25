@@ -317,6 +317,28 @@ assert(
   'SurveyForm.tsx mobile month pager buttons meet 44x44px touch target standard'
 );
 
+// 10. Security Audit: Zero hardcoded admin secrets
+console.log('\n10. SECURITY AUDIT: ZERO HARDCODED ADMIN SECRETS:');
+const adminRouteFiles = [
+  'app/api/admin/announce-date/route.ts',
+  'app/api/admin/broadcast-sms/route.ts',
+  'app/api/admin/broadcasts/route.ts',
+  'app/api/admin/october-campaign/route.ts',
+  'app/api/admin/resend-invite/route.ts',
+  'app/api/broadcast/route.ts',
+];
+let admin123Count = 0;
+for (const f of adminRouteFiles) {
+  if (fs.existsSync(f)) {
+    const raw = fs.readFileSync(f, 'utf-8');
+    if (raw.includes('admin123')) admin123Count++;
+  }
+}
+assert(
+  admin123Count === 0,
+  `Zero hardcoded admin123 secrets across all administrative API routes (found ${admin123Count})`
+);
+
 console.log('\n====================================================');
 console.log(`AUDIT COMPLETE: ${passes} PASSED, ${failures} FAILED`);
 console.log('====================================================');

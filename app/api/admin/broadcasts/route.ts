@@ -8,7 +8,14 @@ export async function GET(req: Request) {
     const querySecret = searchParams.get('secret');
     const headerSecret = req.headers.get('x-admin-secret');
 
-    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE || 'admin123';
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
+    if (!expectedSecret) {
+      console.error("[SECURITY] Admin secret is not configured in environment variables.");
+      return NextResponse.json(
+        { success: false, error: "Server authentication misconfiguration" },
+        { status: 500 }
+      );
+    }
     const activeSecret = headerSecret || querySecret;
 
     if (!activeSecret || activeSecret !== expectedSecret) {
@@ -47,7 +54,14 @@ export async function POST(req: Request) {
       totalDispatched = 0,
     } = body;
 
-    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE || 'admin123';
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
+    if (!expectedSecret) {
+      console.error("[SECURITY] Admin secret is not configured in environment variables.");
+      return NextResponse.json(
+        { success: false, error: "Server authentication misconfiguration" },
+        { status: 500 }
+      );
+    }
     const headerSecret = req.headers.get('x-admin-secret');
     const activeSecret = adminSecret || headerSecret;
 

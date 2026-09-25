@@ -8,7 +8,14 @@ export async function POST(req: Request) {
     const body: BroadcastPayload = await req.json();
     const { winningDate, eventDetails, eventLink, adminSecret, city } = body;
 
-    const expectedSecret = process.env.ADMIN_SECRET || "admin123";
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
+    if (!expectedSecret) {
+      console.error("[SECURITY] Admin secret is not configured in environment variables.");
+      return NextResponse.json(
+        { success: false, error: "Server authentication misconfiguration" },
+        { status: 500 }
+      );
+    }
     if (!adminSecret || adminSecret !== expectedSecret) {
       return NextResponse.json(
         { error: "Unauthorized: Incorrect admin passcode" },
