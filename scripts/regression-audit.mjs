@@ -126,8 +126,10 @@ assert(
   'BrandName supports intelligent custom size, alignment, and color overrides'
 );
 assert(
-  navbarRaw.includes('tmClassName="text-[#2B271F]"'),
-  'components/Navbar.tsx uses proportional brand text TM'
+  navbarRaw.includes('text-[#2B271F]') &&
+  (navbarRaw.includes('text-xs sm:text-sm') || navbarRaw.includes('text-[0.8em]')) &&
+  (navbarRaw.includes('ml-1') || navbarRaw.includes('ml-[3px]')),
+  'components/Navbar.tsx uses legible, spaced brand text TM in neutral dark tone'
 );
 assert(
   footerRaw.includes('tmClassName="text-[#2B271F]"') || footerRaw.includes('text-[#2C2420]'),
