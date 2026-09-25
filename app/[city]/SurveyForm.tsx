@@ -30,6 +30,8 @@ import {
   ALL_COMMUNITY_EVENTS,
   CommunityEvent,
   splitEventTitle,
+  getAudienceBadge,
+  getAudienceIcon,
 } from '@/lib/eventsConfig';
 import {
   parseIcsBusyIntervals,
@@ -120,7 +122,7 @@ export const VERIFIED_OCTOBER_DATES: Record<number, VerifiedOctoberDate | Verifi
     chip: "Soul & Smoke",
     category: "food",
     timeWindow: "6:00 PM – 8:30 PM CDT",
-    venueName: "Soul & Smoke",
+    venueName: "Location TBD",
     eventId: "chi-2026-10-16-soul-smoke",
   },
   17: [
@@ -1511,6 +1513,7 @@ export default function SurveyForm({
                                     const sTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
                                     const chipText = ev.chipLabel || sTitle;
                                     const evTooltip = `${chipText} • ${ev.timeWindow || ""} • ${ev.venueName || ""}`;
+                                    const audIcon = getAudienceIcon(ev.audience, ev.audienceLabel);
 
                                     return (
                                       <span
@@ -1522,14 +1525,20 @@ export default function SurveyForm({
                                           const idx = eventsForDay.findIndex((item) => item.id === ev.id);
                                           setActiveModalEventIndex(idx >= 0 ? idx : 0);
                                         }}
-                                        className={`block text-[8px] sm:text-[9.5px] font-bold truncate rounded px-0.5 sm:px-1 py-0.5 leading-tight transition-all cursor-pointer ${
+                                        className={`flex items-center gap-0.5 text-[8px] sm:text-[9.5px] font-bold rounded px-0.5 sm:px-1 py-0.5 leading-tight transition-all cursor-pointer min-w-0 ${
                                           isEvSelected
                                             ? "bg-[#C8643F] text-white shadow-xs"
                                             : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
                                         }`}
                                         title={evTooltip}
                                       >
-                                        {isEvSelected ? `✓ ${chipText}` : chipText}
+                                        {isEvSelected && <span className="shrink-0 text-[8px] leading-none">✓</span>}
+                                        {audIcon && (
+                                          <span className="shrink-0 text-[7px] sm:text-[8.5px] leading-none" aria-hidden="true">
+                                            {audIcon}
+                                          </span>
+                                        )}
+                                        <span className="truncate min-w-0">{chipText}</span>
                                       </span>
                                     );
                                   })}
@@ -1976,9 +1985,9 @@ export default function SurveyForm({
                 <span className="text-[11px] font-semibold text-[#6A6253] bg-[#EDE4D3] px-2.5 py-0.5 rounded-full">
                   {curEvent.category.toUpperCase()}
                 </span>
-                {curEvent.audienceLabel && (
+                {(curEvent.audienceLabel || curEvent.audience) && (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
-                    {curEvent.audienceLabel}
+                    {getAudienceBadge(curEvent.audience, curEvent.audienceLabel)}
                   </span>
                 )}
               </div>

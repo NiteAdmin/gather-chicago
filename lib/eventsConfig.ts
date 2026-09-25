@@ -5,7 +5,31 @@ import { splitEventTitle, SplitTitleResult } from "./formatters";
 export { splitEventTitle };
 export type { SplitTitleResult };
 
-export type EventAudience = 'family' | 'adults-21' | 'all-adults';
+export type EventAudience = 'family' | 'adults' | 'all-adults' | '21+' | 'adults-21';
+
+export function getAudienceBadge(audience?: EventAudience | string, label?: string): string | undefined {
+  if (label) {
+    return label.replace(/\bAll Adults\b/gi, "Adults").replace(/\bALL ADULTS\b/gi, "Adults");
+  }
+  if (!audience) return undefined;
+  if (audience === 'family') return '👨‍👩‍👧 Family Friendly';
+  if (audience === 'adults' || audience === 'all-adults') return '👥 Adults';
+  if (audience === '21+' || audience === 'adults-21') return '🍸 Adults (21+)';
+  return undefined;
+}
+
+export function getAudienceIcon(audience?: EventAudience | string, label?: string): string | null {
+  if (audience === 'family' || label?.toLowerCase().includes('family')) {
+    return '👨‍👩‍👧';
+  }
+  if (audience === '21+' || audience === 'adults-21' || label?.includes('21+')) {
+    return '🍸';
+  }
+  if (audience === 'adults' || audience === 'all-adults' || label?.toLowerCase().includes('adult')) {
+    return '👥';
+  }
+  return null;
+}
 
 export interface CommunityEvent {
   id: string;
@@ -19,7 +43,7 @@ export interface CommunityEvent {
   category: 'food' | 'outdoor' | 'social' | 'wellness' | 'culture' | 'comedy' | 'stand-up';
   categoryLabel?: string;
   audience?: EventAudience;
-  audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '🍸 Adults (21+)', '👥 All Adults'
+  audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '🍸 Adults (21+)', '👥 Adults'
   icon: string; // fallback icon/emoji e.g. '🍕'
   iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
   venueName: string;
@@ -45,8 +69,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "10:30 AM (10:00 AM – 12:00 PM CDT)",
     category: "wellness",
     categoryLabel: "WELLNESS & MOVEMENT",
-    audience: "all-adults",
-    audienceLabel: "👥 All Adults",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🧘",
     iconName: "Sparkles",
     venueName: "Moksha Yoga Center",
@@ -93,8 +117,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 8:30 PM CDT",
     category: "food",
     categoryLabel: "FOOD & CASUAL GATHERING",
-    audience: "adults-21",
-    audienceLabel: "🍸 Adults (21+)",
+    audience: "family",
+    audienceLabel: "👨‍👩‍👧 Family Friendly",
     icon: "🍕",
     iconName: "Pizza",
     venueName: "Little Lark",
@@ -158,7 +182,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     id: "chi-2026-10-16-soul-smoke",
     city: "chicago",
     brandPrefix: "Actually, Let's™",
-    title: "Soul & Smoke — Avondale at Rockwell on the River",
+    title: "Soul & Smoke BBQ",
     chipLabel: "Soul & Smoke BBQ",
     date: "2026-10-16",
     displayDate: "Fri, Oct 16",
@@ -169,9 +193,9 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     audienceLabel: "🍸 Adults (21+)",
     icon: "🔥",
     iconName: "Flame",
-    venueName: "Soul & Smoke",
-    venueAddress: "3057 N Rockwell St, Chicago, IL 60618",
-    description: "Award-winning craft barbecue in Avondale at Rockwell on the River. Slow-smoked brisket, savory pulled pork, rich mac and cheese, and casual riverside picnic vibes.",
+    venueName: "Location TBD",
+    venueAddress: "Chicago, IL (Announced prior to event)",
+    description: "Award-winning craft barbecue. Slow-smoked brisket, savory pulled pork, rich mac and cheese, and casual community picnic vibes.",
     externalUrl: "https://soulandsmoke.com",
     externalUrlLabel: "Soul & Smoke",
     partifulUrl: "https://soulandsmoke.com",
@@ -310,12 +334,12 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "3:00 PM – 6:00 PM CST",
     category: "social",
     categoryLabel: "COMMUNITY SOCIAL & GAMES",
-    audience: "all-adults",
-    audienceLabel: "👥 All Adults",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🎲",
     iconName: "Sparkles",
-    venueName: "Bonus Round Cafe & Game Lounge",
-    venueAddress: "3230 N Clark St, Chicago, IL 60657",
+    venueName: "Location TBD",
+    venueAddress: "Chicago, IL (Announced prior to event)",
     description: "Afternoon meetup featuring tabletop board games, local craft brews, and warm social chatter. Drop in solo or bring friends—open tables for all experience levels.",
     externalUrl: "https://partiful.com/e/actually-lets-board-games-brews",
     partifulUrl: "https://partiful.com/e/actually-lets-board-games-brews",
@@ -333,13 +357,13 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "9:30 AM – 11:30 AM CST",
     category: "outdoor",
     categoryLabel: "OUTDOOR & ACTIVE",
-    audience: "all-adults",
-    audienceLabel: "👥 All Adults",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "👟",
     iconName: "Footprints",
-    venueName: "The 606 (Bloomingdale Trail) & Ipsento Coffee",
-    venueAddress: "1813 N Milwaukee Ave, Chicago, IL 60647",
-    description: "Crisp autumn morning stroll along The 606 elevated trail taking in city skyline views, wrapping up with pour-overs and pastries at Ipsento.",
+    venueName: "Location TBD",
+    venueAddress: "Chicago, IL (Announced prior to event)",
+    description: "Crisp autumn morning stroll along the trail taking in city skyline views, wrapping up with pour-overs and pastries.",
     externalUrl: "https://partiful.com/e/actually-lets-trail-walk-coffee",
     partifulUrl: "https://partiful.com/e/actually-lets-trail-walk-coffee",
     status: "upcoming",
@@ -356,12 +380,12 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "6:00 PM – 9:00 PM CST",
     category: "food",
     categoryLabel: "FOOD & COMMUNITY DINNER",
-    audience: "all-adults",
-    audienceLabel: "👥 All Adults",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "🥧",
     iconName: "Pizza",
-    venueName: "The Joinery Community Loft & Hearth",
-    venueAddress: "2533 W Homer St, Chicago, IL 60647",
+    venueName: "Location TBD",
+    venueAddress: "Chicago, IL (Announced prior to event)",
     description: "Kick off Thanksgiving week with a cozy neighborhood potluck warmup. Share seasonal autumn comfort foods, warm spiced cider, and convivial connection.",
     externalUrl: "https://partiful.com/e/actually-lets-friendsgiving-warmup",
     partifulUrl: "https://partiful.com/e/actually-lets-friendsgiving-warmup",
@@ -379,12 +403,12 @@ export const NOVEMBER_2026_EVENTS: CommunityEvent[] = [
     timeWindow: "2:00 PM – 4:30 PM CST",
     category: "social",
     categoryLabel: "COMMUNITY SOCIAL & CULTURE",
-    audience: "all-adults",
-    audienceLabel: "👥 All Adults",
+    audience: "adults",
+    audienceLabel: "👥 Adults",
     icon: "📚",
     iconName: "Coffee",
-    venueName: "Wormhole Coffee & Lounge",
-    venueAddress: "1462 N Milwaukee Ave, Chicago, IL 60622",
+    venueName: "Location TBD",
+    venueAddress: "Chicago, IL (Announced prior to event)",
     description: "Cozy Sunday wind-down to ease out of the holiday weekend. Bring 1–2 books you love to trade, enjoy loose-leaf tea or signature lattes, and swap winter reading recs.",
     externalUrl: "https://partiful.com/e/actually-lets-book-swap-chill",
     partifulUrl: "https://partiful.com/e/actually-lets-book-swap-chill",
@@ -580,7 +604,7 @@ export const chicagoPotteryPoll: CommunityPoll = {
   category: "culture",
   status: "poll", // STRICTLY 'poll'
   pollDates: ["2026-10-04", "2026-11-14"],
-  audienceLabel: "👥 All Adults",
+  audienceLabel: "👥 Adults",
   options: [
     {
       id: "lincoln-square",

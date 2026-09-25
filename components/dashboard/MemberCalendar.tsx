@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect, useRef, useId } from "react";
 import { ResolvedEvent } from "@/lib/userEvents";
-import { splitEventTitle, chicagoPotteryPoll } from "@/lib/eventsConfig";
+import {
+  splitEventTitle,
+  chicagoPotteryPoll,
+  getAudienceBadge,
+  getAudienceIcon,
+} from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import PotteryPollModal from "@/app/components/PotteryPollModal";
@@ -627,6 +632,7 @@ export default function MemberCalendar({
                       const isAttending = ev.attendanceStatus === "attending";
                       const sTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
                       const evTooltip = `${sTitle} • ${ev.timeWindow} • ${ev.venueName}`;
+                      const audIcon = getAudienceIcon(ev.audience, ev.audienceLabel);
 
                       return (
                         <div key={ev.id} className="relative group/bubble min-w-0">
@@ -640,7 +646,7 @@ export default function MemberCalendar({
                             className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight min-w-0 ${style.bg} ${style.border} ${style.text}`}
                             title={evTooltip}
                           >
-                            <span className="truncate flex items-center gap-1.5 min-w-0">
+                            <span className="truncate flex items-center gap-1 min-w-0">
                               <span className="shrink-0 flex items-center">
                                 <EventIcon
                                   iconName={ev.iconName}
@@ -650,6 +656,11 @@ export default function MemberCalendar({
                                   className="w-3.5 h-3.5 text-[#C8643F]"
                                 />
                               </span>
+                              {audIcon && (
+                                <span className="shrink-0 text-[8.5px] sm:text-[9.5px] leading-none" aria-hidden="true">
+                                  {audIcon}
+                                </span>
+                              )}
                               <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
                             </span>
                             {isAttending ? (
@@ -673,7 +684,7 @@ export default function MemberCalendar({
                           e.stopPropagation();
                           setActivePopoverEvent(dayEvents[0]);
                         }}
-                        className="w-full flex items-center justify-center p-1 rounded-md bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
+                        className="w-full flex items-center justify-center gap-1 p-1 rounded-md bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
                         aria-label={`View event details on ${currentMonthConfig.name} ${dayNum}`}
                       >
                         <EventIcon
@@ -683,6 +694,11 @@ export default function MemberCalendar({
                           fallbackIcon={dayEvents[0].icon}
                           className="w-3.5 h-3.5 text-[#C8643F]"
                         />
+                        {getAudienceIcon(dayEvents[0].audience, dayEvents[0].audienceLabel) && (
+                          <span className="text-[8px] leading-none" aria-hidden="true">
+                            {getAudienceIcon(dayEvents[0].audience, dayEvents[0].audienceLabel)}
+                          </span>
+                        )}
                       </button>
                     </div>
                   )}
@@ -922,9 +938,9 @@ export default function MemberCalendar({
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${style.bg} ${style.border} ${style.text}`}>
                           {style.label}
                         </span>
-                        {ev.audienceLabel && (
+                        {(ev.audienceLabel || ev.audience) && (
                           <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
-                            {ev.audienceLabel}
+                            {getAudienceBadge(ev.audience, ev.audienceLabel)}
                           </span>
                         )}
                         {isAttending ? (
@@ -1093,9 +1109,9 @@ export default function MemberCalendar({
                   <span className="text-[11px] font-semibold text-[#6A6253] bg-[#EDE4D3] px-2.5 py-0.5 rounded-full">
                     {currentActiveEvent.category.toUpperCase()}
                   </span>
-                  {currentActiveEvent.audienceLabel && (
+                  {(currentActiveEvent.audienceLabel || currentActiveEvent.audience) && (
                     <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
-                      {currentActiveEvent.audienceLabel}
+                      {getAudienceBadge(currentActiveEvent.audience, currentActiveEvent.audienceLabel)}
                     </span>
                   )}
                 </div>

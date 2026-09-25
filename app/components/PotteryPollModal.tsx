@@ -197,7 +197,7 @@ export default function PotteryPollModal({
               COMMUNITY POLL
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
-              👥 All Adults
+              👥 Adults
             </span>
           </div>
 
