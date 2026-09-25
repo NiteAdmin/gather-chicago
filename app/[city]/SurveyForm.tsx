@@ -1710,19 +1710,15 @@ export default function SurveyForm({
                 <p className="text-xs text-[#6A6253] mt-1 mb-3">
                   Suggest an idea or pick alternative vibes you&apos;d like to do.
                 </p>
-                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                <div className="chips mb-3">
                   {GATHERINGS.map((g) => {
                     const isSelected = selectedGatherings.includes(g);
                     return (
                       <button
                         key={g}
                         type="button"
+                        className={`chip ${isSelected ? 'on' : ''}`}
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                            : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
-                        }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
                       </button>
@@ -1734,7 +1730,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full text-sm text-[#2B271F] placeholder:text-[#A8A29E] !bg-white/60 focus:!bg-white !border-[#D9D2C7] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
+                  className="w-full text-sm text-[#2B271F] placeholder:text-[#8C8270] !bg-[#F4EEE2]/60 focus:!bg-white !border-[#D8CEBC] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
