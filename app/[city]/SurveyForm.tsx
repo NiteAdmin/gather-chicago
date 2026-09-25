@@ -808,13 +808,16 @@ export default function SurveyForm({
           background: var(--cream);
           color: var(--ink);
           font-family: inherit;
-          font-size: 0.92rem;
+          font-size: 0.875rem;
           font-weight: 500;
-          padding: 10px 15px;
-          border-radius: 13px;
+          padding: 12px 16px;
+          min-height: 46px;
+          border-radius: 16px;
           cursor: pointer;
           transition: 0.16s;
           text-align: left;
+          display: inline-flex;
+          align-items: center;
         }
 
         .chip:hover {
@@ -824,6 +827,13 @@ export default function SurveyForm({
         .chip.on {
           background: var(--sage);
           border-color: var(--sage-deep);
+          color: #fff;
+          font-weight: 600;
+        }
+
+        .chip.vibe.on {
+          background: var(--terra);
+          border-color: var(--terra);
           color: #fff;
           font-weight: 600;
         }
@@ -1744,7 +1754,7 @@ export default function SurveyForm({
                 <p className="text-xs text-[#6A6253] mt-1 mb-3">
                   Suggest an idea or pick alternative vibes you&apos;d like to do.
                 </p>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mb-3">
+                <div className="chips mb-3">
                   {GATHERINGS.map((g) => {
                     const isSelected = selectedGatherings.includes(g);
                     return (
@@ -1752,10 +1762,10 @@ export default function SurveyForm({
                         key={g}
                         type="button"
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                        className={`transition-all rounded-xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium cursor-pointer border ${
+                        className={`chip rounded-2xl min-h-[46px] px-4 py-3 text-sm font-medium transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
-                            : "bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB] hover:bg-[#E8E3DB]"
+                            ? "on !bg-[#C8643F] !text-white !border-[#C8643F] shadow-xs"
+                            : "!bg-[#EFECE6] !text-[#2B271F] !border-[#DDD7CB] hover:!bg-[#E8E3DB]"
                         }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
@@ -1768,7 +1778,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full rounded-xl py-3 px-4 bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white outline-hidden transition-all text-xs sm:text-sm shadow-2xs"
+                  className="w-full min-h-[48px] rounded-2xl px-4 py-3 bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white outline-hidden transition-all text-sm shadow-2xs"
                 />
               </div>
 
@@ -1779,7 +1789,7 @@ export default function SurveyForm({
                     <button
                       key={t}
                       type="button"
-                      className={`chip ${selectedTimes.includes(t) ? 'on' : ''}`}
+                      className={`chip rounded-2xl min-h-[46px] px-4 py-3 text-sm font-medium transition-all cursor-pointer ${selectedTimes.includes(t) ? 'on' : ''}`}
                       onClick={() => toggleChip(selectedTimes, setSelectedTimes, t)}
                     >
                       {t}
@@ -1797,7 +1807,7 @@ export default function SurveyForm({
                     <button
                       key={gst}
                       type="button"
-                      className={`chip ${selectedGuests === gst ? 'on' : ''}`}
+                      className={`chip rounded-2xl min-h-[46px] px-4 py-3 text-sm font-medium transition-all cursor-pointer ${selectedGuests === gst ? 'on' : ''}`}
                       onClick={() => setSelectedGuests(selectedGuests === gst ? '' : gst)}
                     >
                       {gst}

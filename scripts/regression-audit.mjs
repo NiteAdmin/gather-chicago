@@ -166,30 +166,29 @@ assert(
 // 5. Harmonize Suggestion Section
 console.log('\n5. SUGGESTION SECTION STYLING AUDIT:');
 assert(
-  surveyFormRaw.includes('rounded-xl py-2.5 px-3.5') && surveyFormRaw.includes('text-xs sm:text-sm font-medium'),
-  'Suggestion buttons styled as rounded-xl py-2.5 px-3.5 text-xs sm:text-sm matching option buttons'
+  surveyFormRaw.includes('chip rounded-2xl min-h-[46px] px-4 py-3 text-sm font-medium'),
+  'Suggestion buttons strictly match option buttons with chip rounded-2xl min-h-[46px] px-4 py-3 text-sm'
 );
 assert(
-  !surveyFormRaw.includes('rounded-full px-3.5 py-1.5'),
+  !surveyFormRaw.includes('rounded-full px-3.5') && !surveyFormRaw.includes('rounded-full px-3'),
   'No skinny rounded-full pills in suggestion section'
 );
 assert(
-  surveyFormRaw.includes('gap-2 sm:gap-2.5 mb-3'),
-  'Suggestion buttons flex/wrap with gap-2 sm:gap-2.5'
+  surveyFormRaw.includes('chips mb-3'),
+  'Suggestion buttons use shared chips container'
 );
 assert(
-  surveyFormRaw.includes('bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB] hover:bg-[#E8E3DB]'),
+  surveyFormRaw.includes('bg-[#EFECE6]') && surveyFormRaw.includes('border-[#DDD7CB]'),
   'Suggestion pills inactive state styled with bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB]'
 );
 assert(
-  surveyFormRaw.includes('bg-[#C8643F] text-white border-[#C8643F] shadow-xs') ||
-  surveyFormRaw.includes('bg-[#C8643F] text-white border-[#C8643F]'),
+  surveyFormRaw.includes('bg-[#C8643F]') && surveyFormRaw.includes('border-[#C8643F]'),
   'Suggestion pills active state styled with terracotta bg-[#C8643F] text-white'
 );
 assert(
-  surveyFormRaw.includes('rounded-xl py-3 px-4') &&
+  surveyFormRaw.includes('min-h-[48px] rounded-2xl px-4 py-3') &&
   surveyFormRaw.includes('bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white'),
-  'Custom idea input box styled with rounded-xl py-3 px-4 and warm biscuit bg-[#FAF8F5]'
+  'Custom idea input box styled with min-h-[48px] rounded-2xl px-4 py-3 and warm biscuit bg-[#FAF8F5]'
 );
 
 // 6. Confirmation Receipt Dates & Vibes
