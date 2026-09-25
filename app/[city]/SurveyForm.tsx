@@ -1068,7 +1068,7 @@ export default function SurveyForm({
           color: var(--ink);
           background: var(--cream);
           border: 1.5px solid var(--line);
-          border-radius: 13px;
+          border-radius: 16px;
           padding: 12px 14px;
           transition: 0.16s;
         }
@@ -1507,10 +1507,6 @@ export default function SurveyForm({
                               tabIndex={0}
                               title={isPollDay ? pollTitle : undefined}
                               onClick={() => {
-                                if (isPollDay) {
-                                  setIsPotteryModalOpen(true);
-                                  return;
-                                }
                                 if (hasEvents) {
                                   setActiveEventModalEvents(eventsForDay);
                                   setActiveModalEventIndex(0);
@@ -1521,10 +1517,6 @@ export default function SurveyForm({
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
                                   e.preventDefault();
-                                  if (isPollDay) {
-                                    setIsPotteryModalOpen(true);
-                                    return;
-                                  }
                                   if (hasEvents) {
                                     setActiveEventModalEvents(eventsForDay);
                                     setActiveModalEventIndex(0);
@@ -1614,7 +1606,13 @@ export default function SurveyForm({
                               {isPollDay && (
                                 <div className="mt-0.5 sm:mt-1 min-w-0 relative group/poll" title={pollTitle}>
                                   <span
-                                    className={`text-[9px] sm:text-[11px] font-bold rounded-md py-0.5 px-0.5 sm:px-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 truncate whitespace-nowrap leading-tight w-full transition-colors ${
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsPotteryModalOpen(true);
+                                    }}
+                                    className={`text-[9px] sm:text-[11px] font-bold rounded-md py-0.5 px-0.5 sm:px-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 truncate whitespace-nowrap leading-tight w-full transition-colors cursor-pointer ${
                                       isDateMarkedAvailable
                                         ? "text-white bg-white/20 border border-dashed border-white/60 hover:bg-white/30"
                                         : "text-[#C8643F] bg-[#C8643F]/10 border border-dashed border-[#C8643F]/60 hover:bg-[#C8643F]/20"
