@@ -287,20 +287,50 @@ export default function SurveyForm({
   const cityName = formatCityName(rawCity);
   const isChicago = rawCity.toLowerCase() === 'chicago';
 
-  // Hydration state check
+  // Hydration state check & edit mode rehydration
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (typeof window !== 'undefined' && window.location.search.includes('view=confirmation')) {
-      setName('Alex Morgan');
-      setEmail('alex@example.com');
-      setSelectedGatherings(['Family Night & Pizza', 'Wine Tasting & Socials']);
-      setSelectedDates(['Sat, Oct 3', 'Fri, Oct 9']);
-      setSelectedTimes(['Evening']);
-      setSubmitted(true);
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isEditMode = searchParams.get('edit') === 'true';
+
+      if (isEditMode) {
+        try {
+          const cacheKey = `actuallylets_survey_cache_${rawCity.toLowerCase()}`;
+          const cachedRaw = localStorage.getItem(cacheKey) || localStorage.getItem('actuallylets_survey_cache');
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            if (cached.name) setName(cached.name);
+            if (cached.email) setEmail(cached.email);
+            if (cached.phoneNumber) setPhoneNumber(cached.phoneNumber);
+            if (typeof cached.smsOptIn === 'boolean') setSmsOptIn(cached.smsOptIn);
+            if (Array.isArray(cached.gatherings) && cached.gatherings.length > 0) {
+              setSelectedGatherings(cached.gatherings);
+            }
+            if (cached.customGathering) setCustomGathering(cached.customGathering);
+            if (Array.isArray(cached.dates) && cached.dates.length > 0) {
+              setAvailableDates(cached.dates);
+            }
+            if (cached.customDate) setCustomDate(cached.customDate);
+            if (Array.isArray(cached.times) && cached.times.length > 0) {
+              setSelectedTimes(cached.times);
+            }
+            if (cached.customTime) setCustomTime(cached.customTime);
+            if (cached.dayPref) setSelectedDayPref(cached.dayPref);
+            if (cached.guests) setSelectedGuests(cached.guests);
+            if (cached.notes) setNotes(cached.notes);
+            if (typeof cached.quarterlyReminder === 'boolean') {
+              setQuarterlyReminder(cached.quarterlyReminder);
+            }
+          }
+        } catch (err) {
+          console.warn('Could not rehydrate survey cache from localStorage:', err);
+        }
+      }
     }
-  }, []);
+  }, [rawCity]);
 
   // Form state
   const [selectedGatherings, setSelectedGatherings] = useState<string[]>([]);
@@ -404,11 +434,7 @@ export default function SurveyForm({
   };
 
   // Check if confirmation view is active to suppress floating auth modals
-  const isConfirmationActive =
-    submitted ||
-    (mounted &&
-      typeof window !== 'undefined' &&
-      window.location.search.includes('view=confirmation'));
+  const isConfirmationActive = submitted;
 
   const toggleChip = (list: string[], setList: (v: any) => void, item: string) => {
     setList((prev: string[]) => {
@@ -653,6 +679,32 @@ export default function SurveyForm({
 
       if (confirmData.responseId) {
         setResponseId(confirmData.responseId);
+      }
+
+      // Cache preferences in localStorage so ?edit=true re-hydrates completely
+      try {
+        const cachePayload = {
+          city: rawCity.toLowerCase(),
+          cityName: cityName,
+          name: trimmedName,
+          email: trimmedEmail,
+          phoneNumber: sanitizedPhone || null,
+          smsOptIn: Boolean(hasSmsOptIn),
+          dates: allChosenDates,
+          gatherings: Array.isArray(selectedGatherings) ? selectedGatherings : [],
+          customGathering: trimmedCustomGathering || null,
+          customDate: trimmedCustomDate || null,
+          times: Array.isArray(selectedTimes) ? selectedTimes : [],
+          customTime: customTime.trim() || null,
+          dayPref: selectedDayPref || 'Either works',
+          guests: selectedGuests || null,
+          notes: notes ? notes.trim() : null,
+          quarterlyReminder: Boolean(quarterlyReminder),
+        };
+        localStorage.setItem(`actuallylets_survey_cache_${rawCity.toLowerCase()}`, JSON.stringify(cachePayload));
+        localStorage.setItem('actuallylets_survey_cache', JSON.stringify(cachePayload));
+      } catch (cacheErr) {
+        console.warn('Failed to cache survey preferences locally:', cacheErr);
       }
 
       setSubmitted(true);
@@ -1166,7 +1218,7 @@ export default function SurveyForm({
             selectedGuests={selectedGuests}
             responseId={responseId}
             onReset={() => {
-              if (typeof window !== 'undefined' && window.location.search.includes('view=confirmation')) {
+              if (typeof window !== 'undefined') {
                 window.history.replaceState(null, '', window.location.pathname);
               }
               setSubmitted(false);
@@ -1229,7 +1281,7 @@ export default function SurveyForm({
                     type="button"
                     onClick={handleConnectGoogleCalendar}
                     disabled={isSyncingCalendar}
-                    className="w-full flex items-center justify-center gap-2 h-9 px-3 rounded-lg bg-[#2B271F] hover:bg-[#3D372E] text-[#FAF8F5] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#2B271F] hover:bg-[#3D372E] text-[#FAF8F5] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 touch-manipulation"
                   >
                     {isSyncingCalendar && calendarConnected === 'google' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E3D8C8]" />
@@ -1244,7 +1296,7 @@ export default function SurveyForm({
                     type="button"
                     onClick={handleTriggerIcsUpload}
                     disabled={isSyncingCalendar}
-                    className="w-full flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-white hover:bg-stone-50 border border-[#D9CFC1] text-[#3B3228] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-white hover:bg-stone-50 border border-[#D9CFC1] text-[#3B3228] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 touch-manipulation"
                   >
                     {isSyncingCalendar && calendarConnected === 'ics' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-500" />
@@ -1330,14 +1382,14 @@ export default function SurveyForm({
                             aria-label="Previous month"
                             disabled={currentMonthIndex === 0}
                             onClick={handlePrevMonth}
-                            className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                            className={`min-h-[44px] min-w-[44px] px-3.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
                               currentMonthIndex === 0
                                 ? "opacity-30 cursor-not-allowed"
                                 : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
                             }`}
                           >
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                            <span className="text-[11px] font-medium">Prev</span>
+                            <ChevronLeft className="w-4 h-4" />
+                            <span className="text-xs font-semibold">Prev</span>
                           </button>
                           <span className="px-2 py-0.5 font-bold text-[#2B271F] text-xs">
                             {curConfig.headerLabel}
@@ -1348,14 +1400,14 @@ export default function SurveyForm({
                             aria-label="Next month"
                             disabled={currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1}
                             onClick={handleNextMonth}
-                            className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                            className={`min-h-[44px] min-w-[44px] px-3.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
                               currentMonthIndex === AVAILABLE_CALENDAR_MONTHS.length - 1
                                 ? "opacity-30 cursor-not-allowed"
                                 : "hover:text-[#2B271F] hover:bg-white/60 active:bg-white"
                             }`}
                           >
-                            <span className="text-[11px] font-medium">Next</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <span className="text-xs font-semibold">Next</span>
+                            <ChevronRight className="w-4 h-4" />
                           </button>
                         </div>
 
@@ -1634,7 +1686,7 @@ export default function SurveyForm({
                                   type="button"
                                   data-testid="toggle-all-weekends"
                                   onClick={handleToggleAllWeekends}
-                                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                                  className={`min-h-[44px] px-4 py-2.5 rounded-2xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
                                     areAllWeekendsSelected
                                       ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
                                       : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"
@@ -1646,7 +1698,7 @@ export default function SurveyForm({
                                 <button
                                   type="button"
                                   onClick={() => toggleChip(selectedDates, setSelectedDates, "Down for Whatever")}
-                                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                                  className={`min-h-[44px] px-4 py-2.5 rounded-2xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
                                     isDownForWhateverSelected
                                       ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
                                       : "bg-white/80 hover:bg-white text-[#2B271F] border-[#D9D2C7] hover:border-[#C8643F]/50"

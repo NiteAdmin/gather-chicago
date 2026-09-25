@@ -278,6 +278,45 @@ assert(
   'Dashboard footer uses text-xs sm:text-sm font-bold terracotta TM'
 );
 
+// 9. Safe Logic Hardening, Timezone Lock & Touch Targets
+console.log('\n9. SAFE LOGIC HARDENING, TIMEZONE LOCK & TOUCH TARGET AUDIT:');
+const calendarRaw = fs.readFileSync('lib/calendar.ts', 'utf-8');
+const icsRouteRaw = fs.readFileSync('app/api/cal/sub/[responseId]/events.ics/route.ts', 'utf-8');
+const confirmRouteRaw = fs.readFileSync('app/api/confirm/route.ts', 'utf-8');
+
+assert(
+  calendarRaw.includes('formatLocalIsoForCalendar') && calendarRaw.includes('DTSTART;TZID=America/Chicago:'),
+  'lib/calendar.ts formats local ISO and uses TZID=America/Chicago without trailing Z'
+);
+assert(
+  calendarRaw.includes("ctz: 'America/Chicago'"),
+  'Google Calendar deep-link passes ctz=America/Chicago timezone parameter'
+);
+assert(
+  icsRouteRaw.includes('DTSTART;TZID=America/Chicago:') && icsRouteRaw.includes('sanitizedResponseId'),
+  'events.ics route sanitizes responseId against CRLF and locks TZID to America/Chicago'
+);
+assert(
+  confirmRouteRaw.includes('escapeHtml') && confirmRouteRaw.includes('slice(0, 100)') && confirmRouteRaw.includes('slice(0, 1000)'),
+  'app/api/confirm/route.ts escapes HTML entities and enforces string length bounds'
+);
+assert(
+  confirmationCardRaw.includes('preferencesSaveError') && confirmationCardRaw.includes('Unable to save changes. Please try again.'),
+  'ConfirmationCard.tsx handles inline preference save failures with visible error banner'
+);
+assert(
+  !surveyFormRaw.includes('view=confirmation'),
+  'SurveyForm.tsx has mock view=confirmation test bypass completely removed'
+);
+assert(
+  surveyFormRaw.includes('actuallylets_survey_cache') && surveyFormRaw.includes('isEditMode'),
+  'SurveyForm.tsx rehydrates survey state from localStorage in edit mode'
+);
+assert(
+  surveyFormRaw.includes('min-h-[44px] min-w-[44px]'),
+  'SurveyForm.tsx mobile month pager buttons meet 44x44px touch target standard'
+);
+
 console.log('\n====================================================');
 console.log(`AUDIT COMPLETE: ${passes} PASSED, ${failures} FAILED`);
 console.log('====================================================');

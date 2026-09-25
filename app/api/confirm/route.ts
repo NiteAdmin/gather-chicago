@@ -48,6 +48,16 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Pr
   ]);
 }
 
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function POST(req: Request) {
   console.log('--- CONFIRM EMAIL REQUEST RECEIVED ---');
 
@@ -129,13 +139,17 @@ export async function POST(req: Request) {
       }
     }
 
-    const trimmedName = typeof name === "string" ? name.trim() : "";
-    const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const trimmedName = typeof name === "string" ? name.trim().slice(0, 100) : "";
+    const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase().slice(0, 150) : "";
+    const trimmedCustomGathering = typeof body.customGathering === "string" ? body.customGathering.trim().slice(0, 200) : null;
+    const trimmedCustomDate = typeof body.customDate === "string" ? body.customDate.trim().slice(0, 200) : null;
+    const trimmedCustomTime = typeof body.customTime === "string" ? body.customTime.trim().slice(0, 100) : null;
+    const trimmedNotes = typeof body.notes === "string" ? body.notes.trim().slice(0, 1000) : null;
 
     // Sanitize phone number by stripping non-digit characters
     const sanitizedPhone =
       typeof phoneNumber === "string" && phoneNumber.trim()
-        ? phoneNumber.replace(/\D/g, "")
+        ? phoneNumber.replace(/\D/g, "").slice(0, 15)
         : undefined;
     const sanitizedSmsOptIn = Boolean(smsOptIn);
 
@@ -146,7 +160,7 @@ export async function POST(req: Request) {
       smsOptIn: sanitizedSmsOptIn,
       dates,
       gatherings,
-      customGathering,
+      customGathering: trimmedCustomGathering,
       turnstileVerified: Boolean(turnstileToken),
     });
 
@@ -184,23 +198,23 @@ export async function POST(req: Request) {
     try {
       savedResponseId = await withTimeout(
         saveResponse({
-          city: typeof city === "string" ? city : "chicago",
-          cityName: typeof cityName === "string" ? cityName : "Chicago",
+          city: typeof city === "string" ? city.slice(0, 50) : "chicago",
+          cityName: typeof cityName === "string" ? cityName.slice(0, 50) : "Chicago",
           name: trimmedName,
           email: trimmedEmail,
           phoneNumber: sanitizedPhone ? sanitizedPhone : null,
           smsOptIn: sanitizedSmsOptIn,
-          dates: Array.isArray(dates) ? dates : [],
-          eventIds: Array.isArray(eventIds) ? eventIds : [],
-          gatherings: Array.isArray(gatherings) ? gatherings : [],
-          customGathering: typeof body.customGathering === "string" ? body.customGathering.trim() : null,
-          customDate: typeof body.customDate === "string" ? body.customDate.trim() : null,
-          times: Array.isArray(body.times) ? body.times : [],
-          customTime: typeof body.customTime === "string" ? body.customTime.trim() : null,
-          dayPref: typeof body.dayPref === "string" ? body.dayPref.trim() : null,
-          guests: typeof body.guests === "string" ? body.guests.trim() : null,
-          drink: typeof body.drink === "string" ? body.drink.trim() : null,
-          notes: typeof body.notes === "string" ? body.notes.trim() : null,
+          dates: Array.isArray(dates) ? dates.slice(0, 50).map((d) => String(d).slice(0, 100)) : [],
+          eventIds: Array.isArray(eventIds) ? eventIds.slice(0, 50).map((e) => String(e).slice(0, 100)) : [],
+          gatherings: Array.isArray(gatherings) ? gatherings.slice(0, 50).map((g) => String(g).slice(0, 100)) : [],
+          customGathering: trimmedCustomGathering,
+          customDate: trimmedCustomDate,
+          times: Array.isArray(body.times) ? body.times.slice(0, 20).map((t: any) => String(t).slice(0, 100)) : [],
+          customTime: trimmedCustomTime,
+          dayPref: typeof body.dayPref === "string" ? body.dayPref.trim().slice(0, 50) : null,
+          guests: typeof body.guests === "string" ? body.guests.trim().slice(0, 50) : null,
+          drink: typeof body.drink === "string" ? body.drink.trim().slice(0, 50) : null,
+          notes: trimmedNotes,
           quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
         }),
         4500,
@@ -215,44 +229,39 @@ export async function POST(req: Request) {
       console.warn('[RESEND CONFIG WARNING]: RESEND_API_KEY is not configured in environment variables. Email delivery will be skipped.');
     }
 
-    const customGatheringHtml =
-      body.customGathering && typeof body.customGathering === "string" && body.customGathering.trim()
-        ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Idea:</strong> ${body.customGathering.trim()}</li>`
-        : "";
+    const customGatheringHtml = trimmedCustomGathering
+      ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Idea:</strong> ${escapeHtml(trimmedCustomGathering)}</li>`
+      : "";
 
     const hasGatherings = Array.isArray(gatherings) && gatherings.length > 0;
     const gatheringsListHtml =
       hasGatherings || customGatheringHtml
         ? `<ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
-            ${hasGatherings ? gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${g}</li>`).join("") : ""}
+            ${hasGatherings ? gatherings.map((g: string) => `<li style="margin-bottom: 4px;">${escapeHtml(String(g).slice(0, 100))}</li>`).join("") : ""}
             ${customGatheringHtml}
           </ul>`
         : `<p style="color: #8C8270; font-size: 14px; font-style: italic; margin: 6px 0 0;">None selected</p>`;
 
-    const customDateHtml =
-      body.customDate && typeof body.customDate === "string" && body.customDate.trim()
-        ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Date:</strong> ${body.customDate.trim()}</li>`
-        : "";
+    const customDateHtml = trimmedCustomDate
+      ? `<li style="margin-bottom: 4px; color: #2B271F;"><strong>Suggested Date:</strong> ${escapeHtml(trimmedCustomDate)}</li>`
+      : "";
 
     const hasDates = Array.isArray(dates) && dates.length > 0;
     const datesListHtml =
       hasDates || customDateHtml
         ? `<ul style="margin: 6px 0 0 18px; padding: 0; color: #2B271F; font-size: 14px; line-height: 1.55;">
-            ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${d}</li>`).join("") : ""}
+            ${hasDates ? dates.map((d: string) => `<li style="margin-bottom: 4px;">${escapeHtml(String(d).slice(0, 100))}</li>`).join("") : ""}
             ${customDateHtml}
           </ul>`
         : `<p style="color: #8C8270; font-size: 14px; font-style: italic; margin: 6px 0 0;">None selected</p>`;
 
     const timesList = Array.isArray(body.times) ? body.times : [];
-    const customTimeStr =
-      typeof body.customTime === "string" && body.customTime.trim()
-        ? body.customTime.trim()
-        : null;
+    const customTimeStr = trimmedCustomTime;
 
     const timesItemsHtml = [
-      ...timesList.map((t: string) => `<li style="margin-bottom: 4px;">${t}</li>`),
+      ...timesList.map((t: string) => `<li style="margin-bottom: 4px;">${escapeHtml(String(t).slice(0, 100))}</li>`),
       customTimeStr
-        ? `<li style="margin-bottom: 4px;"><strong>Suggested Time:</strong> ${customTimeStr}</li>`
+        ? `<li style="margin-bottom: 4px;"><strong>Suggested Time:</strong> ${escapeHtml(customTimeStr)}</li>`
         : "",
     ]
       .filter(Boolean)
@@ -270,19 +279,20 @@ export async function POST(req: Request) {
           </div>`
         : "";
 
-    const notesSectionHtml =
-      body.notes && typeof body.notes === "string" && body.notes.trim()
-        ? `<div style="margin-bottom: 20px;">
-            <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
-              💬 Your write-in notes / requests:
-            </h3>
-            <div style="background-color: #EDE4D3; border: 1px solid #D8CEBC; padding: 12px 16px; border-radius: 10px; font-size: 14px; color: #2B271F; font-style: italic; line-height: 1.45;">
-              &ldquo;${body.notes.trim()}&rdquo;
-            </div>
-          </div>`
-        : "";
+    const notesSectionHtml = trimmedNotes
+      ? `<div style="margin-bottom: 20px;">
+          <h3 style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #4C5A40; margin: 0 0 8px;">
+            💬 Your write-in notes / requests:
+          </h3>
+          <div style="background-color: #EDE4D3; border: 1px solid #D8CEBC; padding: 12px 16px; border-radius: 10px; font-size: 14px; color: #2B271F; font-style: italic; line-height: 1.45;">
+            &ldquo;${escapeHtml(trimmedNotes)}&rdquo;
+          </div>
+        </div>`
+      : "";
 
-    const targetCityName = typeof cityName === "string" ? cityName : "Chicago";
+    const targetCityName = typeof cityName === "string" ? cityName.slice(0, 50) : "Chicago";
+    const safeName = escapeHtml(trimmedName);
+    const safeTargetCityName = escapeHtml(targetCityName);
 
     const emailHtml = `
       <div style="background-color: #FBF7EE; padding: 32px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2B271F;">
@@ -290,7 +300,7 @@ export async function POST(req: Request) {
           <!-- Brand Header -->
           <div style="text-align: center; margin-bottom: 24px;">
             <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span></h1>
-            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Series · ${targetCityName}</p>
+            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Series · ${safeTargetCityName}</p>
           </div>
 
           <!-- Main Elevated Card -->
@@ -299,13 +309,13 @@ export async function POST(req: Request) {
             <!-- Greeting Header -->
             <div style="text-align: center; border-bottom: 1px solid #EFEAD8; padding-bottom: 20px; margin-bottom: 24px;">
               <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #C8643F; display: block; margin-bottom: 6px;">
-                ${targetCityName.toUpperCase()} · PREFERENCES RECEIVED
+                ${escapeHtml(targetCityName.toUpperCase())} · PREFERENCES RECEIVED
               </span>
               <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; margin: 0; line-height: 1.25;">
-                Thanks for your input, ${trimmedName}! 🌿
+                Thanks for your input, ${safeName}! 🌿
               </h1>
               <p style="font-size: 14px; line-height: 1.5; color: #6A6253; margin: 10px 0 0;">
-                We received your availability and preferences for the upcoming Actually, Let&apos;s ${targetCityName} community series.
+                We received your availability and preferences for the upcoming Actually, Let&apos;s ${safeTargetCityName} community series.
               </p>
             </div>
 
@@ -423,38 +433,38 @@ export async function POST(req: Request) {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #2B271F; background-color: #FBF7EE;">
         <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border: 1px solid #D8CEBC; border-radius: 12px; padding: 24px;">
           <h2 style="margin: 0 0 16px 0; color: #C8643F; font-size: 18px; font-weight: 700;">
-            📝 New Intake Submission: ${trimmedName} (${targetCityName})
+            📝 New Intake Submission: ${safeName} (${safeTargetCityName})
           </h2>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
             <tbody>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; width: 140px; font-weight: 600;">Name</th>
-                <td style="padding: 10px 8px; color: #2B271F; font-weight: 600;">${trimmedName}</td>
+                <td style="padding: 10px 8px; color: #2B271F; font-weight: 600;">${safeName}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Email</th>
-                <td style="padding: 10px 8px; color: #2B271F;"><a href="mailto:${trimmedEmail}" style="color: #C8643F; text-decoration: underline;">${trimmedEmail}</a></td>
+                <td style="padding: 10px 8px; color: #2B271F;"><a href="mailto:${escapeHtml(trimmedEmail)}" style="color: #C8643F; text-decoration: underline;">${escapeHtml(trimmedEmail)}</a></td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Phone</th>
-                <td style="padding: 10px 8px; color: #2B271F;">${sanitizedPhone ? formatPhoneNumber(sanitizedPhone) : "N/A"}${sanitizedSmsOptIn ? ' (SMS Opted In)' : ''}</td>
+                <td style="padding: 10px 8px; color: #2B271F;">${sanitizedPhone ? escapeHtml(formatPhoneNumber(sanitizedPhone)) : "N/A"}${sanitizedSmsOptIn ? ' (SMS Opted In)' : ''}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Concepts</th>
-                <td style="padding: 10px 8px; color: #2B271F;">${allGatheringsStr}</td>
+                <td style="padding: 10px 8px; color: #2B271F;">${escapeHtml(allGatheringsStr)}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Voted Availability</th>
-                <td style="padding: 10px 8px; color: #2B271F;">${allDatesStr}</td>
+                <td style="padding: 10px 8px; color: #2B271F;">${escapeHtml(allDatesStr)}</td>
               </tr>
               <tr style="border-bottom: 1px solid #EFEAD8;">
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Preferred Times</th>
-                <td style="padding: 10px 8px; color: #2B271F;">${allTimesStr}</td>
+                <td style="padding: 10px 8px; color: #2B271F;">${escapeHtml(allTimesStr)}</td>
               </tr>
-              ${body.notes && typeof body.notes === "string" && body.notes.trim() ? `
+              ${trimmedNotes ? `
               <tr>
                 <th style="padding: 10px 8px; color: #6A6253; font-weight: 600;">Notes</th>
-                <td style="padding: 10px 8px; color: #2B271F; font-style: italic;">"${body.notes.trim()}"</td>
+                <td style="padding: 10px 8px; color: #2B271F; font-style: italic;">"${escapeHtml(trimmedNotes)}"</td>
               </tr>` : ''}
             </tbody>
           </table>

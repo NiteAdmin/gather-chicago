@@ -90,9 +90,12 @@ export async function GET(
         .replace(/\r\n|\r|\n/g, "\\n");
 
     const nowIso = formatIsoForCalendar(new Date());
-    const uid = `actuallylets-${responseId || "schedule"}-${citySlug}@actuallylets.com`;
-    const cleanStartIso = startIso.endsWith('Z') ? startIso : `${startIso}Z`;
-    const cleanEndIso = endIso.endsWith('Z') ? endIso : `${endIso}Z`;
+    const sanitizedResponseId = (responseId || "schedule")
+      .replace(/[\r\n]/g, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "");
+    const uid = `actuallylets-${sanitizedResponseId}-${citySlug}@actuallylets.com`;
+    const cleanStartIso = startIso.replace(/Z$/i, "");
+    const cleanEndIso = endIso.replace(/Z$/i, "");
 
     const icsContent = [
       "BEGIN:VCALENDAR",
@@ -108,8 +111,8 @@ export async function GET(
       `UID:${uid}`,
       `DTSTAMP:${nowIso}`,
       `SEQUENCE:${sequence}`,
-      `DTSTART:${cleanStartIso}`,
-      `DTEND:${cleanEndIso}`,
+      `DTSTART;TZID=America/Chicago:${cleanStartIso}`,
+      `DTEND;TZID=America/Chicago:${cleanEndIso}`,
       `SUMMARY:${escapeIcs(summary)}`,
       `DESCRIPTION:${escapeIcs(description)}`,
       `LOCATION:${escapeIcs(location)}`,

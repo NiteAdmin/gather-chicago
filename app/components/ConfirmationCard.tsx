@@ -143,6 +143,7 @@ export default function ConfirmationCard({
   const [editableVibes, setEditableVibes] = useState<string[]>(selectedGatherings || []);
   const [newOpenDateInput, setNewOpenDateInput] = useState('');
   const [savingPreferences, setSavingPreferences] = useState(false);
+  const [preferencesSaveError, setPreferencesSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const combined = Array.from(
@@ -308,6 +309,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
 
   const handleSavePreferences = async () => {
     setSavingPreferences(true);
+    setPreferencesSaveError(null);
     try {
       const updatedDates = [...preservedGatheringOriginalStrings, ...editableOpenDates];
       setCurrentDates(updatedDates);
@@ -323,6 +325,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
       setIsEditingPreferences(false);
     } catch (err) {
       console.error('Failed to update preferences in Firestore:', err);
+      setPreferencesSaveError('Unable to save changes. Please try again.');
     } finally {
       setSavingPreferences(false);
     }
@@ -526,6 +529,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                 onClick={() => {
                   setEditableOpenDates(openDates);
                   setEditableVibes(currentVibes);
+                  setPreferencesSaveError(null);
                   setIsEditingPreferences(true);
                 }}
                 style={{
@@ -594,6 +598,11 @@ function getAttendingEventTime(ev: CommunityEvent): string {
             </div>
           ) : (
             <div style={{ marginTop: '8px', padding: '12px 14px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #D8CEBC' }}>
+              {preferencesSaveError && (
+                <div style={{ marginBottom: '10px', padding: '8px 12px', backgroundColor: '#FDF2F0', border: '1px solid #F5C2BA', color: '#A63A24', fontSize: '0.78rem', borderRadius: '8px', fontWeight: 600 }}>
+                  {preferencesSaveError}
+                </div>
+              )}
               {/* Edit Dates Section */}
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ color: '#4C5A40', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
@@ -714,6 +723,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                   onClick={() => {
                     setEditableOpenDates(openDates);
                     setEditableVibes(currentVibes);
+                    setPreferencesSaveError(null);
                     setIsEditingPreferences(false);
                   }}
                   style={{

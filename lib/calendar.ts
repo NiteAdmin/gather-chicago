@@ -27,6 +27,17 @@ export function formatIsoForCalendar(date: Date): string {
   return date.toISOString().replace(/-|:|\.\d+/g, '');
 }
 
+export function formatLocalIsoForCalendar(date: Date): string {
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  return `${y}${m}${d}T${hh}${mm}${ss}`;
+}
+
 /**
  * Parses user-selected date/time strings or falls back to a sensible slot.
  */
@@ -96,8 +107,8 @@ export function parseEventDates(options: CalendarEventOptions): {
   const endDate = new Date(startDate);
   endDate.setHours(startHour + durationHours, 0, 0, 0);
 
-  const startIso = formatIsoForCalendar(startDate);
-  const endIso = formatIsoForCalendar(endDate);
+  const startIso = formatLocalIsoForCalendar(startDate);
+  const endIso = formatLocalIsoForCalendar(endDate);
 
   return { start: startDate, end: endDate, startIso, endIso };
 }
@@ -106,12 +117,15 @@ export function parseEventDates(options: CalendarEventOptions): {
  * 1. Formats parameters for Google Calendar web deep-linking.
  */
 export function generateGoogleCalendarUrl(event: CalendarEvent): string {
+  const cleanStartIso = event.startIso.replace(/Z$/i, '');
+  const cleanEndIso = event.endIso.replace(/Z$/i, '');
   const googleCalParams = new URLSearchParams({
     action: 'TEMPLATE',
     text: event.title,
-    dates: `${event.startIso}/${event.endIso}`,
+    dates: `${cleanStartIso}/${cleanEndIso}`,
     details: event.description,
     location: event.location,
+    ctz: 'America/Chicago',
   });
   return `https://calendar.google.com/calendar/render?${googleCalParams.toString()}`;
 }
@@ -125,6 +139,8 @@ export function generateIcsContent(event: CalendarEvent): string {
 
   const nowIso = formatIsoForCalendar(new Date());
   const uid = `event-${Date.now()}-${Math.random().toString(36).substring(2, 8)}@actuallylets.com`;
+  const cleanStartIso = event.startIso.replace(/Z$/i, '');
+  const cleanEndIso = event.endIso.replace(/Z$/i, '');
 
   return [
     'BEGIN:VCALENDAR',
@@ -132,11 +148,12 @@ export function generateIcsContent(event: CalendarEvent): string {
     'PRODID:-//Actually Lets//Gathering Confirmation//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+    'X-WR-TIMEZONE:America/Chicago',
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${nowIso}`,
-    `DTSTART:${event.startIso}`,
-    `DTEND:${event.endIso}`,
+    `DTSTART;TZID=America/Chicago:${cleanStartIso}`,
+    `DTEND;TZID=America/Chicago:${cleanEndIso}`,
     `SUMMARY:${escapeIcsText(event.title)}`,
     `DESCRIPTION:${escapeIcsText(event.description)}`,
     `LOCATION:${escapeIcsText(event.location)}`,
