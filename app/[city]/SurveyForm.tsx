@@ -2085,6 +2085,7 @@ export default function SurveyForm({
         isOpen={isPotteryModalOpen}
         onClose={() => setIsPotteryModalOpen(false)}
         initialEmail={email}
+        currentMonth={calendarMonth}
       />
     </>
   );

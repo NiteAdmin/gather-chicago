@@ -1259,6 +1259,7 @@ export default function MemberCalendar({
         isOpen={isPotteryModalOpen}
         onClose={() => setIsPotteryModalOpen(false)}
         initialEmail={userEmail || undefined}
+        currentMonth={selectedMonth}
       />
     </div>
   );

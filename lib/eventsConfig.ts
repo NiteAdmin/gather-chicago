@@ -10,12 +10,18 @@ export type EventAudience = 'family' | 'adults' | 'all-adults' | '21+' | 'adults
 export function getAudienceBadge(audience?: EventAudience | string, label?: string): string | undefined {
   if (label) {
     const clean = label
-      .replace(/🍸\s*/g, '👥 ')
-      .replace(/\s*\(\s*21\+\s*\)/gi, '')
+      .replace(/🍸\s*/g, '')
+      .replace(/\(?\s*21\+\s*\)?/gi, '')
       .replace(/\bAll Adults\b/gi, 'Adults')
       .replace(/\bALL ADULTS\b/gi, 'Adults')
       .trim();
-    if (clean === 'Adults' || clean.toLowerCase() === 'adults') {
+    if (
+      !clean ||
+      clean.toLowerCase() === 'adults' ||
+      clean.toLowerCase() === 'adult' ||
+      clean.includes('Adults') ||
+      clean.includes('adults')
+    ) {
       return '👥 Adults';
     }
     return clean;

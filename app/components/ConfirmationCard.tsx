@@ -795,6 +795,12 @@ function getAttendingEventTime(ev: CommunityEvent): string {
         isOpen={isPollModalOpen}
         onClose={() => setIsPollModalOpen(false)}
         initialEmail={email}
+        currentMonth={
+          pollVote?.dateText?.toLowerCase().includes('nov') ||
+          currentDates.some((d) => d.toLowerCase().includes('nov'))
+            ? '2026-11'
+            : '2026-10'
+        }
       />
     </div>
   );

@@ -22,21 +22,41 @@ interface PotteryPollModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialEmail?: string;
+  currentMonth?: string;
 }
 
-const DATE_OPTIONS = [
+export const OCTOBER_DATE_OPTIONS = [
   'Sun, Oct 4 (Morning)',
-  'Sat, Nov 14 (Morning/Afternoon)',
+  'Sat, Oct 10 (Morning / Afternoon)',
+];
+
+export const NOVEMBER_DATE_OPTIONS = [
+  'Sat, Nov 14 (Morning / Afternoon)',
   'Flexible Nov (Wed–Sun)',
 ];
+
+export function getDateOptionsForMonth(monthInput?: string): string[] {
+  const normalized = (monthInput || '').toLowerCase().trim();
+  if (
+    normalized === '11' ||
+    normalized === 'november' ||
+    normalized.includes('nov') ||
+    normalized.endsWith('-11')
+  ) {
+    return NOVEMBER_DATE_OPTIONS;
+  }
+  return OCTOBER_DATE_OPTIONS;
+}
 
 export default function PotteryPollModal({
   isOpen,
   onClose,
   initialEmail = '',
+  currentMonth,
 }: PotteryPollModalProps) {
+  const activeDateOptions = getDateOptionsForMonth(currentMonth);
   const [selectedStudio, setSelectedStudio] = useState<'lincoln-square' | 'gnarware'>('lincoln-square');
-  const [preferredDate, setPreferredDate] = useState<string>(DATE_OPTIONS[0]);
+  const [preferredDate, setPreferredDate] = useState<string>(activeDateOptions[0]);
   const [email, setEmail] = useState<string>(initialEmail);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +64,19 @@ export default function PotteryPollModal({
   const [hasVoted, setHasVoted] = useState(false);
   const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
 
+  // Synchronize preferredDate if currentMonth changes
+  useEffect(() => {
+    const currentOptions = getDateOptionsForMonth(currentMonth);
+    if (!currentOptions.includes(preferredDate)) {
+      setPreferredDate(currentOptions[0]);
+    }
+  }, [currentMonth]);
+
   // Check auth state and local storage on mount / open
   useEffect(() => {
     if (!isOpen) return;
+
+    const currentOptions = getDateOptionsForMonth(currentMonth);
 
     // Check Firebase auth
     const current = auth.currentUser;
@@ -67,14 +97,24 @@ export default function PotteryPollModal({
         if (savedData) {
           const parsed = JSON.parse(savedData);
           if (parsed.selectedStudio) setSelectedStudio(parsed.selectedStudio);
-          if (parsed.preferredDate) setPreferredDate(parsed.preferredDate);
+          if (parsed.preferredDate) {
+            if (currentOptions.includes(parsed.preferredDate)) {
+              setPreferredDate(parsed.preferredDate);
+            } else {
+              setPreferredDate(currentOptions[0]);
+            }
+          }
           if (parsed.email) setEmail(parsed.email);
+        }
+      } else {
+        if (!currentOptions.includes(preferredDate)) {
+          setPreferredDate(currentOptions[0]);
         }
       }
     } catch {
       // Ignore localStorage errors
     }
-  }, [isOpen, initialEmail]);
+  }, [isOpen, initialEmail, currentMonth]);
 
   // Handle escape key
   useEffect(() => {
@@ -122,6 +162,13 @@ export default function PotteryPollModal({
         pollId: 'pottery-studio-faceoff',
         selectedStudio,
         preferredDate,
+        dateWindow: preferredDate,
+        communityVote: {
+          pollId: 'pottery-studio-faceoff',
+          selectedStudio,
+          preferredDate,
+          dateWindow: preferredDate,
+        },
         email: voteEmail,
         updatedAt: serverTimestamp(),
       };
@@ -133,7 +180,18 @@ export default function PotteryPollModal({
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
         localStorage.setItem(
           'votedData_pottery-studio-faceoff',
-          JSON.stringify({ selectedStudio, preferredDate, email: voteEmail })
+          JSON.stringify({
+            selectedStudio,
+            preferredDate,
+            dateWindow: preferredDate,
+            communityVote: {
+              pollId: 'pottery-studio-faceoff',
+              selectedStudio,
+              preferredDate,
+              dateWindow: preferredDate,
+            },
+            email: voteEmail,
+          })
         );
       } catch {
         // Ignore localStorage quota errors
@@ -151,7 +209,18 @@ export default function PotteryPollModal({
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
         localStorage.setItem(
           'votedData_pottery-studio-faceoff',
-          JSON.stringify({ selectedStudio, preferredDate, email: voteEmail })
+          JSON.stringify({
+            selectedStudio,
+            preferredDate,
+            dateWindow: preferredDate,
+            communityVote: {
+              pollId: 'pottery-studio-faceoff',
+              selectedStudio,
+              preferredDate,
+              dateWindow: preferredDate,
+            },
+            email: voteEmail,
+          })
         );
         setHasVoted(true);
         setIsSuccess(true);
@@ -414,8 +483,8 @@ export default function PotteryPollModal({
                 2. Preferred Date Window
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {DATE_OPTIONS.map((dateOpt) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {activeDateOptions.map((dateOpt) => {
                   const isSelected = preferredDate === dateOpt;
                   return (
                     <button
