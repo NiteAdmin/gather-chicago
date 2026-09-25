@@ -25,6 +25,7 @@ interface ConfirmationCardProps {
   selectedGatherings: string[];
   customGathering?: string;
   selectedDates: string[];
+  availableDates?: string[];
   customDate?: string;
   selectedTimes: string[];
   customTime?: string;
@@ -34,6 +35,73 @@ interface ConfirmationCardProps {
   onReset?: () => void;
 }
 
+export const AVAILABLE_VIBES = [
+  "Board Games & Card Games",
+  "Casual Conversations & Coffee",
+  "Family Night & Pizza",
+  "Wine Tasting & Socials",
+  "Stand-Up Comedy & Entertainment",
+  "Down for Whatever",
+];
+
+const OCTOBER_WEEKENDS = [
+  "Oct 3, 2026", "Oct 4, 2026", "Oct 10, 2026", "Oct 11, 2026",
+  "Oct 17, 2026", "Oct 18, 2026", "Oct 24, 2026", "Oct 25, 2026", "Oct 31, 2026"
+];
+const NOVEMBER_WEEKENDS = [
+  "Nov 1, 2026", "Nov 7, 2026", "Nov 8, 2026", "Nov 14, 2026",
+  "Nov 15, 2026", "Nov 21, 2026", "Nov 22, 2026", "Nov 28, 2026", "Nov 29, 2026"
+];
+const DECEMBER_WEEKENDS = [
+  "Dec 5, 2026", "Dec 6, 2026", "Dec 12, 2026", "Dec 13, 2026",
+  "Dec 19, 2026", "Dec 20, 2026", "Dec 26, 2026", "Dec 27, 2026"
+];
+
+function formatSurveyDateChip(d: string): string {
+  if (!d) return '';
+  let clean = d.trim();
+  if (/all\s+october\s+weekends/i.test(clean)) return 'All October Weekends';
+  if (/all\s+november\s+weekends/i.test(clean)) return 'All November Weekends';
+  if (/all\s+december\s+weekends/i.test(clean)) return 'All December Weekends';
+  if (/down\s+for\s+whatever/i.test(clean)) return 'Down for Whatever';
+  clean = clean.replace(/,?\s*2026\b/g, '').trim();
+  clean = clean.replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+/i, '');
+  clean = clean.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+0(\d)\b/i, '$1 $2');
+  return clean;
+}
+
+export function formatAvailabilityDatesList(dates: string[]): string[] {
+  const result: string[] = [];
+  const remaining = new Set(dates);
+
+  // Check October Weekends
+  if (OCTOBER_WEEKENDS.length > 0 && OCTOBER_WEEKENDS.every((d) => remaining.has(d))) {
+    result.push("All October Weekends");
+    OCTOBER_WEEKENDS.forEach((d) => remaining.delete(d));
+  }
+
+  // Check November Weekends
+  if (NOVEMBER_WEEKENDS.length > 0 && NOVEMBER_WEEKENDS.every((d) => remaining.has(d))) {
+    result.push("All November Weekends");
+    NOVEMBER_WEEKENDS.forEach((d) => remaining.delete(d));
+  }
+
+  // Check December Weekends
+  if (DECEMBER_WEEKENDS.length > 0 && DECEMBER_WEEKENDS.every((d) => remaining.has(d))) {
+    result.push("All December Weekends");
+    DECEMBER_WEEKENDS.forEach((d) => remaining.delete(d));
+  }
+
+  remaining.forEach((d) => {
+    const formatted = formatSurveyDateChip(d);
+    if (formatted && !result.includes(formatted)) {
+      result.push(formatted);
+    }
+  });
+
+  return result;
+}
+
 export default function ConfirmationCard({
   name,
   email,
@@ -41,6 +109,7 @@ export default function ConfirmationCard({
   selectedGatherings,
   customGathering,
   selectedDates,
+  availableDates = [],
   customDate,
   selectedTimes,
   customTime,
@@ -62,12 +131,29 @@ export default function ConfirmationCard({
   const [pollVote, setPollVote] = useState<{ studioName: string; dateText: string } | null>(null);
   const [isPollModalOpen, setIsPollModalOpen] = useState(false);
 
-  // Available Open Dates State & Inline Editor
-  const [currentDates, setCurrentDates] = useState<string[]>(selectedDates);
-  const [isEditingOpenDates, setIsEditingOpenDates] = useState(false);
+  // Available Open Dates & Vibes State & Inline Editor
+  const initialCombinedDates = Array.from(
+    new Set([...(selectedDates || []), ...(availableDates || [])])
+  );
+  const [currentDates, setCurrentDates] = useState<string[]>(initialCombinedDates);
+  const [currentVibes, setCurrentVibes] = useState<string[]>(selectedGatherings || []);
+
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
   const [editableOpenDates, setEditableOpenDates] = useState<string[]>([]);
+  const [editableVibes, setEditableVibes] = useState<string[]>(selectedGatherings || []);
   const [newOpenDateInput, setNewOpenDateInput] = useState('');
-  const [savingDates, setSavingDates] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+
+  useEffect(() => {
+    const combined = Array.from(
+      new Set([...(selectedDates || []), ...(availableDates || [])])
+    );
+    setCurrentDates(combined);
+  }, [selectedDates, availableDates]);
+
+  useEffect(() => {
+    setCurrentVibes(selectedGatherings || []);
+  }, [selectedGatherings]);
 
   const loadVote = () => {
     try {
@@ -151,7 +237,9 @@ function getAttendingEventTime(ev: CommunityEvent): string {
   const openDates: string[] = [];
   const preservedGatheringOriginalStrings: string[] = [];
 
-  const allDateInputs = [...currentDates, customDate].filter(Boolean) as string[];
+  const allDateInputs = Array.from(
+    new Set([...currentDates, ...(availableDates || []), customDate].filter(Boolean) as string[])
+  );
 
   allDateInputs.forEach((d) => {
     const matchingEvent = ALL_COMMUNITY_EVENTS.find((ev) => {
@@ -196,12 +284,19 @@ function getAttendingEventTime(ev: CommunityEvent): string {
     }
   });
 
-  // Sync editableOpenDates whenever openDates changes or editor opens
+  // Sync editableOpenDates and editableVibes whenever openDates or currentVibes change, or editor opens
   useEffect(() => {
-    if (!isEditingOpenDates) {
+    if (!isEditingPreferences) {
       setEditableOpenDates(openDates);
+      setEditableVibes(currentVibes);
     }
-  }, [currentDates, isEditingOpenDates]);
+  }, [currentDates, currentVibes, isEditingPreferences]);
+
+  const handleToggleVibe = (vibe: string) => {
+    setEditableVibes((prev) =>
+      prev.includes(vibe) ? prev.filter((v) => v !== vibe) : [...prev, vibe]
+    );
+  };
 
   const handleAddOpenDate = () => {
     const trimmed = newOpenDateInput.trim();
@@ -211,23 +306,25 @@ function getAttendingEventTime(ev: CommunityEvent): string {
     }
   };
 
-  const handleSaveOpenDates = async () => {
-    setSavingDates(true);
+  const handleSavePreferences = async () => {
+    setSavingPreferences(true);
     try {
       const updatedDates = [...preservedGatheringOriginalStrings, ...editableOpenDates];
       setCurrentDates(updatedDates);
+      setCurrentVibes(editableVibes);
 
       if (responseId) {
         await updateDoc(doc(db, 'responses', responseId), {
           dates: updatedDates,
+          gatherings: editableVibes,
           updatedAt: serverTimestamp(),
         });
       }
-      setIsEditingOpenDates(false);
+      setIsEditingPreferences(false);
     } catch (err) {
-      console.error('Failed to update open dates in Firestore:', err);
+      console.error('Failed to update preferences in Firestore:', err);
     } finally {
-      setSavingDates(false);
+      setSavingPreferences(false);
     }
   };
 
@@ -288,7 +385,11 @@ function getAttendingEventTime(ev: CommunityEvent): string {
     }
   };
 
-  const allGatherings = [...selectedGatherings, customGathering ? `"${customGathering}"` : ''].filter(Boolean);
+  const allVibesToDisplay = Array.from(
+    new Set([...currentVibes, customGathering ? `"${customGathering}"` : ''].filter(Boolean))
+  );
+  const formattedOpenDates = formatAvailabilityDatesList(openDates);
+  const allGatherings = allVibesToDisplay;
   const allDates = [...selectedDates, customDate].filter(Boolean);
   const allTimes = [...selectedTimes, customTime].filter(Boolean);
 
@@ -413,16 +514,20 @@ function getAttendingEventTime(ev: CommunityEvent): string {
           )}
         </div>
 
-        {/* 3. Available For (Open Dates) */}
-        <div style={{ marginBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', paddingBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', borderBottom: (allGatherings.length > 0 || allTimes.length > 0 || selectedDrink || selectedGuests) ? '1px dashed #D8CEBC' : 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem' }}>
-              Available For (Open Dates):
+        {/* 3. YOUR SURVEY DATES & VIBES */}
+        <div style={{ marginBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', paddingBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '12px' : '0', borderBottom: (allTimes.length > 0 || selectedDrink || selectedGuests) ? '1px dashed #D8CEBC' : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ color: '#4C5A40', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Your Survey Dates &amp; Vibes:
             </span>
-            {!isEditingOpenDates && (
+            {!isEditingPreferences && (
               <button
                 type="button"
-                onClick={() => setIsEditingOpenDates(true)}
+                onClick={() => {
+                  setEditableOpenDates(openDates);
+                  setEditableVibes(currentVibes);
+                  setIsEditingPreferences(true);
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -434,114 +539,182 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                   padding: 0,
                 }}
               >
-                Edit
+                Edit &rarr;
               </button>
             )}
           </div>
 
-          {!isEditingOpenDates ? (
-            openDates.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                {openDates.map((d) => (
-                  <span
-                    key={d}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      color: '#2B271F',
-                      border: '1px solid #D8CEBC',
-                      padding: '3px 10px',
-                      borderRadius: '9999px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {d}
+          {!isEditingPreferences ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Selected Availability Dates */}
+              <div>
+                <div style={{ color: '#6B6357', fontSize: '0.75rem', fontWeight: 600, marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Selected Availability Dates:
+                </div>
+                {formattedOpenDates.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {formattedOpenDates.map((dateStr, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#C8643F]/10 text-[#C8643F] border border-[#C8643F]/30"
+                      >
+                        {dateStr}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                    None specified
                   </span>
-                ))}
+                )}
               </div>
-            ) : (
-              <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
-                No open dates marked
-              </span>
-            )
+
+              {/* Vibes / Activities */}
+              <div>
+                <div style={{ color: '#6B6357', fontSize: '0.75rem', fontWeight: 600, marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Vibes / Activities:
+                </div>
+                {allVibesToDisplay.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {allVibesToDisplay.map((vibe, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#FAF7F2] border border-[#D8CEBC] text-[#2B271F]"
+                      >
+                        {vibe}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                    None specified
+                  </span>
+                )}
+              </div>
+            </div>
           ) : (
-            <div style={{ marginTop: '8px', padding: '10px 12px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #D8CEBC' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                {editableOpenDates.map((od) => (
-                  <span
-                    key={od}
+            <div style={{ marginTop: '8px', padding: '12px 14px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #D8CEBC' }}>
+              {/* Edit Dates Section */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#4C5A40', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                  Edit Availability Dates:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                  {editableOpenDates.map((od) => (
+                    <span
+                      key={od}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#F5EBE6',
+                        color: '#C8643F',
+                        border: '1px solid #F0D5C7',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span>{formatSurveyDateChip(od)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditableOpenDates((prev) => prev.filter((item) => item !== od))}
+                        style={{ background: 'none', border: 'none', color: '#C8643F', cursor: 'pointer', padding: 0, fontSize: '0.75rem', lineHeight: 1 }}
+                        aria-label={`Remove ${od}`}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {editableOpenDates.length === 0 && (
+                    <span style={{ color: '#8C8270', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                      No dates marked yet. Add dates below:
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. Oct 2, Oct 27, Nov 14..."
+                    value={newOpenDateInput}
+                    onChange={(e) => setNewOpenDateInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddOpenDate();
+                      }
+                    }}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      backgroundColor: '#F5EBE6',
-                      color: '#C8643F',
-                      border: '1px solid #F0D5C7',
-                      padding: '2px 8px',
-                      borderRadius: '9999px',
+                      flex: 1,
+                      backgroundColor: '#FAF7F2',
+                      border: '1px solid #D8CEBC',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      fontSize: '0.82rem',
+                      color: '#2B271F',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddOpenDate}
+                    style={{
+                      backgroundColor: '#2B271F',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
                       fontSize: '0.78rem',
-                      fontWeight: 600,
+                      fontWeight: 700,
+                      cursor: 'pointer',
                     }}
                   >
-                    <span>{od}</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditableOpenDates((prev) => prev.filter((item) => item !== od))}
-                      style={{ background: 'none', border: 'none', color: '#C8643F', cursor: 'pointer', padding: 0, fontSize: '0.75rem', lineHeight: 1 }}
-                      aria-label={`Remove ${od}`}
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
+                    Add
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
-                <input
-                  type="text"
-                  placeholder="e.g. Oct 15, Nov 12..."
-                  value={newOpenDateInput}
-                  onChange={(e) => setNewOpenDateInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddOpenDate();
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#FAF7F2',
-                    border: '1px solid #D8CEBC',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '0.82rem',
-                    color: '#2B271F',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddOpenDate}
-                  style={{
-                    backgroundColor: '#2B271F',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Add
-                </button>
+              {/* Edit Vibes Section */}
+              <div style={{ marginBottom: '12px', paddingTop: '10px', borderTop: '1px dashed #D8CEBC' }}>
+                <div style={{ color: '#4C5A40', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                  Select Gathering Vibes:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {AVAILABLE_VIBES.map((vibe) => {
+                    const isSelected = editableVibes.includes(vibe);
+                    return (
+                      <button
+                        key={vibe}
+                        type="button"
+                        onClick={() => handleToggleVibe(vibe)}
+                        style={{
+                          backgroundColor: isSelected ? '#C8643F' : '#FAF7F2',
+                          color: isSelected ? '#FFFFFF' : '#2B271F',
+                          border: `1px solid ${isSelected ? '#C8643F' : '#D8CEBC'}`,
+                          padding: '3px 9px',
+                          borderRadius: '9999px',
+                          fontSize: '0.76rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {isSelected ? `✓ ${vibe}` : vibe}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              {/* Actions: Cancel & Save */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '6px', borderTop: '1px solid #EDE4D3' }}>
                 <button
                   type="button"
                   onClick={() => {
                     setEditableOpenDates(openDates);
-                    setIsEditingOpenDates(false);
+                    setEditableVibes(currentVibes);
+                    setIsEditingPreferences(false);
                   }}
                   style={{
                     background: 'none',
@@ -555,34 +728,26 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                 </button>
                 <button
                   type="button"
-                  disabled={savingDates}
-                  onClick={handleSaveOpenDates}
+                  disabled={savingPreferences}
+                  onClick={handleSavePreferences}
                   style={{
                     backgroundColor: '#C8643F',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '8px',
-                    padding: '6px 12px',
+                    padding: '6px 14px',
                     fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    opacity: savingDates ? 0.6 : 1,
+                    opacity: savingPreferences ? 0.6 : 1,
                   }}
                 >
-                  {savingDates ? 'Saving...' : 'Save Dates'}
+                  {savingPreferences ? 'Saving...' : 'Save Preferences'}
                 </button>
               </div>
             </div>
           )}
         </div>
-
-        {/* Additional preferences (Vibes, Times, Party) */}
-        {allGatherings.length > 0 && (
-          <div style={{ marginBottom: '6px', fontSize: '0.82rem' }}>
-            <span style={{ color: '#6A6253', fontWeight: 500 }}>Alternative Vibes: </span>
-            <span style={{ color: '#2B271F', fontWeight: 600 }}>{allGatherings.join(', ')}</span>
-          </div>
-        )}
 
         {allTimes.length > 0 && (
           <div style={{ marginBottom: (selectedDrink || selectedGuests) ? '6px' : '0', fontSize: '0.82rem' }}>

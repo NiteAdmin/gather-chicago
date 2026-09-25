@@ -1149,6 +1149,7 @@ export default function SurveyForm({
             selectedGatherings={selectedGatherings}
             customGathering={customGathering}
             selectedDates={Array.from(new Set([...selectedDates, ...availableDates]))}
+            availableDates={availableDates}
             customDate={customDate}
             selectedTimes={selectedTimes}
             customTime={customTime}
