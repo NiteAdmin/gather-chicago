@@ -119,9 +119,15 @@ const footerRaw = fs.readFileSync('components/Footer.tsx', 'utf-8');
 const introPageRaw = fs.readFileSync('app/components/IntroPage.tsx', 'utf-8');
 const confirmationCardRaw = fs.readFileSync('app/components/ConfirmationCard.tsx', 'utf-8');
 
+const navbarRaw = fs.readFileSync('components/Navbar.tsx', 'utf-8');
+
 assert(
   brandNameRaw.includes('hasCustomSize') && brandNameRaw.includes('hasCustomAlign'),
   'BrandName supports intelligent custom size, alignment, and color overrides'
+);
+assert(
+  navbarRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
+  'components/Navbar.tsx uses standardized terracotta TM'
 );
 assert(
   footerRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
@@ -150,6 +156,51 @@ assert(
   termsRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"'),
   'Terms of service footer uses legible terracotta TM'
 );
+
+// Enforce brand footer presence and prohibit naked legal link bars
+const hostRaw = fs.readFileSync('app/host/page.tsx', 'utf-8');
+assert(
+  hostRaw.includes('<Footer') || (hostRaw.includes('<BrandName') && hostRaw.includes('tmClassName')),
+  'app/host/page.tsx mounts standardized brand Footer component'
+);
+
+const adminDashboardRaw = fs.readFileSync('app/admin/AdminDashboard.tsx', 'utf-8');
+assert(
+  adminDashboardRaw.includes('<Footer') || adminDashboardRaw.includes('<BrandName'),
+  'app/admin/AdminDashboard.tsx mounts standardized brand Footer component'
+);
+
+const pageViews = [
+  'app/components/IntroPage.tsx',
+  'app/[city]/SurveyForm.tsx',
+  'app/admin/AdminDashboard.tsx',
+  'app/dashboard/page.tsx',
+  'app/host/page.tsx',
+  'app/privacy/page.tsx',
+  'app/terms/page.tsx',
+  'app/preview/bulletin/page.tsx',
+];
+
+pageViews.forEach((file) => {
+  const content = fs.readFileSync(file, 'utf-8');
+  const mountsBrand = content.includes('<Footer') || content.includes('<BrandName');
+  assert(mountsBrand, `${file} mounts brand footer containing Actually, Let's wordmark & TM entity`);
+
+  // Disallow naked legal link bar without brand block
+  const hasLegalLinks = content.includes('/privacy') || content.includes('/terms');
+  if (hasLegalLinks) {
+    assert(mountsBrand, `${file} pairs legal links with brand wordmark (no naked legal bar)`);
+  }
+
+  // If a <footer> element is declared in JSX, ensure it contains the brand wordmark
+  if (content.includes('<footer')) {
+    const footerMatches = content.match(/<footer[\s\S]*?<\/footer>/gi) || [];
+    footerMatches.forEach((fm, i) => {
+      const hasBrand = fm.includes('<BrandName') || fm.includes('<Footer') || fm.includes('Actually, Let');
+      assert(hasBrand, `${file} footer element #${i + 1} contains brand wordmark (not naked)`);
+    });
+  }
+});
 
 // 4. Landing Page Hero & Host Card
 console.log('\n4. LANDING PAGE HERO & HOST CARD AUDIT:');
@@ -270,6 +321,7 @@ assert(
   'Dashboard reuses shared formatAvailabilityDatesList utility'
 );
 assert(
+  dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"') ||
   dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 align-super"'),
   'Dashboard navbar logo uses text-xs sm:text-sm font-bold terracotta TM'
 );

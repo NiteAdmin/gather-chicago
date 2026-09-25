@@ -7,6 +7,7 @@ import { BroadcastRecord } from '@/lib/firebase';
 import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
 import { BrandName } from '@/components/brand/BrandName';
+import Footer from '@/components/Footer';
 import {
   Users,
   UserCheck,
@@ -2256,6 +2257,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      <Footer className="mt-16" />
     </div>
   );
 }

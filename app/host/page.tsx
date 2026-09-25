@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Loader2, Users, Calendar, HeartHa
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import UserNavButton from "@/components/nav/UserNavButton";
 import { BrandName } from "@/components/brand/BrandName";
+import Footer from "@/components/Footer";
 
 export default function HostApplicationPage() {
   // Form fields
@@ -110,7 +111,10 @@ export default function HostApplicationPage() {
             href="/"
             className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
           >
-            <BrandName className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight" />
+            <BrandName
+              className="font-serif-fraunces font-black text-xl sm:text-2xl text-[#2B271F] tracking-tight"
+              tmClassName="text-xs sm:text-sm font-bold text-[#C8643F] ml-0.5 inline-block align-super"
+            />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest bg-[#EDE4D3] text-[#4C5A40] px-2 py-0.5 rounded-full font-bold">
               SERIES
             </span>
@@ -501,25 +505,7 @@ export default function HostApplicationPage() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-[#D8CEBC]/70 py-8 text-center text-xs text-[#6A6253] bg-[#EDE4D3]/40">
-        <div className="max-w-4xl mx-auto px-6 flex flex-wrap justify-center items-center gap-3 sm:gap-4">
-          <Link href="/" className="hover:text-[#2B271F] transition-colors">
-            Home
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/chicago" className="hover:text-[#2B271F] transition-colors">
-            Chicago Series
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/privacy" className="hover:text-[#2B271F] transition-colors">
-            Privacy Policy
-          </Link>
-          <span className="text-[#A89F91] select-none">&middot;</span>
-          <Link href="/terms" className="hover:text-[#2B271F] transition-colors">
-            Terms of Service
-          </Link>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
