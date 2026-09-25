@@ -1993,7 +1993,7 @@ export default function SurveyForm({
               {/* A2P 10DLC Footer Legal & Compliance Links */}
               <div className="footer-legal" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--line)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--ink-soft)', lineHeight: '1.6' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong><BrandName tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
+                  <strong><BrandName tmClassName="text-[#2B271F]" /></strong> &middot; {cityName === 'Chicago' ? 'Chicago, IL' : cityName === 'Austin' ? 'Austin, TX' : cityName} &middot;{' '}
                   <button
                     type="button"
                     onClick={(e) => {

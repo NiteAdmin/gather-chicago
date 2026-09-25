@@ -73,7 +73,7 @@ export default function PrivacyPage() {
 
         <footer style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #D8CEBC', textAlign: 'center', fontSize: '0.85rem', color: '#6A6253', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
-            <strong><BrandName tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super" /></strong> &middot; Chicago, IL &middot;{' '}
+            <strong><BrandName tmClassName="text-[#2B271F]" /></strong> &middot; Chicago, IL &middot;{' '}
             <MailtoButton email="admin@actuallylets.com" style={{ color: '#C8643F', textDecoration: 'underline', font: 'inherit', fontSize: 'inherit' }}>
               rsvp@actuallylets.com
             </MailtoButton>

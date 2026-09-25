@@ -21,7 +21,7 @@ export default function Navbar({ className = '' }: NavbarProps) {
         >
           <BrandName
             className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap"
-            tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"
+            tmClassName="text-[#2B271F]"
           />
           {/* SERIES chip: hidden on mobile (< 640px), visible on sm: and up */}
           <span className="hidden sm:inline-flex rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">

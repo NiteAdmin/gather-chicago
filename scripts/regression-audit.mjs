@@ -126,39 +126,39 @@ assert(
   'BrandName supports intelligent custom size, alignment, and color overrides'
 );
 assert(
-  navbarRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'components/Navbar.tsx uses standardized neutral stone TM'
+  navbarRaw.includes('tmClassName="text-[#2B271F]"'),
+  'components/Navbar.tsx uses proportional brand text TM'
 );
 assert(
-  footerRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'components/Footer.tsx uses legible neutral stone TM with text-xs sm:text-sm'
+  footerRaw.includes('tmClassName="text-[#2B271F]"') || footerRaw.includes('text-[#2C2420]'),
+  'components/Footer.tsx uses dark tone TM matching brand text'
 );
 assert(
-  !footerRaw.includes('#C8643F'),
+  !footerRaw.includes('#C8643F') && !footerRaw.includes('#C86D51'),
   'components/Footer.tsx does NOT use terracotta for trademark symbol'
 );
 assert(
-  introPageRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'app/components/IntroPage.tsx footer uses legible neutral stone TM'
+  introPageRaw.includes('tmClassName="text-[#2B271F]"'),
+  'app/components/IntroPage.tsx footer uses dark tone TM matching brand text'
 );
 assert(
-  confirmationCardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'ConfirmationCard.tsx footer uses legible neutral stone TM'
+  confirmationCardRaw.includes('tmClassName="text-[#2B271F]"'),
+  'ConfirmationCard.tsx footer uses dark tone TM matching brand text'
 );
 assert(
-  surveyFormRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'SurveyForm.tsx footer uses legible neutral stone TM'
+  surveyFormRaw.includes('tmClassName="text-[#2B271F]"'),
+  'SurveyForm.tsx footer uses dark tone TM matching brand text'
 );
 
 const privacyRaw = fs.readFileSync('app/privacy/page.tsx', 'utf-8');
 const termsRaw = fs.readFileSync('app/terms/page.tsx', 'utf-8');
 assert(
-  privacyRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'Privacy policy footer uses legible neutral stone TM'
+  privacyRaw.includes('tmClassName="text-[#2B271F]"'),
+  'Privacy policy footer uses dark tone TM matching brand text'
 );
 assert(
-  termsRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'Terms of service footer uses legible neutral stone TM'
+  termsRaw.includes('tmClassName="text-[#2B271F]"'),
+  'Terms of service footer uses dark tone TM matching brand text'
 );
 
 // Enforce brand footer presence and prohibit naked legal link bars
@@ -325,19 +325,19 @@ assert(
   'Dashboard reuses shared formatAvailabilityDatesList utility'
 );
 assert(
-  dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'Dashboard navbar logo uses text-xs sm:text-sm font-bold neutral stone TM'
+  dashboardRaw.includes('tmClassName="text-[#2B271F]"'),
+  'Dashboard navbar logo uses dark tone TM matching brand text'
 );
 assert(
-  dashboardRaw.includes('tmClassName="text-xs sm:text-sm font-bold text-stone-600 ml-0.5 inline-block align-super"'),
-  'Dashboard footer uses text-xs sm:text-sm font-bold neutral stone TM'
+  dashboardRaw.includes('tmClassName="text-[#2B271F]"'),
+  'Dashboard footer uses dark tone TM matching brand text'
 );
 assert(
-  !dashboardRaw.includes('text-[#C8643F] ml-0.5') && !dashboardRaw.includes('text-[#C8643F] align-super'),
+  !dashboardRaw.includes('text-[#C8643F] ml-0.5') && !dashboardRaw.includes('text-[#C8643F] align-super') && !dashboardRaw.includes('#C86D51'),
   'Dashboard does NOT use terracotta for trademark symbol'
 );
 
-// Ensure the audit verifies that NO ™ symbol on <Footer /> or headers is using #C8643F
+// Ensure the audit verifies that NO ™ symbol on <Footer /> or headers is using #C8643F or #C86D51
 const brandKeyFiles = [
   'components/Navbar.tsx',
   'components/Footer.tsx',
@@ -347,8 +347,8 @@ const brandKeyFiles = [
 ];
 brandKeyFiles.forEach((f) => {
   const c = fs.readFileSync(f, 'utf-8');
-  const hasTerracottaTm = c.includes('text-[#C8643F] ml-0.5') || c.includes('text-[#C8643F] align-super') || (f === 'components/Footer.tsx' && c.includes('#C8643F'));
-  assert(!hasTerracottaTm, `${f} does NOT use terracotta (#C8643F) on trademark symbol`);
+  const hasTerracottaTm = /tmClassName="[^"]*#(?:C8643F|C86D51)/i.test(c) || (f === 'components/Footer.tsx' && /#(?:C8643F|C86D51)/i.test(c));
+  assert(!hasTerracottaTm, `${f} does NOT use terracotta (#C8643F / #C86D51) on trademark symbol`);
 });
 
 // 9. Safe Logic Hardening, Timezone Lock & Touch Targets

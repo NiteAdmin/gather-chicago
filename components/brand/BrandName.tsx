@@ -14,7 +14,7 @@ export function BrandName({ className = '', tmClassName = '' }: BrandNameProps) 
 
   const baseSize = hasCustomSize ? '' : 'text-[max(10px,0.68em)] min-text-[10px]';
   const baseAlign = hasCustomAlign ? '' : '-top-[0.45em] relative';
-  const baseColor = hasCustomColor ? '' : 'text-stone-600';
+  const baseColor = hasCustomColor ? '' : 'text-[#2B271F]';
   const baseMargin = hasCustomMargin ? '' : 'ml-[1.5px]';
 
   return (
