@@ -166,16 +166,30 @@ assert(
 // 5. Harmonize Suggestion Section
 console.log('\n5. SUGGESTION SECTION STYLING AUDIT:');
 assert(
-  surveyFormRaw.includes('bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB] hover:bg-[#E8E3DB]'),
+  surveyFormRaw.includes('rounded-xl px-4 py-2.5 text-sm font-medium transition-all border'),
+  'Suggestion buttons styled as rounded-xl px-4 py-2.5 text-sm matching option buttons'
+);
+assert(
+  !surveyFormRaw.includes('rounded-full px-3.5 py-1.5'),
+  'No skinny rounded-full pills in suggestion section'
+);
+assert(
+  surveyFormRaw.includes('gap-2 sm:gap-2.5 mb-3'),
+  'Suggestion buttons flex/wrap with gap-2 sm:gap-2.5'
+);
+assert(
+  surveyFormRaw.includes('bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB] hover:bg-[#E8E3DB]'),
   'Suggestion pills inactive state styled with bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB]'
 );
 assert(
-  surveyFormRaw.includes('bg-[#C8643F] text-white border border-[#C8643F] shadow-xs'),
+  surveyFormRaw.includes('bg-[#C8643F] text-white border-[#C8643F] shadow-xs') ||
+  surveyFormRaw.includes('bg-[#C8643F] text-white border-[#C8643F]'),
   'Suggestion pills active state styled with terracotta bg-[#C8643F] text-white'
 );
 assert(
+  surveyFormRaw.includes('rounded-xl px-4 py-3') &&
   surveyFormRaw.includes('bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white'),
-  'Custom idea input box styled with warm biscuit bg-[#FAF8F5] and terracotta focus'
+  'Custom idea input box styled with rounded-xl px-4 py-3 and warm biscuit bg-[#FAF8F5]'
 );
 
 // 6. Confirmation Receipt Dates & Vibes

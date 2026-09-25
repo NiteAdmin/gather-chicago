@@ -1744,7 +1744,7 @@ export default function SurveyForm({
                 <p className="text-xs text-[#6A6253] mt-1 mb-3">
                   Suggest an idea or pick alternative vibes you&apos;d like to do.
                 </p>
-                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mb-3">
                   {GATHERINGS.map((g) => {
                     const isSelected = selectedGatherings.includes(g);
                     return (
@@ -1752,10 +1752,10 @@ export default function SurveyForm({
                         key={g}
                         type="button"
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                        className={`transition-all rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium cursor-pointer ${
+                        className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all border cursor-pointer ${
                           isSelected
-                            ? "bg-[#C8643F] text-white border border-[#C8643F] shadow-xs"
-                            : "bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB] hover:bg-[#E8E3DB]"
+                            ? "bg-[#C8643F] text-white border-[#C8643F] shadow-xs"
+                            : "bg-[#EFECE6] text-[#2B271F] border-[#DDD7CB] hover:bg-[#E8E3DB]"
                         }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
@@ -1768,7 +1768,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full text-sm bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
+                  className="w-full text-sm sm:text-base bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white rounded-xl px-4 py-3 outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
