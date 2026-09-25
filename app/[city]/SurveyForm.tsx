@@ -1752,10 +1752,10 @@ export default function SurveyForm({
                         key={g}
                         type="button"
                         onClick={() => toggleChip(selectedGatherings, setSelectedGatherings, g)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                        className={`transition-all rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium cursor-pointer ${
                           isSelected
-                            ? "bg-[#C8643F] text-white border-[#C8643F]"
-                            : "bg-white/80 border-[#D9D2C7] text-[#2B271F] hover:bg-white hover:border-[#C8643F]/50"
+                            ? "bg-[#C8643F] text-white border border-[#C8643F] shadow-xs"
+                            : "bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB] hover:bg-[#E8E3DB]"
                         }`}
                       >
                         {isSelected ? `✓ ${g}` : g}
@@ -1768,7 +1768,7 @@ export default function SurveyForm({
                   placeholder="Have another idea or suggestion? (e.g., Board game night, rooftop picnic)…"
                   value={customGathering}
                   onChange={(e) => setCustomGathering(e.target.value)}
-                  className="w-full text-sm text-[#2B271F] placeholder-[#A8A29E] !bg-white/70 focus:!bg-white !border-[#D9D2C7] focus:!border-[#C8643F] rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
+                  className="w-full text-sm bg-[#FAF8F5] border border-[#DDD7CB] text-[#2B271F] placeholder-[#9C9488] focus:border-[#C8643F] focus:bg-white rounded-xl px-3.5 py-2.5 outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
