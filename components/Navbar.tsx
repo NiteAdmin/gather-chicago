@@ -17,9 +17,12 @@ export default function Navbar({ className = '' }: NavbarProps) {
         <Link
           href="/"
           className="group flex items-center gap-2 text-decoration-none shrink-0"
-          aria-label="Actually, Let's Home"
+          aria-label="Actually, Let's™ Home"
         >
-          <BrandName className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap" />
+          <BrandName
+            className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap"
+            tmClassName="text-stone-600 group-hover:text-[#C8643F]"
+          />
           {/* SERIES chip: hidden on mobile (< 640px), visible on sm: and up */}
           <span className="hidden sm:inline-flex rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">
             SERIES

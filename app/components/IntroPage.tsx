@@ -100,7 +100,9 @@ export default function IntroPage() {
 
           {/* Headline with Text Cycler */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
-            Actually, Let’s{' '}
+            <span className="block mb-1 sm:mb-2">
+              <BrandName className="font-serif-fraunces text-[#2B271F]" />
+            </span>
             <span className="inline-block text-[#C8643F] transition-all duration-300 font-serif-fraunces underline decoration-[#E08A63]/50 decoration-wavy underline-offset-8">
               {heroPhrases[activityIndex]}
             </span>
@@ -108,7 +110,7 @@ export default function IntroPage() {
 
           {/* Subtext */}
           <p className="mt-6 text-base sm:text-lg text-[#6A6253] max-w-2xl mx-auto leading-relaxed">
-            Coordinating effortless, recurring local gatherings without group-chat chaos.
+            Plan gatherings, effortlessly. Without the group chat.
           </p>
 
           {/* Active & Upcoming City Chapters Row - 4-Column Horizontal Grid */}
@@ -270,11 +272,11 @@ export default function IntroPage() {
         {/* 3. HOST APPLICATION TEASER CARD */}
         <section id="host" className="mt-8 bg-[#FBF7EE] border-2 border-[#D8CEBC] rounded-3xl p-6 sm:p-10 shadow-lg animate-fade-in-delayed-2">
           <div className="text-center max-w-2xl mx-auto">
-            <span className="text-xs uppercase tracking-widest font-bold text-[#C8643F]">
+            <span className="text-xs sm:text-sm uppercase tracking-wider font-semibold text-[#C8643F] inline-block">
               LEAD YOUR COMMUNITY
             </span>
-            <h2 className="text-2xl sm:text-4xl font-bold font-serif-fraunces text-[#2B271F] mt-2 leading-tight">
-              Launch Actually, Let&apos;s in Your City — Become a Host Admin
+            <h2 className="text-xl sm:text-2xl font-serif font-serif-fraunces font-bold text-[#2B271F] mt-2 leading-tight">
+              Launch <BrandName className="font-serif font-serif-fraunces font-bold text-[#2B271F]" /> in Your City — Become a Host Admin
             </h2>
             <p className="text-sm sm:text-base text-[#6A6253] mt-3 leading-relaxed">
               Turn messy group chats into effortless gatherings. Apply to lead your city chapter or unlock your own Host Admin workspace to coordinate private events, social clubs, or community meetups.
