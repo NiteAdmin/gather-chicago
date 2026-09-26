@@ -12,18 +12,20 @@ export function BrandName({ className = '', tmClassName = '', short = false }: B
   const hasCustomAlign = /(?:align-|top-)/.test(tmClassName);
   const hasCustomColor = /(?:text-(?:stone|terra|neutral|gray|slate|zinc|red|amber|emerald|blue|white|black|#|\[#|var\()|(?:text-[a-z]+-\d+))/.test(tmClassName);
   const hasCustomMargin = /ml-/.test(tmClassName);
+  const hasCustomWeight = /(?:font-(?:normal|medium|semibold|bold|extrabold|black))/.test(tmClassName);
 
-  const baseSize = hasCustomSize ? '' : 'text-[max(10px,0.68em)] min-text-[10px]';
-  const baseAlign = hasCustomAlign ? '' : '-top-[0.45em] relative';
+  const baseSize = hasCustomSize ? '' : 'text-[max(11.5px,0.74em)] min-text-[10px]';
+  const baseAlign = hasCustomAlign ? '' : '-top-[0.42em] relative';
   const baseColor = hasCustomColor ? '' : 'text-[#2B271F]';
-  const baseMargin = hasCustomMargin ? '' : 'ml-[1.5px]';
+  const baseMargin = hasCustomMargin ? '' : 'ml-[2px]';
+  const baseWeight = hasCustomWeight ? '' : 'font-bold';
 
   return (
     <span className={`inline-flex items-baseline ${className}`}>
       <span>{short ? 'Actually' : <>Actually, Let&apos;s</>}</span>
       <span
         aria-hidden="true"
-        className={`font-sans font-medium select-none ${baseSize} ${baseAlign} ${baseMargin} ${baseColor} ${tmClassName}`.replace(/\s+/g, ' ').trim()}
+        className={`font-sans ${baseWeight} leading-none select-none ${baseSize} ${baseAlign} ${baseMargin} ${baseColor} ${tmClassName}`.replace(/\s+/g, ' ').trim()}
       >
         ™
       </span>
