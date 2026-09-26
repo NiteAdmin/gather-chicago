@@ -1101,7 +1101,7 @@ export default function AdminDashboard() {
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-widest text-[#E07A5F]">
-                  EXECUTIVE HOST ADMIN
+                  HOST PORTAL
                 </span>
                 <span className="text-[#D8CEBC]">·</span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6]">
@@ -1113,12 +1113,12 @@ export default function AdminDashboard() {
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-serif-fraunces tracking-tight text-[#2B271F] break-words">
-                Chapter Operations &amp; Intelligence
+                Host Dashboard
               </h1>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full md:w-auto min-w-0">
-              {/* Executive Multi-Market Selector */}
+              {/* Chapter Market Selector */}
               <div className="relative flex-1 sm:flex-none min-w-0">
                 <button
                   type="button"
@@ -1166,9 +1166,9 @@ export default function AdminDashboard() {
                       className="fixed inset-0 z-30"
                       onClick={() => setShowChapterMenu(false)}
                     />
-                    <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-50 space-y-1">
+                    <div className="absolute right-0 sm:left-auto top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-50 space-y-1">
                       <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
-                        <span>Executive Multi-Market Switcher</span>
+                        <span>Select Chapter Market</span>
                         <span>5 Markets</span>
                       </div>
                       {CHAPTERS.map((ch) => {
@@ -1246,7 +1246,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* PERSISTENT ADAPTIVE MISSION CONTROL COCKPIT */}
+          {/* GATHERING OVERVIEW BANNER */}
           <div
             className={`rounded-2xl p-5 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
               isTomorrowEvent
@@ -1264,12 +1264,9 @@ export default function AdminDashboard() {
                   <>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
                       <Sparkles className="w-3 h-3 text-white" />
-                      HOST MISSION CONTROL
+                      EVENT DAY
                     </span>
                     <span className="text-white/30 hidden sm:inline">·</span>
-                    <span className="text-xs text-stone-300 font-medium">
-                      Event-Day Cockpit
-                    </span>
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       Event Tomorrow · {selectedEvent.timeWindow || '10:30 AM CDT'}
@@ -1278,16 +1275,13 @@ export default function AdminDashboard() {
                 ) : (
                   <>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#2B271F] text-white shadow-xs">
-                      <Compass className="w-3 h-3 text-white" />
-                      MISSION CONTROL
+                      <Calendar className="w-3 h-3 text-white" />
+                      UPCOMING GATHERING
                     </span>
                     <span className="text-stone-300 hidden sm:inline">·</span>
-                    <span className="text-xs text-stone-600 font-medium">
-                      Chapter Planning Cockpit
-                    </span>
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]">
                       <Calendar className="w-3 h-3 text-[#C8643F]" />
-                      Upcoming Scheduled Event
+                      Scheduled Event
                     </span>
                   </>
                 )}
@@ -1301,7 +1295,7 @@ export default function AdminDashboard() {
               {/* Event Callout (7 cols) */}
               <div className="lg:col-span-7 space-y-2 min-w-0">
                 <div className={`text-xs font-mono uppercase tracking-wider ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                  {isTomorrowEvent ? 'Active Event Focus' : 'Scheduled Gathering Focus'}
+                  {isTomorrowEvent ? 'CURRENT EVENT' : 'UPCOMING GATHERING'}
                 </div>
                 <h2 className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
@@ -1322,7 +1316,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Headcount Gauge in Mission Control Cockpit (5 cols) */}
+              {/* Headcount Gauge (5 cols) */}
               <div
                 className={`lg:col-span-5 rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-[210px] ${
                   isTomorrowEvent
@@ -1569,22 +1563,22 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SECTION 2: MACRO INTAKE & SURVEY POLLING */}
+          {/* SECTION 2: COMMUNITY POLLING */}
           <div className="space-y-4 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 border-b border-[#EBE3D5]">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[#6E7F5E]">
-                    INTAKE ANALYTICS
+                    COMMUNITY DEMAND
                   </span>
                   <span className="text-[#D8CEBC]">·</span>
-                  <span className="text-xs text-[#8C827A]">Chapter-Wide Consensus</span>
+                  <span className="text-xs text-[#8C827A]">Chapter Polls</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
-                  Chapter Polling &amp; Demand
+                  Community Polling
                 </h2>
                 <p className="text-xs text-[#6A6253] mt-0.5">
-                  Aggregate community survey intake ({responses.length} responses, {totalEstimatedGuests} projected attendees) reflecting chapter-wide consensus and demand, distinct from active event RSVP headcounts.
+                  Responses from {responses.length} community members showing preferred dates and activities.
                 </p>
               </div>
             </div>
@@ -1600,7 +1594,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {responses.length}
                   </div>
-                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                  <span className="text-[11px] sm:text-xs text-stone-600 mt-0.5 block font-sans truncate">
                     Verified submissions
                   </span>
                 </div>
@@ -1618,7 +1612,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {totalEstimatedGuests}
                   </div>
-                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                  <span className="text-[11px] sm:text-xs text-stone-600 mt-0.5 block font-sans truncate">
                     Signups + guests
                   </span>
                 </div>
@@ -1636,7 +1630,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {smsReachRate}%
                   </div>
-                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                  <span className="text-[11px] sm:text-xs text-stone-600 mt-0.5 block font-sans truncate">
                     {smsOptedInResponses.length} opted-in numbers
                   </span>
                 </div>
@@ -1654,7 +1648,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {topDateOption ? topDateOption.split(',')[0] : '—'}
                   </div>
-                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                  <span className="text-[11px] sm:text-xs text-stone-600 mt-0.5 block font-sans truncate">
                     Top polled date
                   </span>
                 </div>
@@ -1667,7 +1661,7 @@ export default function AdminDashboard() {
 
           {/* SECTION 3: 12-COLUMN ANALYTICS SUITE */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Col (col-span-12 lg:col-span-6): Date Polling, Write-In Demands, Time Preferences & Quick Splits */}
+            {/* Left Col (col-span-12 lg:col-span-6): Date Polling, Member Notes & Ideas, Time Preferences & Preferences */}
             <div className="col-span-12 lg:col-span-6 space-y-6">
               {/* Date Polling Results */}
               <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
@@ -1690,13 +1684,13 @@ export default function AdminDashboard() {
                 {renderBars(dateTally)}
               </div>
 
-              {/* Write-In Demands & Requests */}
+              {/* Member Notes & Ideas */}
               {(writeInGatheringItems.length > 0 || writeInDateItems.length > 0 || writeInTimeItems.length > 0) && (
                 <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                   <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                     <PenLine className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                      Write-In Demands &amp; Requests
+                      Member Notes &amp; Ideas
                     </h3>
                   </div>
                   {writeInGatheringItems.length > 0 && (
@@ -1794,12 +1788,12 @@ export default function AdminDashboard() {
                 {renderBars(timeTally)}
               </div>
 
-              {/* Quick Splits */}
+              {/* Preferences */}
               <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                 <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                   <SlidersHorizontal className="w-4 h-4 text-[#8C827A]" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                    Quick Splits
+                    Preferences
                   </h3>
                 </div>
                 <div>
