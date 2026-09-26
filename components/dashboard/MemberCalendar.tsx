@@ -19,7 +19,7 @@ import {
   MapPin,
   ExternalLink,
   CheckCircle2,
-  Sparkles,
+  Check,
   Info,
   X,
   ChevronLeft,
@@ -31,6 +31,70 @@ interface MemberCalendarProps {
   onToggleRSVP?: (eventId: string) => void;
   className?: string;
   userEmail?: string | null;
+  preferredDates?: string[];
+  onTogglePreferredDate?: (dateKey: string) => void;
+}
+
+function getMonthShortName(monthKey: string): string {
+  switch (monthKey) {
+    case "2026-09":
+      return "Sep";
+    case "2026-10":
+      return "Oct";
+    case "2026-11":
+      return "Nov";
+    case "2026-12":
+      return "Dec";
+    default:
+      return "Oct";
+  }
+}
+
+function getMonthWeekendLabel(monthKey: string): string {
+  switch (monthKey) {
+    case "2026-09":
+      return "All September Weekends";
+    case "2026-10":
+      return "All October Weekends";
+    case "2026-11":
+      return "All November Weekends";
+    case "2026-12":
+      return "All December Weekends";
+    default:
+      return "";
+  }
+}
+
+function isDayPreferred(
+  selectedMonth: string,
+  dayNum: number,
+  preferredDates: string[],
+  isWeekend: boolean
+): boolean {
+  if (!preferredDates || preferredDates.length === 0) return false;
+  const shortMonth = getMonthShortName(selectedMonth);
+  const formattedKey = `${shortMonth} ${dayNum}, 2026`.toLowerCase();
+  const shortKey = `${shortMonth} ${dayNum}`.toLowerCase();
+  const isoKey = `${selectedMonth}-${String(dayNum).padStart(2, "0")}`.toLowerCase();
+
+  if (isWeekend) {
+    const weekendLabel = getMonthWeekendLabel(selectedMonth).toLowerCase();
+    if (weekendLabel && preferredDates.some((d) => typeof d === "string" && d.trim().toLowerCase() === weekendLabel)) {
+      return true;
+    }
+  }
+
+  return preferredDates.some((d) => {
+    if (!d || typeof d !== "string") return false;
+    const clean = d.trim().toLowerCase();
+    return (
+      clean === formattedKey ||
+      clean === shortKey ||
+      clean === isoKey ||
+      clean.includes(formattedKey) ||
+      clean.includes(isoKey)
+    );
+  });
 }
 
 export default function MemberCalendar({
@@ -38,6 +102,8 @@ export default function MemberCalendar({
   onToggleRSVP,
   className = "",
   userEmail,
+  preferredDates: propsPreferredDates,
+  onTogglePreferredDate,
 }: MemberCalendarProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const AVAILABLE_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as const;
@@ -48,6 +114,35 @@ export default function MemberCalendar({
   const [filterStatus, setFilterStatus] = useState<"all" | "attending" | "open">("all");
   const [activePopoverEvent, setActivePopoverEvent] = useState<ResolvedEvent | null>(null);
   const [isPotteryModalOpen, setIsPotteryModalOpen] = useState(false);
+
+  // Active preferred dates state (synced with props.preferredDates and localStorage)
+  const [internalPreferredDates, setInternalPreferredDates] = useState<string[]>(() => {
+    if (propsPreferredDates && propsPreferredDates.length > 0) {
+      return propsPreferredDates;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("actuallylets_preferred_dates");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (propsPreferredDates && propsPreferredDates.length > 0) {
+      setInternalPreferredDates(propsPreferredDates);
+    }
+  }, [propsPreferredDates]);
+
+  const activePreferredDates = propsPreferredDates && propsPreferredDates.length > 0
+    ? propsPreferredDates
+    : internalPreferredDates;
   const [hasVoted, setHasVoted] = useState(false);
   const modalScrollRef = useRef<HTMLDivElement>(null);
 
@@ -203,6 +298,54 @@ export default function MemberCalendar({
       eventsByDay[day].push(ev);
     }
   });
+
+  const handleBlankDateClick = (dayNum: number) => {
+    const shortMonth = getMonthShortName(selectedMonth);
+    const dateKey = `${shortMonth} ${dayNum}, 2026`;
+    const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
+    const isCurrentlyPreferred = isDayPreferred(selectedMonth, dayNum, activePreferredDates, isWeekend);
+
+    let updated: string[];
+    if (isCurrentlyPreferred) {
+      const isoKey = `${selectedMonth}-${String(dayNum).padStart(2, "0")}`.toLowerCase();
+      const shortKey = `${shortMonth} ${dayNum}`.toLowerCase();
+      const lowerKey = dateKey.toLowerCase();
+      updated = activePreferredDates.filter((d) => {
+        if (!d || typeof d !== "string") return false;
+        const clean = d.trim().toLowerCase();
+        return (
+          clean !== lowerKey &&
+          clean !== isoKey &&
+          clean !== shortKey &&
+          !clean.includes(lowerKey)
+        );
+      });
+      // If bulk weekend label exists, unroll weekends for this month
+      const weekendLabel = getMonthWeekendLabel(selectedMonth).toLowerCase();
+      if (weekendLabel && updated.some((d) => typeof d === "string" && d.trim().toLowerCase() === weekendLabel)) {
+        updated = updated.filter((d) => typeof d === "string" && d.trim().toLowerCase() !== weekendLabel);
+        for (let d = 1; d <= daysInMonth; d++) {
+          const isDWeekend = (startDayOfWeek + d - 1) % 7 === 0 || (startDayOfWeek + d - 1) % 7 === 6;
+          if (isDWeekend && d !== dayNum) {
+            updated.push(`${shortMonth} ${d}, 2026`);
+          }
+        }
+      }
+    } else {
+      updated = Array.from(new Set([...activePreferredDates, dateKey]));
+    }
+
+    setInternalPreferredDates(updated);
+    try {
+      localStorage.setItem("actuallylets_preferred_dates", JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+
+    if (onTogglePreferredDate) {
+      onTogglePreferredDate(dateKey);
+    }
+  };
 
   const getCategoryStyles = (category: string) => {
     switch (category) {
@@ -509,16 +652,8 @@ export default function MemberCalendar({
 
           {/* December Empty Month Banner */}
           {selectedMonth === "2026-12" && (
-            <div className="mb-3 p-3.5 sm:p-4 bg-[#EDE4D3]/50 border border-dashed border-[#C8643F]/60 rounded-2xl flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">❄️</span>
-                <span className="font-semibold text-[#4C5A40]">
-                  December lineup coming soon — click any date to mark when you&apos;re free.
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-[#C8643F] uppercase tracking-wider hidden sm:inline bg-[#FBE8DF] px-2.5 py-1 rounded-full">
-                Winter Series
-              </span>
+            <div className="mb-3 p-3.5 bg-[#FAF7F2] border border-[#EADBCC] rounded-xl text-center text-xs text-stone-600">
+              December lineup coming soon · Tap any date to let us know when you&apos;re free to gather.
             </div>
           )}
 
@@ -551,6 +686,7 @@ export default function MemberCalendar({
               const dayEvents = eventsByDay[dayNum] || [];
               const hasEvents = dayEvents.length > 0;
               const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
+              const isPreferred = isDayPreferred(selectedMonth, dayNum, activePreferredDates, isWeekend);
               const isPollDay =
                 (selectedMonth === "2026-10" && dayNum === 4) ||
                 (selectedMonth === "2026-11" && dayNum === 14);
@@ -563,14 +699,33 @@ export default function MemberCalendar({
               return (
                 <div
                   key={`day-${dayNum}`}
-                  role={isPollDay || hasEvents ? "button" : undefined}
-                  tabIndex={isPollDay || hasEvents ? 0 : undefined}
-                  title={isPollDay ? pollTitle : undefined}
+                  role="button"
+                  tabIndex={0}
+                  title={
+                    isPollDay
+                      ? pollTitle
+                      : hasEvents
+                      ? undefined
+                      : isPreferred
+                      ? `${currentMonthConfig.name} ${dayNum} marked as available (click to remove)`
+                      : `Click to mark ${currentMonthConfig.name} ${dayNum} as free to gather`
+                  }
+                  aria-label={
+                    isPollDay
+                      ? pollTitle
+                      : hasEvents
+                      ? `View gatherings for ${currentMonthConfig.name} ${dayNum}`
+                      : isPreferred
+                      ? `${currentMonthConfig.name} ${dayNum}, currently marked as free. Tap to remove availability.`
+                      : `${currentMonthConfig.name} ${dayNum}, blank date. Tap to mark as free to gather.`
+                  }
                   onClick={() => {
                     if (isPollDay) {
                       setIsPotteryModalOpen(true);
                     } else if (hasEvents) {
                       setActivePopoverEvent(dayEvents[0]);
+                    } else {
+                      handleBlankDateClick(dayNum);
                     }
                   }}
                   onKeyDown={(e) => {
@@ -580,29 +735,41 @@ export default function MemberCalendar({
                         setIsPotteryModalOpen(true);
                       } else if (hasEvents) {
                         setActivePopoverEvent(dayEvents[0]);
+                      } else {
+                        handleBlankDateClick(dayNum);
                       }
                     }
                   }}
-                  className={`min-h-[44px] sm:min-h-[62px] p-0.5 sm:p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 group/cell ${
+                  className={`min-h-[44px] sm:min-h-[62px] p-0.5 sm:p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 group/cell cursor-pointer select-none ${
                     isPollDay
-                      ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
+                      ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
                       : hasEvents
-                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20 cursor-pointer hover:border-[#C8643F]"
+                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20 hover:border-[#C8643F]"
+                      : isPreferred
+                      ? "bg-[#FAF3EF] border-[#C8643F] ring-1 ring-[#C8643F]/40 shadow-xs"
                       : isWeekend
-                      ? "bg-[#FAF5EA] border-[#D8CEBC]/60"
-                      : "bg-[#FBF7EE] border-[#D8CEBC]/50"
+                      ? "bg-[#FAF5EA] border-[#D8CEBC]/60 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40"
+                      : "bg-[#FBF7EE] border-[#D8CEBC]/50 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40"
                   }`}
                 >
                   <div className="flex items-center justify-between leading-none w-full">
                     <span
-                      className={`text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
+                      className={`text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${
                         hasEvents || isPollDay
                           ? "bg-[#2B271F] text-white"
-                          : "text-[#6A6253]"
+                          : isPreferred
+                          ? "bg-[#C8643F] text-white"
+                          : "text-[#6A6253] group-hover/cell:text-[#2B271F]"
                       }`}
                     >
                       {dayNum}
                     </span>
+                    {isPreferred && !hasEvents && !isPollDay && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-[#C8643F] shrink-0"
+                        title="Available / Preferred"
+                      />
+                    )}
                     {hasEvents && (
                       <>
                         <span className="text-[9px] font-bold text-[#C8643F] hidden sm:inline">
@@ -649,6 +816,23 @@ export default function MemberCalendar({
                         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2B271F]" />
                       </div>
                     </div>
+                  )}
+
+                  {/* Blank date availability indicator */}
+                  {!hasEvents && !isPollDay && (
+                    isPreferred ? (
+                      <div className="mt-auto pt-0.5 flex items-center justify-center sm:justify-start w-full">
+                        <span className="inline-flex items-center gap-1 text-[8px] sm:text-[9.5px] font-semibold text-[#C8643F] bg-[#C8643F]/10 px-1 sm:px-1.5 py-0.5 rounded-md border border-[#C8643F]/20 leading-none">
+                          <Check className="w-2.5 h-2.5 text-[#C8643F] shrink-0" strokeWidth={2.5} />
+                          <span className="hidden sm:inline">Available</span>
+                          <span className="sm:hidden">Free</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-auto pt-0.5 opacity-0 group-hover/cell:opacity-100 transition-opacity hidden sm:flex items-center text-[9px] text-[#8C8270]">
+                        <span>+ Free</span>
+                      </div>
+                    )
                   )}
 
                   {/* Desktop Event Bubbles (>= sm) */}

@@ -9,7 +9,6 @@ import {
   LogIn,
   UserPlus,
   LogOut,
-  Sparkles,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -45,6 +44,7 @@ import {
   saveUserRsvps,
   saveUserEventOverride,
   saveUserVibes,
+  saveUserPreferredDates,
   loadUserData as loadUserFirestoreData,
   AVAILABLE_VIBES,
   partitionUpcomingEvents,
@@ -64,6 +64,7 @@ export default function DashboardPage() {
   const [savedRsvpIds, setSavedRsvpIds] = useState<string[]>([]);
   const [declinedEventIds, setDeclinedEventIds] = useState<string[]>([]);
   const [userVibes, setUserVibes] = useState<string[]>([]);
+  const [preferredDates, setPreferredDates] = useState<string[]>([]);
   const [isEditingVibes, setIsEditingVibes] = useState(false);
   const [selectedEditorVibes, setSelectedEditorVibes] = useState<string[]>([]);
   const [savingVibes, setSavingVibes] = useState(false);
@@ -89,7 +90,7 @@ export default function DashboardPage() {
   const loadUserData = useCallback(async (userEmail: string, userUid: string) => {
     setLoadingEvents(true);
     try {
-      const [{ vibes, savedRsvpIds: savedIds, declinedEventIds: declinedIds, responses }, hydrated] = await Promise.all([
+      const [{ vibes, savedRsvpIds: savedIds, declinedEventIds: declinedIds, preferredDates: loadedDates, responses }, hydrated] = await Promise.all([
         loadUserFirestoreData(userUid, userEmail),
         fetchHydratedEvents("chicago"),
       ]);
@@ -98,6 +99,20 @@ export default function DashboardPage() {
       setSavedRsvpIds(savedIds);
       setDeclinedEventIds(declinedIds || []);
       setUserVibes(vibes);
+
+      let localDates: string[] = [];
+      try {
+        const stored = localStorage.getItem("actuallylets_preferred_dates");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) localDates = parsed;
+        }
+      } catch {}
+
+      const surveyDates = responses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]);
+      const mergedDates = Array.from(new Set([...surveyDates, ...(loadedDates || []), ...localDates]));
+      setPreferredDates(mergedDates);
+
       const resolved = resolveUserAttendance(
         hydrated,
         responses,
@@ -135,6 +150,13 @@ export default function DashboardPage() {
         setSavedRsvpIds([]);
         setDeclinedEventIds([]);
         setUserVibes([]);
+        try {
+          const stored = localStorage.getItem("actuallylets_preferred_dates");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) setPreferredDates(parsed);
+          }
+        } catch {}
         fetchHydratedEvents("chicago")
           .then((hydrated) => {
             if (!isMounted) return;
@@ -153,6 +175,31 @@ export default function DashboardPage() {
       unsubscribe();
     };
   }, [loadUserData]);
+
+  const handleTogglePreferredDate = async (dateKey: string) => {
+    const isSelected = preferredDates.some((d) => d.toLowerCase() === dateKey.toLowerCase());
+    let updated: string[];
+    if (isSelected) {
+      updated = preferredDates.filter((d) => d.toLowerCase() !== dateKey.toLowerCase());
+    } else {
+      updated = Array.from(new Set([...preferredDates, dateKey]));
+    }
+    setPreferredDates(updated);
+
+    try {
+      localStorage.setItem("actuallylets_preferred_dates", JSON.stringify(updated));
+    } catch (err) {
+      console.warn("Could not save preferred dates locally:", err);
+    }
+
+    if (user?.uid) {
+      try {
+        await saveUserPreferredDates(user.uid, updated);
+      } catch (err) {
+        console.warn("Could not save preferred dates to Firestore:", err);
+      }
+    }
+  };
 
   const handleToggleRSVP = async (eventId: string) => {
     // 1. Snapshot previous state for rollback
@@ -503,7 +550,10 @@ export default function DashboardPage() {
 
   // User's submitted survey parameters for comprehensive receipt card
   const rawSurveyDates = Array.from(
-    new Set(userResponses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]))
+    new Set([
+      ...userResponses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]),
+      ...preferredDates,
+    ])
   );
   const formattedDatesFree = formatAvailabilityDatesList(rawSurveyDates);
 
@@ -885,6 +935,8 @@ export default function DashboardPage() {
                   events={resolvedEvents}
                   onToggleRSVP={handleToggleRSVP}
                   userEmail={user?.email}
+                  preferredDates={preferredDates}
+                  onTogglePreferredDate={handleTogglePreferredDate}
                 />
               )}
             </section>
@@ -1091,6 +1143,8 @@ export default function DashboardPage() {
               </div>
               <MemberCalendar
                 events={resolvedEvents}
+                preferredDates={preferredDates}
+                onTogglePreferredDate={handleTogglePreferredDate}
                 onToggleRSVP={() => {
                   setMode("signin");
                   setAuthError("Please sign in or claim your account to RSVP for gatherings.");

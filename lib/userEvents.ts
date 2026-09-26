@@ -26,6 +26,19 @@ export async function saveUserVibes(userId: string, vibes: string[]) {
   await setDoc(userRef, { vibes, updatedAt: serverTimestamp() }, { merge: true });
 }
 
+/**
+ * Store and update user preferred free dates under users/{userId}
+ */
+export async function saveUserPreferredDates(userId: string, preferredDates: string[]) {
+  if (!userId) return;
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { preferredDates, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (err) {
+    console.warn("saveUserPreferredDates error:", err);
+  }
+}
+
 export async function fetchUserVibes(userId: string): Promise<string[] | null> {
   if (!userId) return null;
   try {
@@ -51,11 +64,13 @@ export async function loadUserData(userId: string, userEmail?: string): Promise<
   vibes: string[];
   savedRsvpIds: string[];
   declinedEventIds: string[];
+  preferredDates: string[];
   responses: SurveyResponse[];
 }> {
   let vibes: string[] = [];
   let savedRsvpIds: string[] = [];
   let declinedEventIds: string[] = [];
+  let preferredDates: string[] = [];
   let responses: SurveyResponse[] = [];
 
   if (userId) {
@@ -73,6 +88,9 @@ export async function loadUserData(userId: string, userEmail?: string): Promise<
         if (Array.isArray(data?.declinedEventIds)) {
           declinedEventIds = data.declinedEventIds as string[];
         }
+        if (Array.isArray(data?.preferredDates)) {
+          preferredDates = data.preferredDates as string[];
+        }
       }
     } catch (err) {
       console.warn("loadUserData firestore error:", err);
@@ -88,9 +106,16 @@ export async function loadUserData(userId: string, userEmail?: string): Promise<
       );
       vibes = Array.from(new Set(surveyVibes));
     }
+    // If preferredDates not present in users/{userId}, fall back to responses survey submission
+    if (preferredDates.length === 0 && responses.length > 0) {
+      const surveyDates = responses.flatMap((r) =>
+        [...(r.dates || []), r.customDate].filter(Boolean) as string[]
+      );
+      preferredDates = Array.from(new Set(surveyDates));
+    }
   }
 
-  return { vibes, savedRsvpIds, declinedEventIds, responses };
+  return { vibes, savedRsvpIds, declinedEventIds, preferredDates, responses };
 }
 
 /**
