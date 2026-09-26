@@ -1117,143 +1117,144 @@ export default function AdminDashboard() {
               </h1>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2.5 w-full md:w-auto min-w-0">
-              <div className="flex items-center gap-2 flex-1 sm:flex-none min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full md:w-auto min-w-0">
+              {/* Left group: Chapter Selector & Sync Timestamp */}
+              <div className="flex items-center gap-3 flex-wrap">
                 {/* Chapter Market Selector */}
                 <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowChapterMenu((prev) => !prev)}
-                  className="w-full sm:w-auto min-w-[220px] bg-[#FAF7F2] border border-[#EADBCC] text-stone-800 text-xs font-semibold rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-sm hover:border-[#C8643F] transition-all cursor-pointer"
-                  title="Switch chapter market"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        selectedCity === 'chicago'
-                          ? 'bg-emerald-500 animate-pulse'
+                  <button
+                    type="button"
+                    onClick={() => setShowChapterMenu((prev) => !prev)}
+                    className="w-full sm:w-auto min-w-[200px] sm:min-w-[220px] bg-[#FAF7F2] border border-[#EADBCC] text-stone-800 text-xs font-semibold rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-sm hover:border-[#C8643F] transition-all cursor-pointer whitespace-nowrap"
+                    title="Switch chapter market"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          selectedCity === 'chicago'
+                            ? 'bg-emerald-500 animate-pulse'
+                            : selectedCity === 'austin'
+                            ? 'bg-amber-500'
+                            : selectedCity === 'all'
+                            ? 'bg-[#C8643F]'
+                            : 'bg-stone-400'
+                        }`}
+                      />
+                      <span className="truncate">
+                        {selectedCity === 'all'
+                          ? 'All Chapters'
+                          : `${formatCityName(selectedCity)} Chapter`}
+                      </span>
+                      <span className="text-[10px] text-stone-500 font-normal hidden lg:inline">
+                        {selectedCity === 'chicago'
+                          ? `(Event Tomorrow)`
                           : selectedCity === 'austin'
-                          ? 'bg-amber-500'
+                          ? `(Polling Open)`
                           : selectedCity === 'all'
-                          ? 'bg-[#C8643F]'
-                          : 'bg-stone-400'
+                          ? `(Global)`
+                          : `(Coming Soon)`}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-stone-500 shrink-0 transition-transform ${
+                        showChapterMenu ? 'rotate-180' : ''
                       }`}
                     />
-                    <span className="truncate">
-                      {selectedCity === 'all'
-                        ? 'All Chapters'
-                        : `${formatCityName(selectedCity)} Chapter`}
-                    </span>
-                    <span className="text-[10px] text-stone-500 font-normal hidden lg:inline">
-                      {selectedCity === 'chicago'
-                        ? `(Event Tomorrow)`
-                        : selectedCity === 'austin'
-                        ? `(Polling Open)`
-                        : selectedCity === 'all'
-                        ? `(Global)`
-                        : `(Coming Soon)`}
-                    </span>
-                  </div>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-stone-500 shrink-0 transition-transform ${
-                      showChapterMenu ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
+                  </button>
 
-                {showChapterMenu && (
-                  <>
-                    {/* Mobile backdrop for outside-tap dismissal */}
-                    <div
-                      className="fixed inset-0 z-40 bg-black/25 sm:hidden"
-                      onClick={() => setShowChapterMenu(false)}
-                    />
-                    <div
-                      className="fixed inset-0 z-30 hidden sm:block"
-                      onClick={() => setShowChapterMenu(false)}
-                    />
+                  {showChapterMenu && (
+                    <>
+                      {/* Mobile backdrop for outside-tap dismissal */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black/25 sm:hidden"
+                        onClick={() => setShowChapterMenu(false)}
+                      />
+                      <div
+                        className="fixed inset-0 z-30 hidden sm:block"
+                        onClick={() => setShowChapterMenu(false)}
+                      />
 
-                    {/* Clamped Container:
-                        On mobile (<640px): fixed inset-x-4 top-28 (guarantees 16px margins on both left and right edges)
-                        On desktop (>=640px): sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 */}
-                    <div className="fixed inset-x-4 top-28 z-50 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3 sm:p-4 shadow-2xl overflow-hidden space-y-1">
-                      <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
-                        <span>Select Chapter Market</span>
-                        <span>5 Markets</span>
-                      </div>
-                      {CHAPTERS.map((ch) => {
-                        const isSelected = selectedCity === ch.id;
-                        return (
-                          <button
-                            key={ch.id}
-                            type="button"
-                            onClick={() => {
-                              handleCityChange(ch.id);
-                              setShowChapterMenu(false);
-                            }}
-                            className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                              isSelected
-                                ? 'bg-white shadow-xs border border-[#EADBCC]'
-                                : 'hover:bg-white/70'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ch.badgeColor}`} />
-                                <span className="text-xs font-bold text-stone-800">{ch.name}</span>
-                                {ch.id === 'chicago' && (
-                                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6]">
-                                    Live Event
-                                  </span>
-                                )}
+                      {/* Clamped Container:
+                          On mobile (<640px): fixed inset-x-4 top-28 (guarantees 16px margins on both left and right edges)
+                          On desktop (>=640px): sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 */}
+                      <div className="fixed inset-x-4 top-28 z-50 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3 sm:p-4 shadow-2xl overflow-hidden space-y-1">
+                        <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
+                          <span>Select Chapter Market</span>
+                          <span>5 Markets</span>
+                        </div>
+                        {CHAPTERS.map((ch) => {
+                          const isSelected = selectedCity === ch.id;
+                          return (
+                            <button
+                              key={ch.id}
+                              type="button"
+                              onClick={() => {
+                                handleCityChange(ch.id);
+                                setShowChapterMenu(false);
+                              }}
+                              className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-white shadow-xs border border-[#EADBCC]'
+                                  : 'hover:bg-white/70'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ch.badgeColor}`} />
+                                  <span className="text-xs font-bold text-stone-800">{ch.name}</span>
+                                  {ch.id === 'chicago' && (
+                                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#EDF5EE] text-[#3D6B42] border border-[#D4E8D6]">
+                                      Live Event
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-stone-500 mt-0.5 truncate pl-3">
+                                  {ch.subtitle}
+                                </p>
                               </div>
-                              <p className="text-[11px] text-stone-500 mt-0.5 truncate pl-3">
-                                {ch.subtitle}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <Check className="w-4 h-4 text-[#C8643F] shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-[#C8643F] shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Sync Timestamp - give it space, never overlap */}
+                {lastSyncedTime && (
+                  <span className="text-xs font-mono text-stone-500 whitespace-nowrap">
+                    Synced at {lastSyncedTime}
+                  </span>
                 )}
               </div>
 
-              {/* Timestamp: hidden on mobile so it doesn't squish on small phone screens */}
-              {lastSyncedTime && (
-                <span className="text-[11px] font-mono text-stone-500 hidden sm:inline-block whitespace-nowrap">
-                  Synced at {lastSyncedTime}
-                </span>
-              )}
-            </div>
+              {/* Right group: Refresh / Export Actions */}
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
+                  title="Refresh latest data"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 text-[#8C827A] ${isRefreshing ? 'animate-spin text-[#C8643F]' : ''}`} />
+                  <span className="inline">
+                    {isRefreshing ? 'Syncing...' : 'Refresh'}
+                  </span>
+                </button>
 
-            {/* Right Side: Refresh & Export CSV */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-                title="Refresh latest data"
-              >
-                <RotateCcw className={`w-3.5 h-3.5 text-[#8C827A] ${isRefreshing ? 'animate-spin text-[#C8643F]' : ''}`} />
-                <span className="hidden sm:inline">
-                  {isRefreshing ? 'Syncing...' : 'Refresh'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={exportCSV}
-                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-[#8C827A]" />
-                <span>Export CSV</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={exportCSV}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#8C827A]" />
+                  <span>Export CSV</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1274,7 +1275,7 @@ export default function AdminDashboard() {
                 {isTomorrowEvent ? (
                   <>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block mr-0.5 animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-white/90 inline-block mr-1.5" />
                       EVENT DAY
                     </span>
                     <span className="text-white/30 hidden sm:inline">·</span>
