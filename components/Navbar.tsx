@@ -22,7 +22,7 @@ export default function Navbar({ className = '' }: NavbarProps) {
           <BrandName
             short
             className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap"
-            tmClassName="font-sans font-bold text-xs sm:text-sm select-none -top-[0.4em] relative ml-1 text-[#2B271F]"
+            tmClassName="font-sans font-bold text-[0.8em] select-none -top-[0.4em] relative ml-1 text-[#2B271F]"
           />
           {/* SERIES chip: hidden on mobile (< 640px), visible on sm: and up */}
           <span className="hidden sm:inline-flex rounded-full bg-[#EFEAD8] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#C8643F] uppercase border border-[#D8CEBC]/60 shrink-0">

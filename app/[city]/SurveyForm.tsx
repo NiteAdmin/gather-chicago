@@ -1215,7 +1215,7 @@ export default function SurveyForm({
       <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
           <Link href="/" className="eyebrow" style={{ minHeight: '1.2rem' }}>
-            <BrandName />
+            <BrandName short tmClassName="font-sans font-bold text-[0.85em] select-none -top-[0.4em] relative ml-0.5 text-[var(--terra)]" />
           </Link>
           <h1 style={{ minHeight: '3.2rem' }}>
             Let&apos;s find the <em>right time</em> to gather in {cityName}.

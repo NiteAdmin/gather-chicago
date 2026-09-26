@@ -263,7 +263,7 @@ export default function IntroPage() {
         </section>
 
         {/* 3. HOST APPLICATION TEASER CARD */}
-        <section id="host" className="p-8 sm:p-12 rounded-3xl max-w-2xl mx-auto my-12 bg-[#F6EFEA] border-2 border-[#E3D1C6] shadow-lg animate-fade-in-delayed-2">
+        <section id="host" className="p-8 sm:p-12 rounded-3xl max-w-2xl mx-auto my-12 bg-[#F6EFEA] border-2 border-[#E3D1C6] shadow-md animate-fade-in-delayed-2">
           <div className="text-center max-w-2xl mx-auto">
             <span className="text-xs sm:text-sm uppercase tracking-wider font-semibold text-[#C8643F] inline-block">
               LEAD YOUR COMMUNITY
@@ -278,7 +278,7 @@ export default function IntroPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Link
                 href="/host"
-                className="w-full sm:w-auto bg-[#C8643F] hover:bg-[#B55734] text-white text-base font-medium py-3.5 px-6 rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 text-center"
+                className="w-full sm:w-auto bg-[#C8643F] hover:bg-[#B55734] text-white text-base font-medium py-3.5 px-6 rounded-xl shadow-sm transition-all transform hover:-translate-y-0.5 text-center"
               >
                 Apply for Host Admin Workspace →
               </Link>

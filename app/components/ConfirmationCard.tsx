@@ -411,7 +411,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
       {/* Brand Header & Subtitle */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C8643F', fontWeight: 700 }}>
-          <BrandName />
+          <BrandName short tmClassName="font-sans font-bold text-[0.85em] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
         </div>
         <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#4C5A40', marginTop: '2px', fontFamily: "'Fraunces', serif" }}>
           Community Series · {cityName}
