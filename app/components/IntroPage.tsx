@@ -94,7 +94,7 @@ export default function IntroPage() {
           {/* Headline with Text Cycler */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
             <span className="block mb-1 sm:mb-2">
-              <BrandName className="font-serif-fraunces text-[#2B271F]" />
+              <BrandName full className="font-serif-fraunces text-[#2B271F]" />
             </span>
             <span className="inline-block text-[#C8643F] transition-all duration-300 font-serif-fraunces underline decoration-[#E08A63]/50 decoration-wavy underline-offset-8">
               {heroPhrases[activityIndex]}
