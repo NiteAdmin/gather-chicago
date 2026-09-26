@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { BrandName } from '@/components/brand/BrandName';
 
@@ -92,12 +91,6 @@ export default function IntroPage() {
       <main className="relative z-0 max-w-4xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-20 sm:pb-24 font-sans-hanken">
         {/* 1. HERO SECTION */}
         <section className="text-center pt-6 sm:pt-10 pb-12 sm:pb-14 animate-fade-in">
-          {/* Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 bg-[#FBF7EE] text-[#4C5A40] border border-[#D8CEBC] text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest px-3 sm:px-4 py-1.5 rounded-full mb-6 shadow-sm max-w-full text-center">
-            <Users className="w-3.5 h-3.5 text-[var(--terra)] shrink-0" />
-            <span>CONSENSUS-DRIVEN COMMUNITY GATHERINGS</span>
-          </div>
-
           {/* Headline with Text Cycler */}
           <h1 className="text-4xl sm:text-6xl font-bold font-serif-fraunces text-[#2B271F] leading-[1.1] tracking-tight max-w-3xl mx-auto">
             <span className="block mb-1 sm:mb-2">

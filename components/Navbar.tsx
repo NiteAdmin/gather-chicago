@@ -17,9 +17,10 @@ export default function Navbar({ className = '' }: NavbarProps) {
         <Link
           href="/"
           className="group flex items-center gap-2 text-decoration-none shrink-0"
-          aria-label="Actually, Let's™ Home"
+          aria-label="Actually™ Home"
         >
           <BrandName
+            short
             className="font-serif-fraunces text-xl sm:text-2xl font-bold tracking-tight text-[#2B271F] group-hover:text-[#C8643F] transition-colors whitespace-nowrap"
             tmClassName="font-sans font-semibold text-xs sm:text-sm select-none -top-[0.4em] relative ml-1 text-[#2B271F]"
           />

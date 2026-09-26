@@ -3,9 +3,10 @@ import React from 'react';
 export interface BrandNameProps {
   className?: string;
   tmClassName?: string;
+  short?: boolean;
 }
 
-export function BrandName({ className = '', tmClassName = '' }: BrandNameProps) {
+export function BrandName({ className = '', tmClassName = '', short = false }: BrandNameProps) {
   // Allow tmClassName to customize size, alignment, and color while providing solid optical defaults
   const hasCustomSize = /(?:text-\[|text-xs|text-sm|text-base|text-lg|text-xl)/.test(tmClassName);
   const hasCustomAlign = /(?:align-|top-)/.test(tmClassName);
@@ -19,7 +20,7 @@ export function BrandName({ className = '', tmClassName = '' }: BrandNameProps) 
 
   return (
     <span className={`inline-flex items-baseline ${className}`}>
-      <span>Actually, Let&apos;s</span>
+      <span>{short ? 'Actually' : <>Actually, Let&apos;s</>}</span>
       <span
         aria-hidden="true"
         className={`font-sans font-medium select-none ${baseSize} ${baseAlign} ${baseMargin} ${baseColor} ${tmClassName}`.replace(/\s+/g, ' ').trim()}
