@@ -15,7 +15,6 @@ import {
   CalendarDays,
   Calendar,
   Clock,
-  Sparkles,
   SlidersHorizontal,
   Megaphone,
   Trophy,
@@ -155,6 +154,7 @@ export default function AdminDashboard() {
   const [copiedPhones, setCopiedPhones] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
+  const [showAllDemand, setShowAllDemand] = useState(false);
 
   const formatSyncTime = (date: Date = new Date()) => {
     return date.toLocaleTimeString('en-US', {
@@ -991,11 +991,11 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
                 <div className="flex items-center gap-2 truncate">
                   {isLead ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2B271F] text-white shadow-2xs shrink-0">
-                      ★ #1 Top Choice
+                    <span className="inline-flex items-center text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-[#F4ECE6] text-[#A84A28] border border-[#E6D5CB] shrink-0">
+                      Top Choice
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono text-stone-500 w-4 text-center shrink-0">
+                    <span className="text-xs font-mono text-stone-400 font-normal mr-2 shrink-0">
                       #{idx + 1}
                     </span>
                   )}
@@ -1263,7 +1263,7 @@ export default function AdminDashboard() {
                 {isTomorrowEvent ? (
                   <>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
-                      <Sparkles className="w-3 h-3 text-white" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block mr-0.5 animate-pulse" />
                       EVENT DAY
                     </span>
                     <span className="text-white/30 hidden sm:inline">·</span>
@@ -1427,7 +1427,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   {selectedEvent.status === 'confirmed' ? (
-                    <Sparkles className="w-3.5 h-3.5 text-[#3D6B42]" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#3D6B42]" />
                   ) : (
                     <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
                   )}
@@ -1788,12 +1788,12 @@ export default function AdminDashboard() {
                 {renderBars(timeTally)}
               </div>
 
-              {/* Preferences */}
+              {/* Preferences Breakdown */}
               <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                 <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                   <SlidersHorizontal className="w-4 h-4 text-[#8C827A]" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                    Preferences
+                    Preferences Breakdown
                   </h3>
                 </div>
                 <div>
@@ -1816,12 +1816,25 @@ export default function AdminDashboard() {
               {/* Gathering Demand */}
               <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
-                  <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                  <Compass className="w-4 h-4 text-stone-600" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
                     Gathering Demand
                   </h3>
                 </div>
-                {renderBars(gathTally)}
+                {renderBars(showAllDemand ? gathTally : gathTally.slice(0, 5))}
+                {gathTally.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDemand((prev) => !prev)}
+                    className="mt-4 pt-3 border-t border-[#EBE3D5] w-full text-center text-xs font-semibold text-stone-600 hover:text-[#C8643F] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>
+                      {showAllDemand
+                        ? 'Show fewer options ▴'
+                        : `Show all options (${gathTally.length - 5} more) ▾`}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2927,7 +2940,7 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-[11px] font-bold text-[#E07A5F] uppercase tracking-wider flex items-center gap-1">
                           {idx === 0 ? (
-                            <><Sparkles className="w-3 h-3" /> Latest Dispatch</>
+                            <><span className="w-1.5 h-1.5 rounded-full bg-[#E07A5F] inline-block" /> Latest Dispatch</>
                           ) : (
                             `Broadcast #${broadcasts.length - idx}`
                           )}
