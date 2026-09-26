@@ -6,6 +6,23 @@ import { collection, getDocs } from 'firebase/firestore';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const isSyntheticTestEntry = (entry: any) => {
+  const email = (entry.email || '').toLowerCase().trim();
+  const name = (entry.name || '').toLowerCase().trim();
+
+  return (
+    email.includes('test-streamline') ||
+    email.includes('phase2-audit') ||
+    email.includes('calendar-audit') ||
+    email.includes('@example.com') ||
+    name === 'tester' ||
+    name === 'testng' ||
+    name === 'test' ||
+    name.includes('audit test') ||
+    name.includes('phase 2 user')
+  );
+};
+
 export async function POST(request: Request) {
   try {
     const { passcode, city } = await request.json().catch(() => ({}));
@@ -53,6 +70,8 @@ export async function POST(request: Request) {
       ) {
         return false;
       }
+      // Exclude synthetic test and audit artifacts
+      if (isSyntheticTestEntry(r)) return false;
       // Exclude empty orphaned test entries lacking identification
       if (!r.email && !r.name && !r.phoneNumber) return false;
       return true;
@@ -86,6 +105,7 @@ export async function POST(request: Request) {
         ) {
           return false;
         }
+        if (isSyntheticTestEntry(u)) return false;
         return true;
       });
     } catch (usersErr) {

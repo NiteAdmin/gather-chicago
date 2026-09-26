@@ -89,6 +89,23 @@ function formatCityName(slug: string): string {
     .join(' ');
 }
 
+const isSyntheticTestEntry = (entry: any) => {
+  const email = (entry.email || '').toLowerCase().trim();
+  const name = (entry.name || '').toLowerCase().trim();
+
+  return (
+    email.includes('test-streamline') ||
+    email.includes('phase2-audit') ||
+    email.includes('calendar-audit') ||
+    email.includes('@example.com') ||
+    name === 'tester' ||
+    name === 'testng' ||
+    name === 'test' ||
+    name.includes('audit test') ||
+    name.includes('phase 2 user')
+  );
+};
+
 function isDeletedOrArchivedEntry(item: any): boolean {
   if (!item) return true;
   if (item.deleted === true || item.isDeleted === true || item.archived === true) return true;
@@ -99,6 +116,7 @@ function isDeletedOrArchivedEntry(item: any): boolean {
   ) {
     return true;
   }
+  if (isSyntheticTestEntry(item)) return true;
   return false;
 }
 
@@ -582,6 +600,11 @@ export default function AdminDashboard() {
     filterDate !== 'all';
 
   const filteredResponses = responses.filter((r) => {
+    // Strictly exclude synthetic test and audit submissions
+    if (isSyntheticTestEntry(r) || isDeletedOrArchivedEntry(r)) {
+      return false;
+    }
+
     // -1. Segmented Preset Filter
     if (presetFilter === 'confirmed') {
       if (!isContactAttendingEvent(r, selectedEvent, users)) {
