@@ -165,12 +165,13 @@ export async function POST(req: Request) {
     const trimmedCustomTime = typeof body.customTime === "string" ? body.customTime.trim().slice(0, 100) : null;
     const trimmedNotes = typeof body.notes === "string" ? body.notes.trim().slice(0, 1000) : null;
 
-    // Sanitize phone number by stripping non-digit characters
-    const sanitizedPhone =
+    // Sanitize phone number: strictly require 10 digits, otherwise null
+    const rawPhoneDigits =
       typeof phoneNumber === "string" && phoneNumber.trim()
-        ? phoneNumber.replace(/\D/g, "").slice(0, 15)
-        : undefined;
-    const sanitizedSmsOptIn = Boolean(smsOptIn);
+        ? phoneNumber.replace(/\D/g, "")
+        : "";
+    const sanitizedPhone = rawPhoneDigits.length === 10 ? rawPhoneDigits : null;
+    const sanitizedSmsOptIn = Boolean(smsOptIn && sanitizedPhone);
 
     console.log('Incoming RSVP Payload:', {
       name: trimmedName,

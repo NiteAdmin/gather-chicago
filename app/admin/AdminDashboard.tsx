@@ -89,6 +89,13 @@ function formatCityName(slug: string): string {
     .join(' ');
 }
 
+function formatRosterPhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length !== 10) return null;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 const isSyntheticTestEntry = (entry: any) => {
   const email = (entry.email || '').toLowerCase().trim();
   const name = (entry.name || '').toLowerCase().trim();
@@ -2272,22 +2279,25 @@ export default function AdminDashboard() {
 
                             {/* Phone */}
                             <td className="py-3.5 px-4 border-b border-[#EADBCC] whitespace-nowrap">
-                              {r.phoneNumber ? (
-                                <div className="space-y-1">
-                                  <div className="font-mono text-xs font-semibold text-[#2B271F]">{formatPhoneNumber(r.phoneNumber)}</div>
-                                  {r.smsOptIn ? (
-                                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[#E8EFE9] text-[#2D5A38] border border-[#C8DEC9] font-medium">
-                                      <Check className="w-3 h-3 text-[#2D5A38]" /> SMS Verified
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium">
-                                      No SMS
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-stone-400 font-mono text-xs">—</span>
-                              )}
+                              {(() => {
+                                const formattedPhone = formatRosterPhone(r.phoneNumber || (r as any).phone);
+                                return formattedPhone ? (
+                                  <div className="space-y-1">
+                                    <div className="font-mono text-xs font-semibold text-[#2B271F]">{formattedPhone}</div>
+                                    {r.smsOptIn ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[#E8EFE9] text-[#2D5A38] border border-[#C8DEC9] font-medium">
+                                        <Check className="w-3 h-3 text-[#2D5A38]" /> SMS Verified
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium">
+                                        No SMS
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-stone-400 font-mono text-xs">—</span>
+                                );
+                              })()}
                             </td>
 
                             {/* Market / City */}

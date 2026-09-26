@@ -629,9 +629,23 @@ export default function SurveyForm({
     const trimmedEmail = email.trim();
     const trimmedCustomGathering = customGathering.trim();
     const trimmedCustomDate = customDate.trim();
-    const cleanPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
-    const sanitizedPhone = cleanPhone.length > 0 ? cleanPhone : undefined;
+    const digits = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
+
+    if (digits.length > 0 && digits.length !== 10) {
+      setPhoneError('Please enter a complete 10-digit phone number or leave blank.');
+      setFormError('Please enter a complete 10-digit phone number or leave blank.');
+      return;
+    }
+
     const hasSmsOptIn = Boolean(smsOptIn);
+
+    if (hasSmsOptIn && digits.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit US phone number to receive SMS updates.');
+      setFormError('Please enter a valid 10-digit US phone number to receive SMS updates.');
+      return;
+    }
+
+    const sanitizedPhone = digits.length === 10 ? digits : null;
 
     if (!trimmedName) {
       setFormError('Please enter your name.');
@@ -647,12 +661,6 @@ export default function SurveyForm({
 
     if (allChosenDates.length === 0 && !trimmedCustomDate) {
       setFormError('Please pick or type at least one date that works for you.');
-      return;
-    }
-
-    if (hasSmsOptIn && cleanPhone.length !== 10) {
-      setPhoneError('Please enter a valid 10-digit US phone number to receive SMS updates.');
-      setFormError('Please enter a valid 10-digit US phone number to receive SMS updates.');
       return;
     }
 
