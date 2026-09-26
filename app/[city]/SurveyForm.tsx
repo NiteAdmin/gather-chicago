@@ -1215,7 +1215,7 @@ export default function SurveyForm({
       <div className="wrap" style={{ minHeight: '850px', opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease-in-out' }}>
         <header className="top" style={{ minHeight: '180px' }}>
           <Link href="/" className="eyebrow" style={{ minHeight: '1.2rem' }}>
-            <BrandName short tmClassName="font-sans font-bold text-[0.85em] select-none -top-[0.4em] relative ml-0.5 text-[var(--terra)]" />
+            <BrandName short tmClassName="font-sans font-bold text-[max(13px,1.15em)] select-none -top-[0.35em] relative ml-1 text-[var(--terra)]" />
           </Link>
           <h1 style={{ minHeight: '3.2rem' }}>
             Let&apos;s find the <em>right time</em> to gather in {cityName}.
@@ -1793,7 +1793,7 @@ export default function SurveyForm({
 
                         <div className="mt-1.5">
                           <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                            <BrandName />
+                            <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
                           </div>
                           <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
                             Vote on Next Gathering
@@ -2128,7 +2128,7 @@ export default function SurveyForm({
               </div>
 
               <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center mb-1">
-                <BrandName />
+                <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
               </div>
               <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight mb-3">
                 {sTitle}

@@ -4,9 +4,10 @@ export interface BrandNameProps {
   className?: string;
   tmClassName?: string;
   short?: boolean;
+  full?: boolean;
 }
 
-export function BrandName({ className = '', tmClassName = '', short = false }: BrandNameProps) {
+export function BrandName({ className = '', tmClassName = '', short = false, full = false }: BrandNameProps) {
   // Allow tmClassName to customize size, alignment, and color while providing solid optical defaults
   const hasCustomSize = /(?:text-\[|text-xs|text-sm|text-base|text-lg|text-xl)/.test(tmClassName);
   const hasCustomAlign = /(?:align-|top-)/.test(tmClassName);
@@ -22,7 +23,7 @@ export function BrandName({ className = '', tmClassName = '', short = false }: B
 
   return (
     <span className={`inline-flex items-baseline ${className}`}>
-      <span>Actually</span>
+      <span>{full ? <>Actually, Let&apos;s</> : 'Actually'}</span>
       <span
         aria-hidden="true"
         className={`font-sans ${baseWeight} leading-none select-none ${baseSize} ${baseAlign} ${baseMargin} ${baseColor} ${tmClassName}`.replace(/\s+/g, ' ').trim()}

@@ -950,7 +950,7 @@ export default function MemberCalendar({
 
                   <div className="mt-1.5">
                     <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                      <BrandName />
+                      <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
                     </div>
                     <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
                       Vote on Next Gathering
@@ -1079,7 +1079,7 @@ export default function MemberCalendar({
 
                         <div className="mt-1.5">
                           <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                            <BrandName />
+                            <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
                           </div>
                           <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
                             Vote on Next Gathering
@@ -1167,7 +1167,7 @@ export default function MemberCalendar({
 
                       <div className="mt-1.5">
                         <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                          <BrandName />
+                          <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
                         </div>
                         <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] leading-snug">
                           {splitEventTitle(ev.title, ev.brandPrefix).eventName}
@@ -1327,7 +1327,7 @@ export default function MemberCalendar({
                 </div>
                 <div className="mt-1.5">
                   <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
-                    <BrandName />
+                    <BrandName tmClassName="font-sans font-bold text-[max(11px,0.85em)] select-none -top-[0.4em] relative ml-0.5 text-[#C8643F]" />
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
                     {splitEventTitle(currentActiveEvent.title, currentActiveEvent.brandPrefix).eventName}

@@ -11,7 +11,6 @@ import {
   MapPin,
   ExternalLink,
   CheckCircle2,
-  Sparkles,
   Navigation,
   Megaphone,
   AlertCircle,
@@ -61,7 +60,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
             </div>
           ) : (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C22] text-[#F5B096] border border-[#5C3B2B] text-[11px] font-bold tracking-wider uppercase shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
+              <CalendarIcon className="w-3.5 h-3.5 text-[#E07A5F]" />
               <span>Upcoming Gathering &bull; Next Up in Chicago</span>
             </div>
           )}
@@ -85,7 +84,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
             </div>
             <div className="min-w-0">
               <div className="text-[10.5px] sm:text-[11px] font-bold uppercase tracking-widest text-[#F5B096] mb-0.5 flex items-center">
-                <BrandName tmClassName="text-[#F5B096]/75" />
+                <BrandName tmClassName="text-[#F5B096] font-bold text-[0.85em]" />
               </div>
               <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold font-serif-fraunces text-white tracking-tight leading-tight">
                 {splitEventTitle(spotlightEvent.title, spotlightEvent.brandPrefix).eventName}
@@ -101,7 +100,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
         {Boolean(spotlightEvent.hostAnnouncement && spotlightEvent.hostAnnouncement.trim()) && (
           <div className="text-xs bg-white/10 border border-white/15 rounded-2xl p-2.5 sm:p-3 text-[#F4EEE2]/90 flex items-start gap-2.5">
             <div className="w-5 h-5 rounded-lg bg-[#2B271F]/50 border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles className="w-3 h-3 text-[#E07A5F]" />
+              <Megaphone className="w-3 h-3 text-[#E07A5F]" />
             </div>
             <div>
               <span className="font-bold text-white text-[9.5px] uppercase tracking-wider block">

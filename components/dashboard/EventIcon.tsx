@@ -8,7 +8,7 @@ import {
   Footprints,
   Coffee,
   Trees,
-  Sparkles,
+  Calendar,
   Activity,
   Mic,
   LucideProps,
@@ -33,7 +33,7 @@ export default function EventIcon({
   const resolvedName =
     iconName ||
     (eventId.includes("sep-26")
-      ? "Sparkles"
+      ? "Calendar"
       : eventId.includes("pizza") || eventId.includes("pinsa")
       ? "Pizza"
       : eventId.includes("walk")
@@ -49,8 +49,8 @@ export default function EventIcon({
       : null);
 
   switch (resolvedName) {
-    case "Sparkles":
-      return <Sparkles className={className} strokeWidth={2} {...props} />;
+    case "Calendar":
+      return <Calendar className={className} strokeWidth={2} {...props} />;
     case "Activity":
       return <Activity className={className} strokeWidth={2} {...props} />;
     case "Compass":
@@ -72,7 +72,7 @@ export default function EventIcon({
         return <Mic className={className} strokeWidth={2} {...props} />;
       }
       if (category === "wellness") {
-        return <Sparkles className={className} strokeWidth={2} {...props} />;
+        return <Calendar className={className} strokeWidth={2} {...props} />;
       }
       if (category === "food") {
         return <Pizza className={className} strokeWidth={2} {...props} />;
@@ -86,6 +86,6 @@ export default function EventIcon({
       if (fallbackIcon && fallbackIcon !== "✨" && fallbackIcon !== "🧘") {
         return <span className="inline-block leading-none">{fallbackIcon}</span>;
       }
-      return <Sparkles className={className} strokeWidth={2} {...props} />;
+      return <Calendar className={className} strokeWidth={2} {...props} />;
   }
 }

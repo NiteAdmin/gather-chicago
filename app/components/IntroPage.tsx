@@ -263,13 +263,13 @@ export default function IntroPage() {
         </section>
 
         {/* 3. HOST APPLICATION TEASER CARD */}
-        <section id="host" className="p-8 sm:p-12 rounded-3xl max-w-2xl mx-auto my-12 bg-[#F6EFEA] border-2 border-[#E3D1C6] shadow-md animate-fade-in-delayed-2">
+        <section id="host" className="p-8 sm:p-12 rounded-3xl max-w-2xl mx-auto my-12 bg-[#F4EBE3] border-2 border-[#DFCDC1] shadow-md animate-fade-in-delayed-2">
           <div className="text-center max-w-2xl mx-auto">
             <span className="text-xs sm:text-sm uppercase tracking-wider font-semibold text-[#C8643F] inline-block">
               LEAD YOUR COMMUNITY
             </span>
             <h2 className="text-2xl sm:text-3xl font-serif-fraunces font-bold text-[#2B271F] mt-2 leading-snug">
-              Launch <BrandName short className="font-serif-fraunces font-bold text-[#2B271F]" tmClassName="text-base sm:text-lg font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
+              Launch <BrandName full className="font-serif-fraunces font-bold text-[#2B271F]" tmClassName="text-base sm:text-lg font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
             </h2>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed mt-4 max-w-lg mx-auto">
               Turn messy group chats into effortless gatherings. Apply to lead your city chapter or unlock your own Host Admin workspace to coordinate private events, social clubs, or community meetups.
