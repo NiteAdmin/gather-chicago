@@ -268,7 +268,10 @@ export default function IntroPage() {
             <span className="text-xs sm:text-sm uppercase tracking-wider font-semibold text-[#C8643F] inline-block">
               LEAD YOUR COMMUNITY
             </span>
-            <h2 className="text-2xl sm:text-3xl font-serif-fraunces font-bold text-[#C8643F] mt-2 leading-snug">
+            <h2
+              style={{ color: '#C8643F' }}
+              className="text-2xl sm:text-3xl font-serif-fraunces font-bold text-[#C8643F] mt-2 leading-snug"
+            >
               Launch <BrandName full className="font-serif-fraunces font-bold text-[#C8643F]" tmClassName="text-base sm:text-lg font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
             </h2>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed mt-4 max-w-lg mx-auto">
