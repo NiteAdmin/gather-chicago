@@ -3,6 +3,9 @@ import { db } from '@/lib/firebase';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { collection, getDocs } from 'firebase/firestore';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(request: Request) {
   try {
     const { passcode, city } = await request.json().catch(() => ({}));
@@ -39,6 +42,22 @@ export async function POST(request: Request) {
       });
     }
 
+    // Strict filter to exclude deleted, archived, or orphaned test entries
+    responses = responses.filter((r: any) => {
+      if (!r) return false;
+      if (r.deleted === true || r.isDeleted === true || r.archived === true) return false;
+      if (r._orphaned === true || r._deleted === true) return false;
+      if (
+        typeof r.status === 'string' &&
+        ['deleted', 'archived', 'cancelled', 'canceled'].includes(r.status.toLowerCase())
+      ) {
+        return false;
+      }
+      // Exclude empty orphaned test entries lacking identification
+      if (!r.email && !r.name && !r.phoneNumber) return false;
+      return true;
+    });
+
     // Fetch registered users to hydrate active event RSVPs
     let users: any[] = [];
     try {
@@ -55,11 +74,34 @@ export async function POST(request: Request) {
           ...doc.data(),
         }));
       }
+
+      // Filter out deleted or archived user documents
+      users = users.filter((u: any) => {
+        if (!u) return false;
+        if (u.deleted === true || u.isDeleted === true || u.archived === true) return false;
+        if (u._orphaned === true || u._deleted === true) return false;
+        if (
+          typeof u.status === 'string' &&
+          ['deleted', 'archived', 'cancelled', 'canceled'].includes(u.status.toLowerCase())
+        ) {
+          return false;
+        }
+        return true;
+      });
     } catch (usersErr) {
       console.warn('Could not fetch users in admin results route:', usersErr);
     }
 
-    return NextResponse.json({ responses, users });
+    return NextResponse.json(
+      { responses, users },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching admin results:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch results' }, { status: 500 });

@@ -89,6 +89,19 @@ function formatCityName(slug: string): string {
     .join(' ');
 }
 
+function isDeletedOrArchivedEntry(item: any): boolean {
+  if (!item) return true;
+  if (item.deleted === true || item.isDeleted === true || item.archived === true) return true;
+  if (item._orphaned === true || item._deleted === true) return true;
+  if (
+    typeof item.status === 'string' &&
+    ['deleted', 'archived', 'cancelled', 'canceled'].includes(item.status.toLowerCase())
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [selectedCity, setSelectedCity] = useState('all');
@@ -199,7 +212,11 @@ export default function AdminDashboard() {
   const fetchResults = async (targetPasscode: string, targetCity: string) => {
     const res = await fetch('/api/admin/results', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store',
+      },
+      cache: 'no-store',
       body: JSON.stringify({ passcode: targetPasscode, city: targetCity }),
     });
 
@@ -209,13 +226,20 @@ export default function AdminDashboard() {
       throw new Error(data.error || 'Unauthorized passcode');
     }
 
-    setResponses(data.responses || []);
+    const cleanResponses = (data.responses || []).filter((r: SurveyResponse) => {
+      if (isDeletedOrArchivedEntry(r)) return false;
+      if (!r.email && !r.name && !r.phoneNumber) return false;
+      return true;
+    });
+
+    setResponses(cleanResponses);
     setLastSyncedTime(formatSyncTime());
     if (Array.isArray(data.users)) {
-      setUsers(data.users);
+      const cleanUsers = data.users.filter((u: RegisteredUser) => !isDeletedOrArchivedEntry(u));
+      setUsers(cleanUsers);
     } else {
       fetchAllUsers().then((u) => {
-        if (u.length > 0) setUsers(u);
+        if (u.length > 0) setUsers(u.filter((x) => !isDeletedOrArchivedEntry(x)));
       }).catch((e) => console.warn('fetchAllUsers fallback error:', e));
     }
   };
@@ -307,6 +331,7 @@ export default function AdminDashboard() {
     if (!activeSecret) return;
 
     let unsubBroadcasts: (() => void) | undefined;
+    let unsubResponses: (() => void) | undefined;
     try {
       const q = query(
         collection(db, 'broadcasts'),
@@ -332,6 +357,34 @@ export default function AdminDashboard() {
       console.warn('Live sync onSnapshot initialization error:', e);
     }
 
+    try {
+      const respCol = collection(db, 'responses');
+      unsubResponses = onSnapshot(
+        respCol,
+        (snap) => {
+          // Immediately eliminate deleted Firestore docs from the host dashboard roster
+          const liveDocs = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() } as SurveyResponse))
+            .filter((r) => {
+              if (isDeletedOrArchivedEntry(r)) return false;
+              if (!r.email && !r.name && !r.phoneNumber) return false;
+              if (selectedCity !== 'all') {
+                const docCity = (r.city || 'chicago').toLowerCase();
+                if (docCity !== selectedCity.toLowerCase()) return false;
+              }
+              return true;
+            });
+          setResponses(liveDocs);
+          setLastSyncedTime(formatSyncTime());
+        },
+        (err) => {
+          console.warn('Realtime responses listener fallback notice:', err?.message);
+        }
+      );
+    } catch (e) {
+      console.warn('Realtime responses listener initialization notice:', e);
+    }
+
     // Periodic live sync polling (every 30s) to keep responses and RSVPs fresh during active host sessions
     const intervalId = setInterval(() => {
       fetchResults(activeSecret, selectedCity).catch((e) =>
@@ -342,6 +395,9 @@ export default function AdminDashboard() {
     return () => {
       if (typeof unsubBroadcasts === 'function') {
         unsubBroadcasts();
+      }
+      if (typeof unsubResponses === 'function') {
+        unsubResponses();
       }
       clearInterval(intervalId);
     };
@@ -460,7 +516,7 @@ export default function AdminDashboard() {
     {
       id: 'chicago',
       name: 'Chicago Chapter',
-      subtitle: `Event Tomorrow · ${eventAttendance.confirmedCount > 0 ? eventAttendance.confirmedCount : 13} RSVPs`,
+      subtitle: `Event Tomorrow · ${eventAttendance.confirmedCount} RSVPs`,
       status: 'live',
       badgeColor: 'bg-emerald-500',
     },
@@ -499,8 +555,8 @@ export default function AdminDashboard() {
   ).length;
   const withNotesCount = responses.filter((r) => Boolean((r.notes && r.notes.trim()) || (r.drink && r.drink.trim()))).length;
 
-  // Cockpit attendance metrics (dynamically falls back to mock 13 / 30 if unhydrated for tomorrow's event)
-  const cockpitConfirmedGuests = eventAttendance.confirmedCount > 0 ? eventAttendance.confirmedCount : (selectedEvent.id === 'moksha-sept-26' || isTomorrowEvent ? 13 : 0);
+  // Cockpit attendance metrics strictly aligned to live database records
+  const cockpitConfirmedGuests = eventAttendance.confirmedCount;
   const cockpitCapacity = eventCapacity || 30;
   const cockpitPercent = cockpitCapacity > 0 ? Math.round((cockpitConfirmedGuests / cockpitCapacity) * 100) : 0;
   const cockpitSpotsLeft = Math.max(0, cockpitCapacity - cockpitConfirmedGuests);
@@ -1095,7 +1151,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 bg-[#FDFBF7] min-w-0">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 bg-[#FDFBF7] min-w-0">
           {/* TOP BAR / EXECUTIVE HEADER */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-[#EBE3D5] w-full min-w-0">
             <div>
@@ -1596,9 +1652,9 @@ export default function AdminDashboard() {
             </div>
 
             {/* KPI GRID - 4 BALANCED METRIC CARDS (2x2 on mobile, 4-col on lg) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
               {/* Metric 1: Intake Responses */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
                     Intake Responses
@@ -1616,7 +1672,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Metric 2: Projected Attendance */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
                     Projected Attendance
@@ -1634,7 +1690,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Metric 3: SMS Reach */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
                     SMS Reach
@@ -1652,7 +1708,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Metric 4: Leading Day */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
                     Leading Day
@@ -1671,12 +1727,12 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SECTION 3: 12-COLUMN ANALYTICS SUITE */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Col (col-span-12 lg:col-span-6): Date Polling, Member Notes & Ideas, Time Preferences & Preferences */}
-            <div className="col-span-12 lg:col-span-6 space-y-6">
+          {/* SECTION 3: 2-COLUMN BALANCED ANALYTICS SUITE */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+            {/* Left Col: Date Polling, Time Preferences, Member Notes & Ideas */}
+            <div className="space-y-6 w-full">
               {/* Date Polling Results */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-5 border-b border-[#EBE3D5] w-full min-w-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-[#8C827A]" />
@@ -1696,9 +1752,20 @@ export default function AdminDashboard() {
                 {renderBars(dateTally)}
               </div>
 
+              {/* Time Preferences */}
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
+                  <Clock className="w-4 h-4 text-[#8C827A]" />
+                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
+                    Time Preferences
+                  </h3>
+                </div>
+                {renderBars(timeTally)}
+              </div>
+
               {/* Member Notes & Ideas */}
               {(writeInGatheringItems.length > 0 || writeInDateItems.length > 0 || writeInTimeItems.length > 0) && (
-                <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
+                <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
                   <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                     <PenLine className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -1788,45 +1855,12 @@ export default function AdminDashboard() {
                   )}
                 </div>
               )}
-
-              {/* Time Preferences */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
-                  <Clock className="w-4 h-4 text-[#8C827A]" />
-                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                    Time Preferences
-                  </h3>
-                </div>
-                {renderBars(timeTally)}
-              </div>
-
-              {/* Preferences Breakdown */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
-                <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
-                  <SlidersHorizontal className="w-4 h-4 text-[#8C827A]" />
-                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                    Preferences Breakdown
-                  </h3>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-[#6A6253] block mb-2">
-                    Weekday vs. Weekend
-                  </span>
-                  {renderBars(dayTally)}
-                </div>
-                <div className="pt-2 border-t border-[#EBE3D5]">
-                  <span className="text-xs font-semibold text-[#6A6253] block mb-2">
-                    Beverage Preferences
-                  </span>
-                  {renderBars(drinkTally)}
-                </div>
-              </div>
             </div>
 
-            {/* Right Col (col-span-12 lg:col-span-6): Gathering Demand */}
-            <div className="col-span-12 lg:col-span-6 space-y-6">
+            {/* Right Col: Gathering Demand, Preferences Breakdown */}
+            <div className="space-y-6 w-full">
               {/* Gathering Demand */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
                   <Compass className="w-4 h-4 text-stone-600" />
                   <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
@@ -1847,6 +1881,28 @@ export default function AdminDashboard() {
                     </span>
                   </button>
                 )}
+              </div>
+
+              {/* Preferences Breakdown */}
+              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm space-y-5">
+                <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
+                  <SlidersHorizontal className="w-4 h-4 text-[#8C827A]" />
+                  <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
+                    Preferences Breakdown
+                  </h3>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-[#6A6253] block mb-2">
+                    Weekday vs. Weekend
+                  </span>
+                  {renderBars(dayTally)}
+                </div>
+                <div className="pt-2 border-t border-[#EBE3D5]">
+                  <span className="text-xs font-semibold text-[#6A6253] block mb-2">
+                    Beverage Preferences
+                  </span>
+                  {renderBars(drinkTally)}
+                </div>
               </div>
             </div>
           </div>
@@ -1907,7 +1963,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Confirmed ({confirmedForTomorrowCount > 0 ? confirmedForTomorrowCount : (selectedEvent.id === 'moksha-sept-26' || isTomorrowEvent ? 13 : 0)})</span>
+                  <span>Confirmed ({confirmedForTomorrowCount})</span>
                 </button>
 
                 <button

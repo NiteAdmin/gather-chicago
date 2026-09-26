@@ -469,16 +469,26 @@ export interface RegisteredUser {
   [key: string]: any;
 }
 
-/**
- * Fetch all registered users from Firestore users collection
- */
 export async function fetchAllUsers(): Promise<RegisteredUser[]> {
   try {
     const snap = await getDocs(collection(db, "users"));
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as RegisteredUser[];
+    return snap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((u: any) => {
+        if (!u) return false;
+        if (u.deleted === true || u.isDeleted === true || u.archived === true) return false;
+        if (u._orphaned === true || u._deleted === true) return false;
+        if (
+          typeof u.status === 'string' &&
+          ['deleted', 'archived', 'cancelled', 'canceled'].includes(u.status.toLowerCase())
+        ) {
+          return false;
+        }
+        return true;
+      }) as RegisteredUser[];
   } catch (err) {
     console.warn("fetchAllUsers error:", err);
     return [];
@@ -489,7 +499,7 @@ export async function fetchAllUsers(): Promise<RegisteredUser[]> {
  * Calculates active confirmed RSVPs for a given event, combining:
  * 1. Explicit rsvpEventIds from registered user profiles in users/{uid}
  * 2. Survey responses that match the event date/vibe criteria (via resolveUserAttendance)
- * Returns deduplicated headcount and attendee records.
+ * Returns deduplicated headcount and attendee records with strict single-source-of-truth guards.
  */
 export function calculateEventAttendance(
   event: CommunityEvent,
@@ -507,6 +517,15 @@ export function calculateEventAttendance(
   // 1. Registered users with explicit RSVP or cancellation
   let userRsvpCount = 0;
   users.forEach((u) => {
+    if (!u) return;
+    if ((u as any).deleted || (u as any).isDeleted || (u as any).archived || (u as any)._orphaned) return;
+    if (
+      typeof (u as any).status === 'string' &&
+      ['deleted', 'archived', 'cancelled', 'canceled'].includes((u as any).status.toLowerCase())
+    ) {
+      return;
+    }
+
     const email = (u.email || "").trim().toLowerCase();
     if (Array.isArray(u.declinedEventIds) && u.declinedEventIds.includes(event.id)) {
       if (email) declinedEmails.add(email);
@@ -521,10 +540,34 @@ export function calculateEventAttendance(
   // 2. Survey responses matched to this event
   let surveyMatchedCount = 0;
   responses.forEach((r) => {
+    if (!r) return;
+    if ((r as any).deleted || (r as any).isDeleted || (r as any).archived || (r as any)._orphaned) return;
+    if (
+      typeof (r as any).status === 'string' &&
+      ['deleted', 'archived', 'cancelled', 'canceled'].includes((r as any).status.toLowerCase())
+    ) {
+      return;
+    }
+
     const userEmail = (r.email || "").trim().toLowerCase();
     if (userEmail && declinedEmails.has(userEmail)) {
       return; // Skip explicitly cancelled users
     }
+
+    // Single source of truth guard:
+    // If user has a registered user account in `users`, their explicit `rsvpEventIds` is authoritative.
+    // If this event is not in `rsvpEventIds`, do NOT resurrect them as attending via intake survey dates!
+    if (userEmail) {
+      const matchingUser = users.find(
+        (u) => (u.email || "").trim().toLowerCase() === userEmail
+      );
+      if (matchingUser) {
+        if (!Array.isArray(matchingUser.rsvpEventIds) || !matchingUser.rsvpEventIds.includes(event.id)) {
+          return;
+        }
+      }
+    }
+
     const resolved = resolveUserAttendance([event], [r], undefined, []);
     if (resolved[0]?.attendanceStatus === "attending") {
       surveyMatchedCount++;
@@ -532,8 +575,7 @@ export function calculateEventAttendance(
     }
   });
 
-  // Confirmed count: unique attending emails, or maximum of user RSVPs and unique attendees
-  const confirmedCount = Math.max(attendingEmails.size, userRsvpCount);
+  const confirmedCount = attendingEmails.size;
 
   return {
     confirmedCount,
@@ -545,12 +587,27 @@ export function calculateEventAttendance(
 
 /**
  * Checks whether a contact from the survey responses list is attending a specific event.
+ * Enforces single source of truth:
+ * - If deleted/archived: returns false.
+ * - If registered user exists: uses user profile's rsvpEventIds / declinedEventIds as sole authority.
+ * - If survey-only: resolves attendance from survey response criteria.
  */
 export function isContactAttendingEvent(
   contact: SurveyResponse,
   event: CommunityEvent,
   users: RegisteredUser[] = []
 ): boolean {
+  if (!contact) return false;
+  if ((contact as any).deleted || (contact as any).isDeleted || (contact as any).archived || (contact as any)._orphaned) {
+    return false;
+  }
+  if (
+    typeof (contact as any).status === 'string' &&
+    ['deleted', 'archived', 'cancelled', 'canceled'].includes((contact as any).status.toLowerCase())
+  ) {
+    return false;
+  }
+
   const email = (contact.email || "").trim().toLowerCase();
 
   // Check 1: User profile has saved RSVP or explicit decline for this event
@@ -571,10 +628,13 @@ export function isContactAttendingEvent(
       ) {
         return true;
       }
+      // Single source of truth: User exists in member database but has NOT RSVP'd to this event.
+      // Do not fall through to survey date matching to resurrect an un-RSVP'd member!
+      return false;
     }
   }
 
-  // Check 2: Survey date / vibe resolution
+  // Check 2: Survey date / vibe resolution (only for non-registered survey contacts)
   const resolved = resolveUserAttendance([event], [contact], undefined, []);
   return resolved[0]?.attendanceStatus === "attending";
 }

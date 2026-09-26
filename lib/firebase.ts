@@ -87,17 +87,33 @@ export async function fetchResponses(): Promise<SurveyResponse[]> {
   try {
     const q = query(collection(db, "responses"), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as SurveyResponse[];
+    return querySnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((r: any) => {
+        if (!r) return false;
+        if (r.deleted === true || r.isDeleted === true || r.archived === true) return false;
+        if (r._orphaned === true || r._deleted === true) return false;
+        if (typeof r.status === 'string' && ['deleted', 'archived', 'cancelled', 'canceled'].includes(r.status.toLowerCase())) return false;
+        return true;
+      }) as SurveyResponse[];
   } catch (error) {
     console.warn("Ordered fetch failed, falling back to basic fetch:", error);
     const querySnapshot = await getDocs(collection(db, "responses"));
-    const responses = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as SurveyResponse[];
+    const responses = querySnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((r: any) => {
+        if (!r) return false;
+        if (r.deleted === true || r.isDeleted === true || r.archived === true) return false;
+        if (r._orphaned === true || r._deleted === true) return false;
+        if (typeof r.status === 'string' && ['deleted', 'archived', 'cancelled', 'canceled'].includes(r.status.toLowerCase())) return false;
+        return true;
+      }) as SurveyResponse[];
     return responses.sort((a, b) => {
       const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
