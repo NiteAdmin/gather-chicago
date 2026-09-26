@@ -263,22 +263,22 @@ export default function IntroPage() {
         </section>
 
         {/* 3. HOST APPLICATION TEASER CARD */}
-        <section id="host" className="mt-8 bg-[#FBF7EE] border-2 border-[#D8CEBC] rounded-3xl p-6 sm:p-10 shadow-lg animate-fade-in-delayed-2">
+        <section id="host" className="p-8 sm:p-12 rounded-3xl max-w-2xl mx-auto my-12 bg-[#F6EFEA] border-2 border-[#E3D1C6] shadow-lg animate-fade-in-delayed-2">
           <div className="text-center max-w-2xl mx-auto">
             <span className="text-xs sm:text-sm uppercase tracking-wider font-semibold text-[#C8643F] inline-block">
               LEAD YOUR COMMUNITY
             </span>
-            <h2 className="text-xl sm:text-2xl font-serif font-serif-fraunces font-bold text-[#2B271F] mt-2 leading-tight">
-              Launch <BrandName className="font-serif font-serif-fraunces font-bold text-[#2B271F]" /> in Your City — Become a Host Admin
+            <h2 className="text-2xl sm:text-3xl font-serif-fraunces font-bold text-[#2B271F] mt-2 leading-snug">
+              Launch <BrandName short className="font-serif-fraunces font-bold text-[#2B271F]" tmClassName="text-sm font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
             </h2>
-            <p className="text-sm sm:text-base text-[#6A6253] mt-3 leading-relaxed">
+            <p className="text-sm sm:text-base text-stone-600 leading-relaxed mt-4 max-w-lg mx-auto">
               Turn messy group chats into effortless gatherings. Apply to lead your city chapter or unlock your own Host Admin workspace to coordinate private events, social clubs, or community meetups.
             </p>
 
-            <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Link
                 href="/host"
-                className="w-full sm:w-auto bg-[#C8643F] hover:bg-[#b05230] text-white py-3.5 px-8 rounded-xl font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 text-center"
+                className="w-full sm:w-auto bg-[#C8643F] hover:bg-[#B55734] text-white text-base font-medium py-3.5 px-6 rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 text-center"
               >
                 Apply for Host Admin Workspace →
               </Link>
@@ -320,7 +320,7 @@ export default function IntroPage() {
             </a>
           </div>
           <div className="space-y-1 pt-1">
-            <p className="text-xs sm:text-sm font-bold text-[#2B271F]">
+            <p className="text-sm sm:text-base font-bold text-[#2B271F]">
               <BrandName short tmClassName="text-[#2B271F]" />
             </p>
             <p className="text-[11px] sm:text-xs text-[#6A6253]">

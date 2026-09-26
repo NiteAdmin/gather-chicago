@@ -14,7 +14,7 @@ export function BrandName({ className = '', tmClassName = '', short = false }: B
   const hasCustomMargin = /ml-/.test(tmClassName);
   const hasCustomWeight = /(?:font-(?:normal|medium|semibold|bold|extrabold|black))/.test(tmClassName);
 
-  const baseSize = hasCustomSize ? '' : 'text-[max(11.5px,0.74em)] min-text-[10px]';
+  const baseSize = hasCustomSize ? '' : 'text-[max(12px,0.76em)] min-text-[10px]';
   const baseAlign = hasCustomAlign ? '' : '-top-[0.42em] relative';
   const baseColor = hasCustomColor ? '' : 'text-[#2B271F]';
   const baseMargin = hasCustomMargin ? '' : 'ml-[2px]';

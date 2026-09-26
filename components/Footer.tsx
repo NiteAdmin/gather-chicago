@@ -39,7 +39,7 @@ export default function Footer({ className = '' }: FooterProps) {
           </a>
         </div>
         <div className="space-y-1 pt-1">
-          <p className="text-xs sm:text-sm font-bold text-[#2B271F]">
+          <p className="text-sm sm:text-base font-bold text-[#2B271F]">
             <BrandName short tmClassName="text-[#2B271F]" />
           </p>
           <p className="text-[11px] sm:text-xs text-[#6A6253]">
