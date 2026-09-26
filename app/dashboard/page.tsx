@@ -412,7 +412,7 @@ export default function DashboardPage() {
         } catch (verErr) {
           console.warn("Could not send verification email:", verErr);
         }
-        setAuthSuccessMsg("Account created! Welcome to your Actually, Let's dashboard.");
+        setAuthSuccessMsg("Account created! Welcome to your Actually dashboard.");
       }
     } catch (err: any) {
       console.error("Dashboard auth error:", err);

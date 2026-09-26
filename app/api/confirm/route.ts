@@ -350,7 +350,7 @@ export async function POST(req: Request) {
         <div style="max-width: 580px; margin: 0 auto;">
           <!-- Brand Header -->
           <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span></h1>
+            <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span></h1>
             <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Community Series · ${safeTargetCityName}</p>
           </div>
 
@@ -366,7 +366,7 @@ export async function POST(req: Request) {
                 Thanks for your input, ${safeName}! 🌿
               </h1>
               <p style="font-size: 14px; line-height: 1.5; color: #6A6253; margin: 10px 0 0;">
-                We received your availability and preferences for the upcoming Actually, Let&apos;s ${safeTargetCityName} community series.
+                We received your availability and preferences for the upcoming Actually ${safeTargetCityName} community series.
               </p>
             </div>
 
@@ -407,7 +407,7 @@ export async function POST(req: Request) {
           <!-- Clean Footer -->
           <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #8C8270; line-height: 1.5;">
             <p style="margin: 0 0 4px; font-weight: 500;">
-              Actually, Let&apos;s<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span> Series · Community-led gatherings
+              Actually<span style="font-size: 0.65em; min-font-size: 9px; font-family: sans-serif; font-weight: normal; position: relative; top: -0.45em; margin-left: 1.5px; user-select: none; color: #78716c;">™</span> Series · Community-led gatherings
             </p>
             <p style="margin: 0;">
               A portion of every ticket supports local community building and sustainability efforts.
@@ -460,7 +460,7 @@ export async function POST(req: Request) {
         ? `\n\nYour write-in notes / requests:\n"${body.notes.trim()}"`
         : "";
 
-    const emailText = `Actually, Let's™\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually, Let's™ ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
+    const emailText = `Actually™\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually™ ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
     const primarySender = "Actually Let's <rsvp@actuallylets.com>";
     const adminSender = "Actually Let's System <rsvp@actuallylets.com>";
@@ -523,7 +523,7 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const adminEmailText = `New intake submission received for Actually, Let's ${targetCityName}:
+    const adminEmailText = `New intake submission received for Actually ${targetCityName}:
 
 Name: ${trimmedName}
 Email: ${trimmedEmail}
@@ -545,7 +545,7 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
             from: primarySender,
             to: [trimmedEmail],
             replyTo: "admin@actuallylets.com",
-            subject: `Got your preferences for Actually, Let's ${targetCityName}! 🎉`,
+            subject: `Got your preferences for Actually ${targetCityName}! 🎉`,
             html: emailHtml,
             text: emailText,
           }),

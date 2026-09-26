@@ -10,7 +10,7 @@ import {
 export const maxDuration = 60;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SENDER_IDENTITY = "Actually, Let's <rsvp@actuallylets.com>";
+const SENDER_IDENTITY = "Actually <rsvp@actuallylets.com>";
 const REPLY_TO_ADDRESS = "admin@actuallylets.com";
 
 interface RecipientInput {
@@ -311,7 +311,7 @@ export async function POST(req: Request) {
     }
 
     // 6. Isolated Dual Admin Confirmation Receipts
-    const effectiveEventTitle = eventTitle ? `${eventTitle} (${cityName})` : `Actually, Let's — ${cityName} (${winningDate})`;
+    const effectiveEventTitle = eventTitle ? `${eventTitle} (${cityName})` : `Actually — ${cityName} (${winningDate})`;
     const broadcastTimestamp = new Date().toISOString();
     const formattedTimestamp = new Date().toLocaleString("en-US", {
       timeZone: "America/Chicago",

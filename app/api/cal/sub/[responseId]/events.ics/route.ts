@@ -23,7 +23,7 @@ export async function GET(
     const broadcasts = await fetchBroadcasts(citySlug);
     const latestBroadcast = broadcasts.length > 0 ? broadcasts[0] : null;
 
-    let summary = `Actually, Let's — ${cityName} Community Gathering`;
+    let summary = `Actually — ${cityName} Community Gathering`;
     let location = `${cityName} (Venue TBD)`;
     let description = "";
     let status = "TENTATIVE";
@@ -66,7 +66,7 @@ export async function GET(
       // Pending vote: Tentative placeholder based on respondent's preferences
       status = "TENTATIVE";
       sequence = 0;
-      summary = `Actually, Let's — ${cityName} (Voting in Progress)`;
+      summary = `Actually — ${cityName} (Voting in Progress)`;
       description = `Community survey responses are currently being tallied. This live calendar entry will automatically update with the winning date, locked time, and venue as soon as they are announced!`;
 
       const parsed = parseEventDates({

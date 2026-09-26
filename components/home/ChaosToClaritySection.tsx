@@ -291,7 +291,7 @@ export default function ChaosToClaritySection() {
               }`}
             >
               <Sparkles className="w-4 h-4 text-[#6E7F5E]" />
-              <span>The Actually, Let&apos;s Way</span>
+              <span>The Actually Way</span>
             </button>
           </div>
         </div>
@@ -554,7 +554,7 @@ export default function ChaosToClaritySection() {
                             className="inline-flex items-center gap-1.5 bg-[#2B271F] hover:bg-[#C8643F] text-[#FBF7EE] text-[11px] font-bold px-3.5 py-1.5 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer"
                           >
                             <Sparkles className="w-3 h-3 text-[#E08A63]" />
-                            <span>Fix this with Actually, Let&apos;s</span>
+                            <span>Fix this with Actually</span>
                             <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
@@ -562,7 +562,7 @@ export default function ChaosToClaritySection() {
                     )}
                   </motion.div>
                 ) : (
-                  /* 2. "ACTUALLY, LET'S" RICH CHAT UNFURL VIEW */
+                  /* 2. "ACTUALLY" RICH CHAT UNFURL VIEW */
                   <motion.div
                     key="clarity-view"
                     initial={{ opacity: 0 }}
@@ -581,7 +581,7 @@ export default function ChaosToClaritySection() {
                           Alex &bull; Wednesday 2:15 PM
                         </span>
                         <div className="w-fit px-3.5 py-2 rounded-2xl rounded-tl-xs bg-[#FAF7F0] border border-[#E4DBD0] text-stone-800 text-xs shadow-xs flex items-center gap-1.5 flex-wrap leading-relaxed">
-                          <span>Actually, let&apos;s just simplify this without 50 texts:</span>
+                          <span>Let&apos;s just simplify this without 50 texts:</span>
                           <span className="font-bold text-[#C8643F] underline underline-offset-2 flex items-center gap-1">
                             actuallylets.com/plan/dinner
                             <ExternalLink className="w-3 h-3 inline" />

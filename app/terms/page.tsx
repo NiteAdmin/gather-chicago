@@ -4,8 +4,8 @@ import MailtoButton from '@/app/components/MailtoButton';
 import { BrandName } from '@/components/brand/BrandName';
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | Actually Let's",
-  description: "Terms and Conditions, SMS messaging disclosures, and contact info for Actually Let's.",
+  title: "Terms & Conditions | Actually",
+  description: "Terms and Conditions, SMS messaging disclosures, and contact info for Actually.",
 };
 
 export default function TermsPage() {
@@ -14,7 +14,7 @@ export default function TermsPage() {
       <div style={{ maxWidth: '720px', margin: '0 auto', backgroundColor: '#FBF7EE', border: '1px solid #D8CEBC', borderRadius: '20px', padding: '32px 28px', boxShadow: '0 18px 40px -22px rgba(43, 39, 31, 0.45)' }}>
         <header style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '0.72rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: '#C8643F', fontWeight: 700, marginBottom: '8px' }}>
-            ACTUALLY LET&apos;S
+            ACTUALLY
           </div>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: '2.2rem', fontWeight: 900, margin: 0, color: '#2B271F' }}>
             Terms &amp; Conditions
@@ -26,7 +26,7 @@ export default function TermsPage() {
           <div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#4C5A40', marginBottom: '8px' }}>1. Program Description</h2>
             <p>
-              <strong>Actually Let&apos;s</strong> provides transactional SMS notifications and event update communications for community gatherings, event confirmations, and availability polling.
+              <strong>Actually</strong> provides transactional SMS notifications and event update communications for community gatherings, event confirmations, and availability polling.
             </p>
           </div>
 
@@ -64,7 +64,7 @@ export default function TermsPage() {
           <div style={{ backgroundColor: '#F4EEE2', padding: '16px 20px', borderRadius: '12px', border: '1px solid #D8CEBC' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2B271F', marginBottom: '8px' }}>6. Entity Disclosures</h2>
             <p style={{ margin: '0 0 6px' }}>
-              <strong>Entity / DBA:</strong> Actually, Let&apos;s
+              <strong>Entity / DBA:</strong> Actually
             </p>
             <p style={{ margin: '0 0 6px' }}>
               <strong>Operational Region:</strong> Chicago, IL
@@ -87,7 +87,7 @@ export default function TermsPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '4px' }}>
             <Link href="/chicago" style={{ color: '#C8643F', fontWeight: 600, textDecoration: 'none' }}>
-              &larr; Back to Actually, Let&apos;s Chicago
+              &larr; Back to Actually Chicago
             </Link>
             <span style={{ color: '#D8CEBC' }}>&middot;</span>
             <Link href="/privacy" style={{ color: '#6A6253', fontWeight: 600, textDecoration: 'underline' }}>

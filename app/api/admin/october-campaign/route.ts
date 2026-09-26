@@ -6,7 +6,7 @@ import { generateOctoberPlanningEmail } from "@/lib/emailTemplates";
 
 export const maxDuration = 60; // Allow sufficient time for batch processing
 
-const SENDER_IDENTITY = process.env.SENDER_EMAIL || "Actually, Let's <rsvp@actuallylets.com>";
+const SENDER_IDENTITY = process.env.SENDER_EMAIL || "Actually <rsvp@actuallylets.com>";
 const REPLY_TO_ADDRESS = "admin@actuallylets.com";
 const ADMIN_PREVIEW_RECIPIENTS = ["admin@actuallylets.com", "ademola@actuallylets.com"];
 

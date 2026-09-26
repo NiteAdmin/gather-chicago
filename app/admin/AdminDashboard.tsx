@@ -506,7 +506,7 @@ export default function AdminDashboard() {
     events[0] || {
       id: 'chi-sep-26-gathering',
       city: 'chicago',
-      brandPrefix: "Actually, Let's™",
+      brandPrefix: "Actually™",
       title: 'Stretch & Sip — Moksha Yoga',
       date: '2026-09-26',
       displayDate: 'Sat, Sep 26',

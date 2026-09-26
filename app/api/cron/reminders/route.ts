@@ -103,7 +103,7 @@ async function handleCronReminders(request: NextRequest) {
           city: r.city,
           cityName: r.cityName,
         })),
-        sampleSubject: "Time to update your seasonal schedule — Actually, Let's",
+        sampleSubject: "Time to update your seasonal schedule — Actually",
       });
     }
 
@@ -130,7 +130,7 @@ async function handleCronReminders(request: NextRequest) {
           <div style="max-width: 580px; margin: 0 auto;">
             <!-- Brand Header -->
             <div style="text-align: center; margin-bottom: 24px;">
-              <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually, Let&apos;s</h1>
+              <h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: bold; color: #2B271F; letter-spacing: -0.5px;">Actually</h1>
               <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 600; color: #C8643F; letter-spacing: 0.5px;">Seasonal Availability Check · ${cityName}</p>
             </div>
 
@@ -165,9 +165,9 @@ async function handleCronReminders(request: NextRequest) {
         from: "Actually Let's <rsvp@actuallylets.com>",
         to: [r.email],
         replyTo: "admin@actuallylets.com",
-        subject: `Time to refresh your availability for Actually, Let's — ${cityName} 📅`,
+        subject: `Time to refresh your availability for Actually — ${cityName} 📅`,
         html,
-        text: `Actually, Let's — ${cityName}\n\nHi ${r.name || "friend"},\n\nTime for a quick schedule tune-up! As we plan our upcoming community gatherings in ${cityName}, let us know what dates and activities work best for your current routine:\n\nUpdate here: ${surveyUrl}\n\nTakes less than 30 seconds!`,
+        text: `Actually — ${cityName}\n\nHi ${r.name || "friend"},\n\nTime for a quick schedule tune-up! As we plan our upcoming community gatherings in ${cityName}, let us know what dates and activities work best for your current routine:\n\nUpdate here: ${surveyUrl}\n\nTakes less than 30 seconds!`,
       };
     });
 

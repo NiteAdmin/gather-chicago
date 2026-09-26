@@ -142,7 +142,7 @@ export default function HostApplicationPage() {
             <span>HOST ADMIN ACCESS</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-bold font-serif-fraunces text-[#2B271F] tracking-tight leading-tight">
-            Lead Actually, Let&apos;s in Your City
+            Lead Actually™ in Your City
           </h1>
           <p className="mt-4 text-base sm:text-lg text-[#6A6253] max-w-xl mx-auto leading-relaxed">
             Turn messy group chats into effortless, recurring gatherings. Apply to lead your city chapter or coordinate your community meetups with our host tools.
@@ -196,11 +196,11 @@ export default function HostApplicationPage() {
             </h2>
             {submittedTier === "custom" ? (
               <p className="text-sm text-[#6A6253] mt-3 leading-relaxed">
-                Thank you for applying to host with <strong>Actually, Let&apos;s</strong>. We received your request for a <strong>Custom Dashboard</strong> and will reach out via email shortly to schedule your 20-minute discovery consultation.
+                Thank you for applying to host with <strong>Actually</strong>. We received your request for a <strong>Custom Dashboard</strong> and will reach out via email shortly to schedule your 20-minute discovery consultation.
               </p>
             ) : (
               <p className="text-sm text-[#6A6253] mt-3 leading-relaxed">
-                Thank you for applying to host with <strong>Actually, Let&apos;s</strong>. We&apos;ll review your concept and reach out via email with your Host Admin workspace access and onboarding steps.
+                Thank you for applying to host with <strong>Actually</strong>. We&apos;ll review your concept and reach out via email with your Host Admin workspace access and onboarding steps.
               </p>
             )}
 

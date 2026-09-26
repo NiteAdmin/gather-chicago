@@ -22,7 +22,7 @@ export function BrandName({ className = '', tmClassName = '', short = false }: B
 
   return (
     <span className={`inline-flex items-baseline ${className}`}>
-      <span>{short ? 'Actually' : <>Actually, Let&apos;s</>}</span>
+      <span>Actually</span>
       <span
         aria-hidden="true"
         className={`font-sans ${baseWeight} leading-none select-none ${baseSize} ${baseAlign} ${baseMargin} ${baseColor} ${tmClassName}`.replace(/\s+/g, ' ').trim()}

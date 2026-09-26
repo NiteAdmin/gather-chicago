@@ -129,7 +129,7 @@ export async function POST(req: Request) {
 
     // Admin Confirmation Receipt Dispatch & Local Logging
     const adminEmail = (process.env.ADMIN_EMAIL || "admin@actuallylets.com").toLowerCase();
-    const eventTitle = `Actually, Let's — ${typeof city === "string" ? (city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()) : "Community"} (${winningDate})`;
+    const eventTitle = `Actually — ${typeof city === "string" ? (city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()) : "Community"} (${winningDate})`;
     const broadcastTimestamp = new Date().toISOString();
 
     try {

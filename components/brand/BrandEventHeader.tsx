@@ -14,7 +14,7 @@ interface BrandEventHeaderProps {
 
 /**
  * Reusable brand event header adhering strictly to brand guidelines:
- * 1. Isolated line: "Actually, Let's" sits on its own line above the event name.
+ * 1. Isolated line: "Actually" sits on its own line above the event name.
  * 2. Visual prominence with clear hierarchy.
  * 3. Directly attached superscript TM symbol.
  */

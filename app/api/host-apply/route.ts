@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
                 </tbody>
               </table>
               <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #EFEAD8; font-size: 12px; color: #8C8270; text-align: center;">
-                Actually, Let's Host Application Dispatch · <a href="mailto:${trimmedEmail}" style="color: #C8643F;">Reply to ${trimmedName}</a>
+                Actually Host Application Dispatch · <a href="mailto:${trimmedEmail}" style="color: #C8643F;">Reply to ${trimmedName}</a>
               </div>
             </div>
           </div>
