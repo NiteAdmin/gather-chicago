@@ -159,6 +159,17 @@ export default function UserNavButton({
 
   const handleSignOut = async () => {
     setShowDropdown(false);
+    try {
+      localStorage.removeItem('hasVoted_pottery-studio-faceoff');
+      localStorage.removeItem('votedData_pottery-studio-faceoff');
+      sessionStorage.removeItem('hasVoted_anonymous_session');
+    } catch {
+      // ignore storage errors
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('pollVoteUpdated'));
+      window.dispatchEvent(new Event('actuallylets_signout'));
+    }
     await signOut(auth);
   };
 

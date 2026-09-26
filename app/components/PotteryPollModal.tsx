@@ -87,10 +87,13 @@ export default function PotteryPollModal({
       setEmail(initialEmail);
     }
 
-    // Check localStorage for prior vote
+    // Check localStorage for prior vote, respecting auth / session scope
     try {
       const voted = localStorage.getItem('hasVoted_pottery-studio-faceoff');
-      if (voted === 'true') {
+      const sessionVoted = typeof window !== 'undefined' ? sessionStorage.getItem('hasVoted_anonymous_session') : null;
+      const isUserOrSessionVoted = current ? voted === 'true' : sessionVoted === 'true';
+
+      if (isUserOrSessionVoted) {
         setHasVoted(true);
         setIsSuccess(true);
         const savedData = localStorage.getItem('votedData_pottery-studio-faceoff');
@@ -107,6 +110,8 @@ export default function PotteryPollModal({
           if (parsed.email) setEmail(parsed.email);
         }
       } else {
+        setHasVoted(false);
+        setIsSuccess(false);
         if (!currentOptions.includes(preferredDate)) {
           setPreferredDate(currentOptions[0]);
         }
@@ -115,6 +120,18 @@ export default function PotteryPollModal({
       // Ignore localStorage errors
     }
   }, [isOpen, initialEmail, currentMonth]);
+
+  useEffect(() => {
+    const handleSignOutEvent = () => {
+      setHasVoted(false);
+      setIsSuccess(false);
+      setLoggedInEmail(null);
+    };
+    window.addEventListener('actuallylets_signout', handleSignOutEvent);
+    return () => {
+      window.removeEventListener('actuallylets_signout', handleSignOutEvent);
+    };
+  }, []);
 
   // Handle escape key
   useEffect(() => {
@@ -178,6 +195,7 @@ export default function PotteryPollModal({
       // Save to localStorage
       try {
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
+        sessionStorage.setItem('hasVoted_anonymous_session', 'true');
         localStorage.setItem(
           'votedData_pottery-studio-faceoff',
           JSON.stringify({
@@ -207,6 +225,7 @@ export default function PotteryPollModal({
       // Fallback: save to localStorage even if firestore write experienced an issue
       try {
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
+        sessionStorage.setItem('hasVoted_anonymous_session', 'true');
         localStorage.setItem(
           'votedData_pottery-studio-faceoff',
           JSON.stringify({

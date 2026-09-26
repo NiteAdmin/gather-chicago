@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useId } from "react";
+import { auth } from "@/lib/firebase";
 import { ResolvedEvent } from "@/lib/userEvents";
 import {
   splitEventTitle,
@@ -76,18 +77,43 @@ export default function MemberCalendar({
   useEffect(() => {
     const checkVoted = () => {
       try {
+        const currentUser = auth.currentUser;
         const voted = localStorage.getItem('hasVoted_pottery-studio-faceoff');
-        setHasVoted(voted === 'true');
+        const sessionVoted = typeof window !== 'undefined' ? sessionStorage.getItem('hasVoted_anonymous_session') : null;
+        if (currentUser) {
+          setHasVoted(voted === 'true');
+        } else {
+          setHasVoted(sessionVoted === 'true');
+        }
       } catch {
         // ignore localStorage errors
       }
     };
     checkVoted();
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        const sessionVoted = typeof window !== 'undefined' ? sessionStorage.getItem('hasVoted_anonymous_session') : null;
+        if (sessionVoted !== 'true') {
+          setHasVoted(false);
+        }
+      } else {
+        checkVoted();
+      }
+    });
+
+    const handleSignOutEvent = () => {
+      setHasVoted(false);
+    };
+
     window.addEventListener('pollVoteUpdated', checkVoted);
     window.addEventListener('storage', checkVoted);
+    window.addEventListener('actuallylets_signout', handleSignOutEvent);
     return () => {
+      unsubAuth();
       window.removeEventListener('pollVoteUpdated', checkVoted);
       window.removeEventListener('storage', checkVoted);
+      window.removeEventListener('actuallylets_signout', handleSignOutEvent);
     };
   }, []);
 

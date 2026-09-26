@@ -1166,7 +1166,7 @@ export default function AdminDashboard() {
                       className="fixed inset-0 z-30"
                       onClick={() => setShowChapterMenu(false)}
                     />
-                    <div className="absolute right-0 top-full mt-2 w-80 bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-40 space-y-1">
+                    <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-50 space-y-1">
                       <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
                         <span>Executive Multi-Market Switcher</span>
                         <span>5 Markets</span>
@@ -1322,25 +1322,25 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Headcount Gauge in Mission Control Cockpit */}
+              {/* Headcount Gauge in Mission Control Cockpit (5 cols) */}
               <div
-                className={`rounded-2xl p-4 sm:p-5 space-y-3 w-full ${
+                className={`lg:col-span-5 rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-[210px] ${
                   isTomorrowEvent
                     ? 'bg-white/5 border border-white/10'
                     : 'bg-white border border-[#EADBCC] shadow-2xs'
                 }`}
               >
-                {/* Top Row */}
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`text-xs font-mono uppercase tracking-wider ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                  <span className={`text-xs font-mono uppercase tracking-wider shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                     CONFIRMED GUESTS
                   </span>
-                  <span className={`text-2xl font-bold font-serif-fraunces ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
+                  <span className={`text-2xl font-bold font-serif-fraunces shrink-0 ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                     {cockpitConfirmedGuests} / {cockpitCapacity}
                   </span>
                 </div>
 
-                {/* Middle: Full-width progress track */}
+                {/* Progress bar */}
                 <div className={`w-full h-2 rounded-full overflow-hidden ${isTomorrowEvent ? 'bg-stone-700' : 'bg-stone-200'}`}>
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
@@ -1350,13 +1350,13 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                {/* Bottom Row */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className={isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}>
-                    {cockpitSpotsLeft} spots left
+                {/* Footer subtext row */}
+                <div className="flex items-center justify-between text-xs gap-2 pt-0.5">
+                  <span className={`whitespace-nowrap shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                    {cockpitSpotsLeft} spots remaining
                   </span>
-                  <span className={`font-semibold ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                    {cockpitPercent}% full
+                  <span className={`font-semibold whitespace-nowrap shrink-0 ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                    {cockpitPercent}% filled
                   </span>
                 </div>
               </div>
@@ -1514,134 +1514,57 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Main Gathering Info & Actions Row */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pt-1">
-              <div className="space-y-1.5 max-w-2xl">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#2B271F] flex items-center">
+            {/* Streamlined Gathering Management & Actions Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1 border-t border-[#EBE3D5]/80">
+              <div className="space-y-1.5 max-w-xl">
+                <div className="flex items-center gap-2">
                   <BrandName tmClassName="text-[#2B271F]" />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] leading-tight">
-                  {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
-                </h2>
-                <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#6A6253]">
-                  <span className="inline-flex items-center gap-1.5 font-medium text-[#2B271F]">
-                    <CalendarDays className="w-4 h-4 text-[#C8643F]" />
-                    {selectedEvent.displayDate} ({selectedEvent.date})
+                  <span className="text-stone-300">·</span>
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500">
+                    Host Controls &amp; Broadcasts
                   </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-[#8C827A]" />
-                    {selectedEvent.timeWindow}
-                  </span>
-                  {(selectedEvent.venueName || selectedEvent.venueAddress) && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-[#E07A5F]" />
-                      <strong>{selectedEvent.venueName}</strong>
-                      {selectedEvent.venueAddress && (
-                        <a
-                          href={`https://maps.google.com/?q=${encodeURIComponent(`${selectedEvent.venueName || ''} ${selectedEvent.venueAddress}`.trim())}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#C8643F] underline inline-flex items-center gap-0.5 ml-1"
-                        >
-                          ({selectedEvent.venueAddress})
-                          <ExternalLink className="w-3 h-3 inline" />
-                        </a>
-                      )}
-                    </span>
-                  )}
                 </div>
-
                 {selectedEvent.hostAnnouncement ? (
-                  <p className="text-xs text-[#6A6253] italic bg-white/70 border border-[#EBE3D5] rounded-xl p-2.5 mt-2">
+                  <p className="text-xs text-[#6A6253] italic bg-white/70 border border-[#EBE3D5] rounded-xl p-2.5">
                     &ldquo;{selectedEvent.hostAnnouncement}&rdquo;
                   </p>
                 ) : selectedEvent.description ? (
-                  <p className="text-xs text-[#6A6253] bg-white/50 border border-[#EBE3D5] rounded-xl p-2.5 mt-2">
+                  <p className="text-xs text-[#6A6253] bg-white/50 border border-[#EBE3D5] rounded-xl p-2.5">
                     {selectedEvent.description}
                   </p>
                 ) : null}
               </div>
 
-              {/* Dynamic Event Stats, Elegant Horizontal Attendance Gauge & Grouped Action Toolbar */}
-              <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3.5 shrink-0">
-                {/* Elegant Grouped Horizontal Attendance Gauge */}
-                <div className="bg-white border border-[#EADBCC] rounded-2xl p-3 sm:px-4 sm:py-2.5 flex items-center gap-3 sm:gap-4 shadow-xs w-full sm:w-auto">
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="w-8 h-8 rounded-xl bg-[#EDF5EE] border border-[#BACFB2]/50 flex items-center justify-center">
-                      <UserCheck className="w-4 h-4 text-[#3D6B42]" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500">Confirmed</span>
-                      <span className="text-base font-bold text-[#2B271F] font-serif-fraunces leading-none">
-                        {eventAttendance.confirmedCount} <span className="text-xs font-sans font-normal text-stone-500">RSVPs</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {selectedEvent.capacity ? (
-                    <>
-                      <div className="h-6 w-px bg-[#EADBCC] shrink-0" />
-                      <div className="flex items-center gap-3 min-w-[150px] sm:min-w-[170px]">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center text-[10px] font-mono text-stone-500 mb-1">
-                            <span>{eventAttendance.confirmedCount} / {selectedEvent.capacity} Filled</span>
-                            <span className="font-semibold text-[#2B271F]">{rawCapacityPercent}%</span>
-                          </div>
-                          <div className="h-2 w-full bg-[#EBE3D5] rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isAtCapacity ? 'bg-[#C8643F]' : rawCapacityPercent >= 80 ? 'bg-[#D97706]' : 'bg-[#5F7A60]'
-                              }`}
-                              style={{ width: `${Math.min(100, rawCapacityPercent)}%` }}
-                            />
-                          </div>
-                        </div>
-                        {isAtCapacity && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8] shrink-0">
-                            {isOverCapacity ? 'Over' : 'Full'}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="h-6 w-px bg-[#EADBCC] shrink-0" />
-                      <span className="text-xs text-stone-500 font-mono">Open Capacity</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Grouped Action Buttons: Secondary (RSVP Page, History) & Primary (Update Announcement) */}
-                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end">
-                  {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
-                    <a
-                      href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] hover:border-[#2B271F] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                    >
-                      <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
-                      <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
-                      <ExternalLink className="w-3 h-3 text-[#8C827A]" />
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowHistoryDrawer(true)}
-                    className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+              {/* Grouped Action Buttons: Secondary (RSVP Page, History) & Primary (Update Announcement) */}
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end shrink-0">
+                {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
+                  <a
+                    href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] hover:border-[#2B271F] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
                   >
-                    <History className="w-3.5 h-3.5 text-[#8C827A]" />
-                    <span>History ({broadcasts.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAdminModal(selectedEvent)}
-                    className="inline-flex items-center gap-1.5 bg-[#C8643F] hover:bg-[#B25532] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                  >
-                    <Megaphone className="w-3.5 h-3.5" />
-                    <span>Update Announcement</span>
-                  </button>
-                </div>
+                    <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
+                    <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
+                    <ExternalLink className="w-3 h-3 text-[#8C827A]" />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowHistoryDrawer(true)}
+                  className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                >
+                  <History className="w-3.5 h-3.5 text-[#8C827A]" />
+                  <span>History ({broadcasts.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAdminModal(selectedEvent)}
+                  className="inline-flex items-center gap-1.5 bg-[#C8643F] hover:bg-[#B25532] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                >
+                  <Megaphone className="w-3.5 h-3.5" />
+                  <span>Update Announcement</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1652,13 +1575,13 @@ export default function AdminDashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[#6E7F5E]">
-                    MACRO INTAKE ANALYTICS
+                    INTAKE ANALYTICS
                   </span>
                   <span className="text-[#D8CEBC]">·</span>
                   <span className="text-xs text-[#8C827A]">Chapter-Wide Consensus</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F]">
-                  Chapter Intake &amp; Survey Polling
+                  Chapter Polling &amp; Demand
                 </h2>
                 <p className="text-xs text-[#6A6253] mt-0.5">
                   Aggregate community survey intake ({responses.length} responses, {totalEstimatedGuests} projected attendees) reflecting chapter-wide consensus and demand, distinct from active event RSVP headcounts.
@@ -1666,55 +1589,77 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* KPI GRID - 4 BALANCED METRIC CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* KPI GRID - 4 BALANCED METRIC CARDS (2x2 on mobile, 4-col on lg) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Metric 1: Intake Responses */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Intake Responses</span>
-                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{responses.length}</div>
-                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Verified survey submissions</span>
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
+                    Intake Responses
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+                    {responses.length}
+                  </div>
+                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                    Verified submissions
+                  </span>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
-                  <Users className="w-5 h-5 text-stone-600" />
+                <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 2: Projected Attendance */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Projected Attendance</span>
-                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{totalEstimatedGuests}</div>
-                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Survey signups + guests</span>
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
+                    Projected Attendance
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+                    {totalEstimatedGuests}
+                  </div>
+                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                    Signups + guests
+                  </span>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
-                  <UserCheck className="w-5 h-5 text-stone-600" />
+                <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 3: SMS Reach */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">SMS Reach</span>
-                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">{smsReachRate}%</div>
-                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">{smsOptedInResponses.length} opted-in numbers</span>
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
+                    SMS Reach
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+                    {smsReachRate}%
+                  </div>
+                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                    {smsOptedInResponses.length} opted-in numbers
+                  </span>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
-                  <MessageSquare className="w-5 h-5 text-stone-600" />
+                <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-stone-600" />
                 </div>
               </div>
 
               {/* Metric 4: Leading Day */}
-              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 shadow-sm flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-500">Leading Day</span>
-                  <div className="text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
+              <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
+                    Leading Day
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {topDateOption ? topDateOption.split(',')[0] : '—'}
                   </div>
-                  <span className="text-[11px] text-stone-400 mt-0.5 block font-sans">Top polled chapter date</span>
+                  <span className="text-[11px] sm:text-xs text-stone-400 mt-0.5 block font-sans truncate">
+                    Top polled date
+                  </span>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
-                  <CalendarDays className="w-5 h-5 text-stone-600" />
+                <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-stone-600" />
                 </div>
               </div>
             </div>

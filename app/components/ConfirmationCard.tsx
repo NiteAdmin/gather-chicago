@@ -173,6 +173,8 @@ export default function ConfirmationCard({
         setPollVote({ studioName, dateText });
       } else if (localStorage.getItem('hasVoted_pottery-studio-faceoff') === 'true') {
         setPollVote({ studioName: 'Lincoln Square Pottery Studio', dateText: 'Sun, Oct 4' });
+      } else {
+        setPollVote(null);
       }
     } catch {
       // ignore
@@ -181,11 +183,16 @@ export default function ConfirmationCard({
 
   useEffect(() => {
     loadVote();
+    const handleSignOutEvent = () => {
+      setPollVote(null);
+    };
     window.addEventListener('pollVoteUpdated', loadVote);
     window.addEventListener('storage', loadVote);
+    window.addEventListener('actuallylets_signout', handleSignOutEvent);
     return () => {
       window.removeEventListener('pollVoteUpdated', loadVote);
       window.removeEventListener('storage', loadVote);
+      window.removeEventListener('actuallylets_signout', handleSignOutEvent);
     };
   }, []);
 
