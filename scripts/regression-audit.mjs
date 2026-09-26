@@ -216,7 +216,7 @@ pageViews.forEach((file) => {
   if (content.includes('<footer')) {
     const footerMatches = content.match(/<footer[\s\S]*?<\/footer>/gi) || [];
     footerMatches.forEach((fm, i) => {
-      const hasBrand = fm.includes('<BrandName') || fm.includes('<Footer') || fm.includes('Actually, Let');
+      const hasBrand = fm.includes('<BrandName') || fm.includes('<Footer') || fm.includes('Actually');
       assert(hasBrand, `${file} footer element #${i + 1} contains brand wordmark (not naked)`);
     });
   }

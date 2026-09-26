@@ -1267,7 +1267,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <p className="text-xs sm:text-sm font-bold text-[#2B271F] pt-1">
-            <BrandName tmClassName="text-[#2B271F]" />
+            <BrandName short tmClassName="text-[#2B271F]" />
           </p>
           <p className="text-[11px] sm:text-xs text-[#6A6253]">
             Consensus-driven community gatherings <span className="mx-1 text-[#A89F91]">&middot;</span> A portion of every ticket supports local community initiatives.
