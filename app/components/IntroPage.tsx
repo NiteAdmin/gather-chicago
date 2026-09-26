@@ -272,7 +272,7 @@ export default function IntroPage() {
               style={{ color: '#C8643F' }}
               className="text-2xl sm:text-3xl font-serif-fraunces font-bold text-[#C8643F] mt-2 leading-snug"
             >
-              Launch <BrandName full className="font-serif-fraunces font-bold text-[#C8643F]" tmClassName="text-base sm:text-lg font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
+              Launch <BrandName short className="font-serif-fraunces font-bold text-[#C8643F]" tmClassName="text-base sm:text-lg font-sans font-bold text-stone-700 align-super ml-0.5" /> in Your City — Become a Host Admin
             </h2>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed mt-4 max-w-lg mx-auto">
               Turn messy group chats into effortless gatherings. Apply to lead your city chapter or unlock your own Host Admin workspace to coordinate private events, social clubs, or community meetups.
