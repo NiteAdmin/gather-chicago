@@ -1117,9 +1117,10 @@ export default function AdminDashboard() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full md:w-auto min-w-0">
-              {/* Chapter Market Selector */}
-              <div className="relative flex-1 sm:flex-none min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 w-full md:w-auto min-w-0">
+              <div className="flex items-center gap-2 flex-1 sm:flex-none min-w-0">
+                {/* Chapter Market Selector */}
+                <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowChapterMenu((prev) => !prev)}
@@ -1162,11 +1163,20 @@ export default function AdminDashboard() {
 
                 {showChapterMenu && (
                   <>
+                    {/* Mobile backdrop for outside-tap dismissal */}
                     <div
-                      className="fixed inset-0 z-30"
+                      className="fixed inset-0 z-40 bg-black/25 sm:hidden"
                       onClick={() => setShowChapterMenu(false)}
                     />
-                    <div className="absolute right-0 sm:left-auto top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl shadow-xl p-2 z-50 space-y-1">
+                    <div
+                      className="fixed inset-0 z-30 hidden sm:block"
+                      onClick={() => setShowChapterMenu(false)}
+                    />
+
+                    {/* Clamped Container:
+                        On mobile (<640px): fixed inset-x-4 top-28 (guarantees 16px margins on both left and right edges)
+                        On desktop (>=640px): sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 */}
+                    <div className="fixed inset-x-4 top-28 z-50 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3 sm:p-4 shadow-2xl overflow-hidden space-y-1">
                       <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-stone-500 border-b border-[#EADBCC]/60 flex items-center justify-between">
                         <span>Select Chapter Market</span>
                         <span>5 Markets</span>
@@ -1212,37 +1222,38 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Quick Refresh with Interactive Sync Feedback & Timestamp */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-                  title="Refresh latest data"
-                >
-                  <RotateCcw className={`w-3.5 h-3.5 text-[#8C827A] ${isRefreshing ? 'animate-spin text-[#C8643F]' : ''}`} />
-                  <span className="hidden sm:inline">
-                    {isRefreshing ? 'Syncing...' : 'Refresh'}
-                  </span>
-                </button>
+              {/* Timestamp: hidden on mobile so it doesn't squish on small phone screens */}
+              {lastSyncedTime && (
+                <span className="text-[11px] font-mono text-stone-500 hidden sm:inline-block whitespace-nowrap">
+                  Synced at {lastSyncedTime}
+                </span>
+              )}
+            </div>
 
-                {lastSyncedTime && (
-                  <span className="text-[11px] font-mono text-stone-500 whitespace-nowrap">
-                    Synced at {lastSyncedTime}
-                  </span>
-                )}
-              </div>
+            {/* Right Side: Refresh & Export CSV */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                title="Refresh latest data"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 text-[#8C827A] ${isRefreshing ? 'animate-spin text-[#C8643F]' : ''}`} />
+                <span className="hidden sm:inline">
+                  {isRefreshing ? 'Syncing...' : 'Refresh'}
+                </span>
+              </button>
 
-              {/* Quick Export CSV */}
               <button
                 type="button"
                 onClick={exportCSV}
-                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F3EFEB] text-[#2B271F] border border-[#EBE3D5] text-xs font-semibold px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-[#8C827A]" />
                 <span>Export CSV</span>
               </button>
+            </div>
             </div>
           </div>
 
@@ -1427,7 +1438,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   {selectedEvent.status === 'confirmed' ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#3D6B42]" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block mr-0.5" />
                   ) : (
                     <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
                   )}
