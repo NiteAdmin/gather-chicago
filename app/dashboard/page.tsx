@@ -508,7 +508,26 @@ export default function DashboardPage() {
   const [vibeReactions, setVibeReactions] = useState<Record<string, string>>({});
 
   // Dynamic splitting of attending gatherings: upcoming/live vs afterglow/archived
-  const attendingEvents = resolvedEvents.filter((e) => e.attendanceStatus === "attending");
+  // STRICT RSVP ATTENDANCE FILTERING:
+  // An event must ONLY appear under YOUR PLANS or PAST GATHERINGS if:
+  // 1. The user explicitly completed an RSVP/ticket registration for that exact eventId (saved in Firestore or manual session override)
+  //    OR was matched from a non-polled ticketed gathering survey.
+  // 2. It is NOT a placeholder, demo seed, or general polled option (isPolledOption === true, categoryLabel containing 'polled', or id containing 'polled'/'legacy').
+  const attendingEvents = resolvedEvents.filter((e) => {
+    if (e.attendanceStatus !== "attending") return false;
+    const isPolledCandidate =
+      e.isPolledOption === true ||
+      e.id.includes("legacy") ||
+      e.id.includes("polled") ||
+      e.categoryLabel?.toLowerCase().includes("polled") ||
+      e.title.toLowerCase().includes("(polled");
+    if (isPolledCandidate) {
+      const isExplicitRsvp = (manualOverrides[e.id] === 'attending') || savedRsvpIds.includes(e.id);
+      if (!isExplicitRsvp) return false;
+    }
+    return true;
+  });
+
   const upcomingPlans = attendingEvents.filter((ev) => {
     const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
     return phase === 'upcoming' || phase === 'live';
@@ -517,6 +536,12 @@ export default function DashboardPage() {
     const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
     return phase === 'afterglow' || phase === 'archived';
   });
+
+  // Find the single most recent afterglow event ID so we never stack duplicate feedback prompts
+  const activeAfterglowEventId = pastPlans.find((ev) => {
+    const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+    return phase === 'afterglow';
+  })?.id;
 
   const handleSelectVibeReaction = (eventId: string, token: string) => {
     setVibeReactions((prev) => ({ ...prev, [eventId]: token }));
@@ -702,6 +727,7 @@ export default function DashboardPage() {
                 phase={isMounted ? getCommunityEventPhase(ev) : 'afterglow'}
                 selectedReaction={vibeReactions[ev.id]}
                 onSelectReaction={(token) => handleSelectVibeReaction(ev.id, token)}
+                showAfterglow={ev.id === activeAfterglowEventId}
               />
             ))}
           </div>

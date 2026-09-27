@@ -13,6 +13,7 @@ interface PastEventCardProps {
   phase: EventPhase;
   selectedReaction?: string;
   onSelectReaction?: (token: string) => void;
+  showAfterglow?: boolean;
 }
 
 export default function PastEventCard({
@@ -20,6 +21,7 @@ export default function PastEventCard({
   phase,
   selectedReaction,
   onSelectReaction,
+  showAfterglow = true,
 }: PastEventCardProps) {
   const { eventName } = splitEventTitle(event.title, event.brandPrefix);
 
@@ -60,7 +62,7 @@ export default function PastEventCard({
       </div>
 
       {/* 24-Hour Afterglow Feedback Card (Renders directly below the attended card when in afterglow state) */}
-      {phase === 'afterglow' && (
+      {phase === 'afterglow' && showAfterglow && (
         <AfterglowCard
           eventId={event.id}
           selectedReaction={selectedReaction}

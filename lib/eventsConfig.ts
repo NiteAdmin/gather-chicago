@@ -86,6 +86,7 @@ export interface CommunityEvent {
   hostAnnouncement?: string;
   capacity?: number;
   rsvpCount?: number;
+  isPolledOption?: boolean;
 }
 
 export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
@@ -350,6 +351,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     status: "confirmed",
     capacity: 35,
     rsvpCount: 24,
+    isPolledOption: true,
   },
 ];
 

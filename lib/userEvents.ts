@@ -267,6 +267,17 @@ export function checkEventDateMatch(
   const shortMonth = monthNamesShort[monthNum - 1]; // "oct" or "sep"
   const fullMonth = monthNamesFull[monthNum - 1];   // "october" or "september"
 
+  // Polled options and legacy candidates are voting options, never auto-attended from survey dates
+  if (
+    event.isPolledOption === true ||
+    event.id.includes("legacy") ||
+    event.id.includes("polled") ||
+    event.title.toLowerCase().includes("(polled") ||
+    event.categoryLabel?.toLowerCase().includes("polled")
+  ) {
+    return false;
+  }
+
   for (const rawDate of userDates) {
     if (!rawDate || typeof rawDate !== 'string') continue;
     const d = rawDate.trim().toLowerCase();
@@ -381,7 +392,15 @@ export function resolveUserAttendance(
     }
 
     // 4. Specific match from Firestore survey responses (response.eventIds or response.dates)
-    if (responses && responses.length > 0) {
+    // Polled options / legacy candidates are voting options and must never be auto-matched from survey consensus dates
+    const isPolledCandidate =
+      event.isPolledOption === true ||
+      event.id.includes("legacy") ||
+      event.id.includes("polled") ||
+      event.categoryLabel?.toLowerCase().includes("polled") ||
+      event.title.toLowerCase().includes("(polled");
+
+    if (!isPolledCandidate && responses && responses.length > 0) {
       for (const res of responses) {
         const resCity = (res.city || 'chicago').toLowerCase();
         if (resCity !== event.city.toLowerCase() && resCity !== 'all') {
@@ -444,7 +463,19 @@ export function partitionUpcomingEvents(
       return 0;
     });
 
-  const upcomingAttending = upcoming.filter((e) => e.attendanceStatus === "attending");
+  const upcomingAttending = upcoming.filter((e) => {
+    if (e.attendanceStatus !== "attending") return false;
+    if (
+      e.isPolledOption === true ||
+      e.id.includes("legacy") ||
+      e.id.includes("polled") ||
+      e.categoryLabel?.toLowerCase().includes("polled") ||
+      e.title.toLowerCase().includes("(polled")
+    ) {
+      return false;
+    }
+    return true;
+  });
   const upcomingOpen = upcoming.filter((e) => e.attendanceStatus === "open");
 
   // Priority 1: Earliest upcoming event user is confirmed for (attending)
