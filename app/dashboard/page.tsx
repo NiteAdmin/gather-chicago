@@ -40,7 +40,7 @@ import DashboardHero from "@/components/dashboard/DashboardHero";
 import PastEventCard from "@/components/dashboard/PastEventCard";
 import { getCommunityEventPhase, EventPhase, getEventDateTimes, isPreferenceDatePast } from "@/lib/eventStatus";
 import { useIsMounted } from "@/lib/useEventStatus";
-import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle } from "@/lib/eventsConfig";
+import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle, isConfirmedGathering } from "@/lib/eventsConfig";
 import {
   fetchUserRSVPs,
   fetchUserSavedRsvps,
@@ -520,6 +520,10 @@ export default function DashboardPage() {
 
   // Dynamically partition events: filter upcoming (date >= '2026-09-09') & sort ascending
   const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents);
+  // Isolate confirmed gatherings for member calendar (filters out candidate poll options)
+  const confirmedCalendarEvents = useMemo(() => {
+    return resolvedEvents.filter(isConfirmedGathering);
+  }, [resolvedEvents]);
   const isMounted = useIsMounted();
   const [vibeReactions, setVibeReactions] = useState<Record<string, string>>({});
 
@@ -559,7 +563,7 @@ export default function DashboardPage() {
         });
       }
       baseEvents.forEach((ev) => {
-        if (ev.isPolledOption || ev.title?.includes('(Polled Gathering)')) return;
+        if (!isConfirmedGathering(ev) || ev.isPolledOption || ev.isPolledCandidate || ev.title?.includes('(Polled Gathering)')) return;
         const isCancelled = declinedEventIds.includes(ev.id) || manualOverrides[ev.id] === 'open';
         if (isCancelled) return;
         const userDates = [
@@ -594,7 +598,9 @@ export default function DashboardPage() {
 
   const isPolledCandidate = (event: CommunityEvent) => {
     return Boolean(
+      !isConfirmedGathering(event) ||
       event.isPolledOption === true ||
+      event.isPolledCandidate === true ||
       event.title?.includes('(Polled Gathering)') ||
       event.id.includes('legacy') ||
       event.id.includes('polled') ||
@@ -1116,7 +1122,7 @@ export default function DashboardPage() {
             <section className="order-1 lg:order-2 lg:col-span-6 space-y-6">
               {/* 1. DYNAMIC SPOTLIGHT HERO BANNER */}
               <DashboardHero
-                events={resolvedEvents}
+                events={confirmedCalendarEvents}
                 onToggleRSVP={handleToggleRSVP}
               />
 
@@ -1133,7 +1139,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <MemberCalendar
-                  events={resolvedEvents}
+                  events={confirmedCalendarEvents}
                   onToggleRSVP={handleToggleRSVP}
                   userEmail={user?.email}
                   preferredDates={preferredDates}
@@ -1343,7 +1349,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <MemberCalendar
-                events={resolvedEvents}
+                events={confirmedCalendarEvents}
                 preferredDates={preferredDates}
                 onTogglePreferredDate={handleTogglePreferredDate}
                 onToggleRSVP={() => {

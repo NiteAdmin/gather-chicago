@@ -87,6 +87,25 @@ export interface CommunityEvent {
   capacity?: number;
   rsvpCount?: number;
   isPolledOption?: boolean;
+  isPolledCandidate?: boolean;
+}
+
+/**
+ * Filter out candidate polling options so only confirmed gatherings are scheduled
+ */
+export function isConfirmedGathering(evt: CommunityEvent | { title?: string; isPolledOption?: boolean; isPolledCandidate?: boolean; id?: string; categoryLabel?: string }): boolean {
+  if (!evt) return false;
+  if (
+    evt.isPolledOption === true ||
+    evt.isPolledCandidate === true ||
+    evt.title?.includes('(Polled Gathering)') ||
+    evt.id?.includes('polled') ||
+    evt.id?.includes('legacy') ||
+    evt.categoryLabel?.toLowerCase().includes('polled')
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
@@ -348,10 +367,11 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     description: "Initial polled community gathering at Lincoln Park Conservatory derived from chapter intake survey consensus.",
     externalUrl: "https://partiful.com/e/QSVMteLK2LBBOc3cQHKh",
     partifulUrl: "https://partiful.com/e/QSVMteLK2LBBOc3cQHKh",
-    status: "confirmed",
+    status: "past",
     capacity: 35,
     rsvpCount: 24,
     isPolledOption: true,
+    isPolledCandidate: true,
   },
 ];
 
@@ -455,7 +475,7 @@ export async function fetchHydratedEvents(city: string = "chicago"): Promise<Com
         const resolvedExternalLabel = latest.externalUrlLabel || latest.ticketUrlLabel || latest.linkLabel;
 
         baseEvents = baseEvents.map((ev) => {
-          if (ev.id === "chi-sep-26-gathering" || ev.date === "2026-09-26") {
+          if (ev.id === "chi-sep-26-gathering" || (ev.date === "2026-09-26" && !ev.isPolledOption && !ev.isPolledCandidate)) {
             const hasCustomVenue =
               latest.venueName &&
               !latest.venueName.includes("The Joinery") &&

@@ -8,6 +8,7 @@ import {
   chicagoPotteryPoll,
   getAudienceBadge,
   getAudienceIcon,
+  isConfirmedGathering,
 } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
@@ -155,9 +156,14 @@ export default function MemberCalendar({
   const [hasVoted, setHasVoted] = useState(false);
   const modalScrollRef = useRef<HTMLDivElement>(null);
 
+  // Filter out candidate polling options so only confirmed gatherings are scheduled onto the calendar
+  const confirmedEvents = React.useMemo(() => {
+    return (events || []).filter(isConfirmedGathering);
+  }, [events]);
+
   // Derived current active event strictly bound to reactive events array (for seamless rollback sync)
   const currentActiveEvent = activePopoverEvent
-    ? events.find((e) => e.id === activePopoverEvent.id) || activePopoverEvent
+    ? confirmedEvents.find((e) => e.id === activePopoverEvent.id) || activePopoverEvent
     : null;
 
   const isMounted = useIsMounted();
@@ -297,7 +303,7 @@ export default function MemberCalendar({
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   // Filter events by status and category
-  const filteredEvents = events.filter((e) => {
+  const filteredEvents = confirmedEvents.filter((e) => {
     if (filterStatus === "attending" && e.attendanceStatus !== "attending") return false;
     if (filterStatus === "open" && e.attendanceStatus !== "open") return false;
     if (filterCategory !== "all" && e.category !== filterCategory) return false;
@@ -423,8 +429,8 @@ export default function MemberCalendar({
     }
   };
 
-  const attendingCount = events.filter((e) => e.attendanceStatus === "attending").length;
-  const openCount = events.filter((e) => e.attendanceStatus === "open").length;
+  const attendingCount = confirmedEvents.filter((e) => e.attendanceStatus === "attending").length;
+  const openCount = confirmedEvents.filter((e) => e.attendanceStatus === "open").length;
 
   return (
     <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-3 sm:p-6 shadow-sm overflow-hidden ${className}`}>
@@ -585,7 +591,7 @@ export default function MemberCalendar({
                 : "bg-white text-[#6A6253] border-[#D8CEBC] hover:border-[#2B271F]"
             }`}
           >
-            All ({events.length})
+            All ({confirmedEvents.length})
           </button>
           <button
             type="button"
@@ -825,7 +831,7 @@ export default function MemberCalendar({
                     {hasEvents && (
                       <>
                         <span className="text-[9px] font-bold text-[#C8643F] hidden sm:inline">
-                          ● {dayEvents.length > 1 ? `${dayEvents.length} Events` : "Event"}
+                          • {dayEvents.length > 1 ? `${dayEvents.length} Events` : "1 Event"}
                         </span>
                         {/* Mobile Event Dot Indicator (< sm) */}
                         <div className="flex items-center gap-0.5 sm:hidden">
@@ -1370,7 +1376,7 @@ export default function MemberCalendar({
           >
             {/* Multi-event switcher bar if multiple events exist on same date */}
             {(() => {
-              const sameDayEvents = events.filter((e) => e.date === currentActiveEvent.date);
+              const sameDayEvents = confirmedEvents.filter((e) => e.date === currentActiveEvent.date);
               if (sameDayEvents.length <= 1) {
                 return (
                   <button
@@ -1583,7 +1589,7 @@ export default function MemberCalendar({
 
             {/* Sister gathering callout if multiple events exist on same date */}
             {(() => {
-              const sameDayEvents = events.filter((e) => e.date === currentActiveEvent.date);
+              const sameDayEvents = confirmedEvents.filter((e) => e.date === currentActiveEvent.date);
               if (sameDayEvents.length <= 1) return null;
               const others = sameDayEvents.filter((e) => e.id !== currentActiveEvent.id);
               if (others.length === 0) return null;

@@ -1,7 +1,7 @@
 import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { SurveyResponse } from "@/types/survey";
-import { CommunityEvent, OCTOBER_2026_EVENTS } from "@/lib/eventsConfig";
+import { CommunityEvent, OCTOBER_2026_EVENTS, isConfirmedGathering } from "@/lib/eventsConfig";
 
 export interface ResolvedEvent extends CommunityEvent {
   attendanceStatus: 'attending' | 'open';
@@ -269,7 +269,9 @@ export function checkEventDateMatch(
 
   // Polled options and legacy candidates are voting options, never auto-attended from survey dates
   if (
+    !isConfirmedGathering(event) ||
     event.isPolledOption === true ||
+    (event as any).isPolledCandidate === true ||
     event.id.includes("legacy") ||
     event.id.includes("polled") ||
     event.title.toLowerCase().includes("(polled") ||
@@ -364,7 +366,9 @@ export function resolveUserAttendance(
   return events.map((event) => {
     // 0. Candidate poll options and legacy voting options are never treated as attended ticketed events
     const isPolledCandidate =
+      !isConfirmedGathering(event) ||
       event.isPolledOption === true ||
+      (event as any).isPolledCandidate === true ||
       event.id.includes("legacy") ||
       event.id.includes("polled") ||
       event.categoryLabel?.toLowerCase().includes("polled") ||
@@ -461,7 +465,7 @@ export function partitionUpcomingEvents(
   spotlightEvent: ResolvedEvent | null;
 } {
   const upcoming = [...events]
-    .filter((e) => e.date >= currentDateThreshold)
+    .filter((e) => e.date >= currentDateThreshold && isConfirmedGathering(e))
     .sort((a, b) => {
       const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
       if (timeDiff !== 0) return timeDiff;
@@ -473,8 +477,10 @@ export function partitionUpcomingEvents(
 
   const upcomingAttending = upcoming.filter((e) => {
     if (e.attendanceStatus !== "attending") return false;
+    if (!isConfirmedGathering(e)) return false;
     if (
       e.isPolledOption === true ||
+      (e as any).isPolledCandidate === true ||
       e.id.includes("legacy") ||
       e.id.includes("polled") ||
       e.categoryLabel?.toLowerCase().includes("polled") ||
@@ -636,7 +642,7 @@ export function isContactAttendingEvent(
   event: CommunityEvent,
   users: RegisteredUser[] = []
 ): boolean {
-  if (!contact) return false;
+  if (!contact || !isConfirmedGathering(event)) return false;
   if ((contact as any).deleted || (contact as any).isDeleted || (contact as any).archived || (contact as any)._orphaned) {
     return false;
   }
