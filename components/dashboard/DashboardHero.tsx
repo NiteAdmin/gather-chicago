@@ -5,6 +5,8 @@ import { ResolvedEvent, partitionUpcomingEvents } from "@/lib/userEvents";
 import { splitEventTitle } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
+import AfterglowCard from "@/components/dashboard/AfterglowCard";
+import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -24,6 +26,7 @@ interface DashboardHeroProps {
 
 export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroProps) {
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const isMounted = useIsMounted();
 
   // Dynamically partition and prioritize events:
   // Priority 1: Earliest upcoming event confirmed for attending
@@ -33,6 +36,9 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
   if (!spotlightEvent) return null;
 
   const isAttending = spotlightEvent.attendanceStatus === "attending";
+  const spotlightPhase: EventPhase = isMounted ? getCommunityEventPhase(spotlightEvent) : 'upcoming';
+  const isPast = spotlightPhase === 'afterglow' || spotlightPhase === 'archived';
+  const isLive = spotlightPhase === 'live';
 
   const mapsQuery = [spotlightEvent.venueName, spotlightEvent.venueAddress]
     .filter(Boolean)
@@ -54,15 +60,39 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
         {/* Top Header Badge & Tagline */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           {isAttending ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E3A20] text-[#A3E699] border border-[#2D5A30] text-[11px] font-bold tracking-wider uppercase shadow-xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#52C41A]" />
-              <span>You&apos;re Going</span>
-            </div>
+            isPast ? (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EFE8DF] text-stone-700 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                <span>YOU ATTENDED</span>
+              </div>
+            ) : isLive ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C1E] text-[#F5C26B] border border-[#5C4328] text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F5C26B] animate-pulse" />
+                <span>HAPPENING NOW</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E3A20] text-[#A3E699] border border-[#2D5A30] text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#52C41A]" />
+                <span>You&apos;re Going</span>
+              </div>
+            )
           ) : (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C22] text-[#F5B096] border border-[#5C3B2B] text-[11px] font-bold tracking-wider uppercase shadow-xs">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#E07A5F]" />
-              <span>Upcoming Gathering &bull; Next Up in Chicago</span>
-            </div>
+            isPast ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C22] text-[#F5B096] border border-[#5C3B2B] text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                <CalendarIcon className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>Gathering Completed &bull; Past Event</span>
+              </div>
+            ) : isLive ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C1E] text-[#F5C26B] border border-[#5C4328] text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F5C26B] animate-pulse" />
+                <span>HAPPENING NOW &bull; Next Up in Chicago</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3D2C22] text-[#F5B096] border border-[#5C3B2B] text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                <CalendarIcon className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>Upcoming Gathering &bull; Next Up in Chicago</span>
+              </div>
+            )
           )}
 
           <span className="text-[10.5px] sm:text-[11px] font-mono tracking-widest text-[#D8CEBC]/70 uppercase">
@@ -133,6 +163,11 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
           </div>
         </div>
 
+        {/* 24-Hour Afterglow Feedback Card */}
+        {isAttending && spotlightPhase === 'afterglow' && (
+          <AfterglowCard eventId={spotlightEvent.id} variant="dark" />
+        )}
+
         {/* Action Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -162,14 +197,21 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => onToggleRSVP(spotlightEvent.id)}
-                  className="inline-flex items-center gap-2 px-4.5 py-2 rounded-xl bg-[#C8643F] hover:bg-[#b05230] text-white text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all cursor-pointer"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                  <span>RSVP: I&apos;m Going &rarr;</span>
-                </button>
+                {!isPast && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleRSVP(spotlightEvent.id)}
+                    className="inline-flex items-center gap-2 px-4.5 py-2 rounded-xl bg-[#C8643F] hover:bg-[#b05230] text-white text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    <span>RSVP: I&apos;m Going &rarr;</span>
+                  </button>
+                )}
+                {isPast && (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 text-[#D8CEBC] text-xs font-semibold border border-white/10">
+                    Gathering Completed
+                  </span>
+                )}
                 <a
                   href={googleMapsUrl}
                   target="_blank"
@@ -195,7 +237,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
           </div>
 
           <div>
-            {isAttending && (
+            {isAttending && !isPast && !isLive && (
               <button
                 type="button"
                 onClick={() => setShowCancelModal(true)}

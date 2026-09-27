@@ -12,6 +12,8 @@ import {
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import PotteryPollModal from "@/app/components/PotteryPollModal";
+import AfterglowCard from "@/components/dashboard/AfterglowCard";
+import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
 import {
   Calendar as CalendarIcon,
   List,
@@ -150,6 +152,10 @@ export default function MemberCalendar({
   const currentActiveEvent = activePopoverEvent
     ? events.find((e) => e.id === activePopoverEvent.id) || activePopoverEvent
     : null;
+
+  const isMounted = useIsMounted();
+  const currentActivePhase: EventPhase = isMounted && currentActiveEvent ? getCommunityEventPhase(currentActiveEvent) : 'upcoming';
+  const isCurrentActivePast = currentActivePhase === 'afterglow' || currentActivePhase === 'archived';
 
   // Lock body scroll and dismiss on Escape when event modal is open
   useEffect(() => {
@@ -874,10 +880,29 @@ export default function MemberCalendar({
                               <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
                             </span>
                             {isAttending ? (
-                              <span
-                                className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0"
-                                title="You're Going"
-                              />
+                              (() => {
+                                const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+                                const isEvPast = evPhase === 'afterglow' || evPhase === 'archived';
+                                const isEvLive = evPhase === 'live';
+                                return (
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                      isEvPast
+                                        ? "bg-stone-500"
+                                        : isEvLive
+                                        ? "bg-[#D97706] animate-pulse"
+                                        : "bg-emerald-600"
+                                    }`}
+                                    title={
+                                      isEvPast
+                                        ? "You Attended"
+                                        : isEvLive
+                                        ? "Happening Now"
+                                        : "You're Going"
+                                    }
+                                  />
+                                );
+                              })()
                             ) : null}
                           </button>
                         </div>
@@ -1290,7 +1315,29 @@ export default function MemberCalendar({
                         >
                           <span className="truncate">{sEv.chipLabel || sTitle}</span>
                           {sEv.attendanceStatus === "attending" && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="You're going" />
+                            (() => {
+                              const sPhase = isMounted ? getCommunityEventPhase(sEv) : 'upcoming';
+                              const isSPast = sPhase === 'afterglow' || sPhase === 'archived';
+                              const isSLive = sPhase === 'live';
+                              return (
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                    isSPast
+                                      ? "bg-stone-500"
+                                      : isSLive
+                                      ? "bg-[#D97706] animate-pulse"
+                                      : "bg-emerald-500"
+                                  }`}
+                                  title={
+                                    isSPast
+                                      ? "You Attended"
+                                      : isSLive
+                                      ? "Happening Now"
+                                      : "You're going"
+                                  }
+                                />
+                              );
+                            })()
                           )}
                         </button>
                       );
@@ -1324,6 +1371,24 @@ export default function MemberCalendar({
                       {getAudienceBadge(currentActiveEvent.audience, currentActiveEvent.audienceLabel)}
                     </span>
                   )}
+                  {currentActiveEvent.attendanceStatus === "attending" && (
+                    isCurrentActivePast ? (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#EFE8DF] text-stone-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                        YOU ATTENDED
+                      </div>
+                    ) : currentActivePhase === 'live' ? (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
+                        HAPPENING NOW
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        YOU&apos;RE GOING
+                      </div>
+                    )
+                  )}
                 </div>
                 <div className="mt-1.5">
                   <div className="text-[11px] font-bold uppercase tracking-widest text-[#C8643F] flex items-center">
@@ -1340,19 +1405,35 @@ export default function MemberCalendar({
             <div
               className={`p-3 rounded-2xl border mb-5 flex items-center justify-between text-xs font-semibold ${
                 currentActiveEvent.attendanceStatus === "attending"
-                  ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
+                  ? isCurrentActivePast
+                    ? "bg-[#EFE8DF] border-[#D8CEBC] text-stone-700"
+                    : currentActivePhase === 'live'
+                    ? "bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]"
+                    : "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
                   : "bg-[#F5F1E8] border-[#D8CEBC] text-[#6A6253]"
               }`}
             >
               <div className="flex items-center gap-2">
                 {currentActiveEvent.attendanceStatus === "attending" ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  isCurrentActivePast ? (
+                    <span className="w-2 h-2 rounded-full bg-stone-500 shrink-0" />
+                  ) : currentActivePhase === 'live' ? (
+                    <span className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )
                 ) : (
                   <CalendarIcon className="w-4 h-4 text-[#C8643F] shrink-0" />
                 )}
                 <span>
                   {currentActiveEvent.attendanceStatus === "attending"
-                    ? "You're Going — RSVP Confirmed"
+                    ? isCurrentActivePast
+                      ? "You Attended — Gathering Completed"
+                      : currentActivePhase === 'live'
+                      ? "Happening Now — Live Gathering"
+                      : "You're Going — RSVP Confirmed"
+                    : isCurrentActivePast
+                    ? "Gathering Completed"
                     : "Spots Available — RSVP to attend"}
                 </span>
               </div>
@@ -1389,6 +1470,13 @@ export default function MemberCalendar({
                 </div>
               </div>
             </div>
+
+            {/* 24-Hour Afterglow Feedback Card */}
+            {currentActiveEvent.attendanceStatus === "attending" && currentActivePhase === 'afterglow' && (
+              <div className="mb-5 bg-[#FAF7F2] border border-[#D8CEBC]/70 rounded-2xl p-4">
+                <AfterglowCard eventId={currentActiveEvent.id} />
+              </div>
+            )}
 
             {/* Sister gathering callout if multiple events exist on same date */}
             {(() => {
@@ -1432,21 +1520,34 @@ export default function MemberCalendar({
 
             {/* Popover Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onToggleRSVP) {
-                    onToggleRSVP(currentActiveEvent.id);
-                  }
-                }}
-                className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                  currentActiveEvent.attendanceStatus === "attending"
-                    ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
-                    : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
-                }`}
-              >
-                {currentActiveEvent.attendanceStatus === "attending" ? "Can't Make It? Cancel RSVP" : "RSVP: I'm Going! →"}
-              </button>
+              {isCurrentActivePast ? (
+                currentActiveEvent.attendanceStatus === "attending" ? (
+                  <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#EFE8DF] text-stone-700 border border-[#D8CEBC]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                    Gathering Completed &bull; You Attended
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#FAF7F2] text-[#8C8270] border border-[#D8CEBC]">
+                    Gathering Ended
+                  </div>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onToggleRSVP) {
+                      onToggleRSVP(currentActiveEvent.id);
+                    }
+                  }}
+                  className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    currentActiveEvent.attendanceStatus === "attending"
+                      ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
+                      : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
+                  }`}
+                >
+                  {currentActiveEvent.attendanceStatus === "attending" ? "Can't Make It? Cancel RSVP" : "RSVP: I'm Going! →"}
+                </button>
+              )}
 
               {(currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl) && (
                 <a

@@ -37,6 +37,8 @@ import {
 import UserNavButton from "@/components/nav/UserNavButton";
 import MemberCalendar from "@/components/dashboard/MemberCalendar";
 import DashboardHero from "@/components/dashboard/DashboardHero";
+import PastEventCard from "@/components/dashboard/PastEventCard";
+import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
 import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle } from "@/lib/eventsConfig";
 import {
   fetchUserRSVPs,
@@ -502,7 +504,25 @@ export default function DashboardPage() {
 
   // Dynamically partition events: filter upcoming (date >= '2026-09-09') & sort ascending
   const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents);
-  const attendingCount = upcomingAttending.length;
+  const isMounted = useIsMounted();
+  const [vibeReactions, setVibeReactions] = useState<Record<string, string>>({});
+
+  // Dynamic splitting of attending gatherings: upcoming/live vs afterglow/archived
+  const attendingEvents = resolvedEvents.filter((e) => e.attendanceStatus === "attending");
+  const upcomingPlans = attendingEvents.filter((ev) => {
+    const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+    return phase === 'upcoming' || phase === 'live';
+  });
+  const pastPlans = attendingEvents.filter((ev) => {
+    const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+    return phase === 'afterglow' || phase === 'archived';
+  });
+
+  const handleSelectVibeReaction = (eventId: string, token: string) => {
+    setVibeReactions((prev) => ({ ...prev, [eventId]: token }));
+  };
+
+  const attendingCount = upcomingPlans.length;
 
   const host = {
     name: "Lola",
@@ -579,64 +599,112 @@ export default function DashboardPage() {
     'chicago';
 
   const renderPlans = () => (
-    <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-3.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
-          <CalendarIcon className="w-3.5 h-3.5 text-[#C8643F]" />
-          <span>Your Plans</span>
-        </h3>
-        <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            attendingCount > 0
-              ? "bg-[#1E3A20] text-[#A3E699]"
-              : "bg-[#EDE4D3] text-[#6A6253]"
-          }`}
-        >
-          {attendingCount} ATTENDING
-        </span>
+    <div className="space-y-5">
+      {/* 1. PRIMARY YOUR PLANS BLOCK */}
+      <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
+            <CalendarIcon className="w-3.5 h-3.5 text-[#C8643F]" />
+            <span>Your Plans</span>
+          </h3>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              upcomingPlans.length > 0
+                ? "bg-[#1E3A20] text-[#A3E699]"
+                : "bg-[#EDE4D3] text-[#6A6253]"
+            }`}
+          >
+            {upcomingPlans.length} ATTENDING
+          </span>
+        </div>
+
+        {upcomingPlans.length > 0 ? (
+          <div className="space-y-3 divide-y divide-[#D8CEBC]/40">
+            {upcomingPlans.map((ev) => {
+              const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+              return (
+                <div key={ev.id} className="pt-3 first:pt-0">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-[#EDE4D3] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                      <EventIcon
+                        iconName={ev.iconName}
+                        eventId={ev.id}
+                        category={ev.category}
+                        fallbackIcon={ev.icon}
+                        className="w-3.5 h-3.5 text-[#E07A5F]"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
+                          <BrandName />
+                        </div>
+                        {evPhase === 'live' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
+                            HAPPENING NOW
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            YOU&apos;RE GOING
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-xs font-bold text-[#2B271F] leading-tight">
+                        {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                      </h4>
+                      <p className="text-[11px] font-semibold text-[#C8643F] mt-0.5">
+                        {ev.displayDate} &bull; {ev.timeWindow.includes("10:30 AM") ? "10:30 AM" : ev.timeWindow.split(" (")[0]} &bull; {ev.venueName}
+                      </p>
+                      {ev.venueAddress && (
+                        <p className="text-[10.5px] text-[#8C8270] truncate mt-0.5" title={`${ev.venueName} • ${ev.venueAddress}`}>
+                          {ev.venueAddress}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-xs text-[#6A6253] space-y-2">
+            <Compass className="w-6 h-6 text-[#8C8270] mx-auto opacity-70" />
+            <p className="font-semibold text-[#2B271F]">
+              No upcoming gatherings locked in.
+            </p>
+            <p className="text-[11px] text-[#8C8270]">
+              Help choose the next date &amp; vibe below.
+            </p>
+          </div>
+        )}
       </div>
 
-      {upcomingAttending.length > 0 ? (
-        <div className="space-y-3 divide-y divide-[#D8CEBC]/40">
-          {upcomingAttending.map((ev) => (
-            <div key={ev.id} className="pt-3 first:pt-0">
-              <div className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[#EDE4D3] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                  <EventIcon
-                    iconName={ev.iconName}
-                    eventId={ev.id}
-                    category={ev.category}
-                    fallbackIcon={ev.icon}
-                    className="w-3.5 h-3.5 text-[#E07A5F]"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
-                    <BrandName />
-                  </div>
-                  <h4 className="text-xs font-bold text-[#2B271F] leading-tight">
-                    {splitEventTitle(ev.title, ev.brandPrefix).eventName}
-                  </h4>
-                  <p className="text-[11px] font-semibold text-[#C8643F] mt-0.5">
-                    {ev.displayDate} &bull; {ev.timeWindow.includes("10:30 AM") ? "10:30 AM" : ev.timeWindow.split(" (")[0]} &bull; {ev.venueName}
-                  </p>
-                  {ev.venueAddress && (
-                    <p className="text-[10.5px] text-[#8C8270] truncate mt-0.5" title={`${ev.venueName} • ${ev.venueAddress}`}>
-                      {ev.venueAddress}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-6 text-xs text-[#6A6253] space-y-2">
-          <Compass className="w-6 h-6 text-[#8C8270] mx-auto opacity-70" />
-          <p>No gatherings RSVP’d yet.</p>
-          <p className="text-[11px] text-[#8C8270]">
-            Tap <strong>RSVP</strong> on any event in the center calendar to lock in your spot.
-          </p>
+      {/* 2. PAST GATHERINGS CONTAINER */}
+      {pastPlans.length > 0 && (
+        <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-3.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
+              <CalendarIcon className="w-3.5 h-3.5 text-[#8C8270]" />
+              <span>{pastPlans.length > 1 ? "Past Gatherings" : "Past Gathering"}</span>
+            </h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EDE4D3] text-[#6A6253]">
+              {pastPlans.length} ATTENDED
+            </span>
+          </div>
+
+          <div className="space-y-4 divide-y divide-[#D8CEBC]/40">
+            {pastPlans.map((ev) => (
+              <PastEventCard
+                key={ev.id}
+                event={ev}
+                phase={isMounted ? getCommunityEventPhase(ev) : 'afterglow'}
+                selectedReaction={vibeReactions[ev.id]}
+                onSelectReaction={(token) => handleSelectVibeReaction(ev.id, token)}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
