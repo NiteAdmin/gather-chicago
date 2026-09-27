@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { BrandName } from "@/components/brand/BrandName";
 import {
@@ -52,6 +52,7 @@ import {
   partitionUpcomingEvents,
   resolveUserAttendance,
   ResolvedEvent,
+  checkEventDateMatch,
 } from "@/lib/userEvents";
 import { SurveyResponse } from "@/types/survey";
 import { formatAvailabilityDatesList } from "@/app/components/ConfirmationCard";
@@ -507,30 +508,96 @@ export default function DashboardPage() {
   const isMounted = useIsMounted();
   const [vibeReactions, setVibeReactions] = useState<Record<string, string>>({});
 
+  // Step A: Define Strict Attendance Verification
+  // Construct verified user registrations from Firestore user profile, session overrides, and survey submissions
+  const userRegistrations = useMemo(() => {
+    const list: Array<{ eventId: string; status: 'confirmed' | 'open'; cancelled?: boolean }> = [];
+
+    // Explicit persisted RSVPs in users/{uid}
+    savedRsvpIds.forEach((id) => {
+      const isCancelled = declinedEventIds.includes(id) || manualOverrides[id] === 'open';
+      list.push({
+        eventId: id,
+        status: isCancelled ? 'open' : 'confirmed',
+        cancelled: isCancelled,
+      });
+    });
+
+    // Session-level attendance overrides
+    Object.entries(manualOverrides).forEach(([id, status]) => {
+      if (status === 'attending') {
+        list.push({ eventId: id, status: 'confirmed', cancelled: false });
+      } else {
+        list.push({ eventId: id, status: 'open', cancelled: true });
+      }
+    });
+
+    // Verified survey responses (with matching eventIds or consensus dates)
+    userResponses.forEach((res) => {
+      if ((res as any).deleted || (res as any).isDeleted || (res as any).archived || (res as any)._orphaned) return;
+      if (Array.isArray(res.eventIds)) {
+        res.eventIds.forEach((id) => {
+          const isCancelled = declinedEventIds.includes(id) || manualOverrides[id] === 'open';
+          if (!isCancelled) {
+            list.push({ eventId: id, status: 'confirmed', cancelled: false });
+          }
+        });
+      }
+      baseEvents.forEach((ev) => {
+        if (ev.isPolledOption || ev.title?.includes('(Polled Gathering)')) return;
+        const isCancelled = declinedEventIds.includes(ev.id) || manualOverrides[ev.id] === 'open';
+        if (isCancelled) return;
+        const userDates = [
+          ...(Array.isArray(res.dates) ? res.dates : typeof res.dates === 'string' ? [res.dates] : []),
+          ...(res.customDate ? [res.customDate] : []),
+        ];
+        if (checkEventDateMatch(ev, userDates, baseEvents)) {
+          list.push({ eventId: ev.id, status: 'confirmed', cancelled: false });
+        }
+      });
+    });
+
+    return list;
+  }, [savedRsvpIds, declinedEventIds, manualOverrides, userResponses, baseEvents]);
+
+  const isConfirmedAttendee = (eventId: string) => {
+    return Boolean(
+      userRegistrations.some(
+        (reg) =>
+          reg.eventId === eventId &&
+          reg.status === 'confirmed' &&
+          !reg.cancelled
+      )
+    );
+  };
+
+  const isPolledCandidate = (event: CommunityEvent) => {
+    return Boolean(
+      event.isPolledOption === true ||
+      event.title?.includes('(Polled Gathering)') ||
+      event.id.includes('legacy') ||
+      event.id.includes('polled') ||
+      event.categoryLabel?.toLowerCase().includes('polled')
+    );
+  };
+
   // Dynamic splitting of attending gatherings: upcoming/live vs afterglow/archived
   // STRICT RSVP ATTENDANCE FILTERING:
   // Never allow a candidate poll option to be treated as an attended ticketed event
   const attendingEvents = resolvedEvents.filter((e) => {
     if (e.attendanceStatus !== "attending") return false;
-    if (
-      e.isPolledOption === true ||
-      e.title.includes("(Polled Gathering)") ||
-      e.id.includes("legacy") ||
-      e.id.includes("polled") ||
-      e.categoryLabel?.toLowerCase().includes("polled")
-    ) {
-      return false;
-    }
+    if (isPolledCandidate(e)) return false;
+    if (!isConfirmedAttendee(e.id)) return false;
     return true;
   });
 
   const upcomingPlans = attendingEvents.filter((ev) => {
     const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
-    return phase === 'upcoming' || phase === 'live';
+    return (phase === 'upcoming' || phase === 'live') && isConfirmedAttendee(ev.id) && !isPolledCandidate(ev);
   });
   const pastPlans = attendingEvents.filter((ev) => {
     const phase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
-    return phase === 'afterglow' || phase === 'archived';
+    return (phase === 'afterglow' || phase === 'archived') && isConfirmedAttendee(ev.id) && !isPolledCandidate(ev);
   });
 
   // Find the single most recent afterglow event ID so we never stack duplicate feedback prompts
@@ -703,18 +770,18 @@ export default function DashboardPage() {
       </div>
 
       {/* 2. PAST GATHERINGS CONTAINER */}
-      {pastPlans.length > 0 && (
-        <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-3.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#8C8270]" />
-              <span>{pastPlans.length > 1 ? "Past Gatherings" : "Past Gathering"}</span>
-            </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EDE4D3] text-[#6A6253]">
-              {pastPlans.length} ATTENDED
-            </span>
-          </div>
+      <div className="bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#2B271F] flex items-center gap-1.5">
+            <CalendarIcon className="w-3.5 h-3.5 text-[#8C8270]" />
+            <span>{pastPlans.length > 1 ? "Past Gatherings" : "Past Gathering"}</span>
+          </h3>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EDE4D3] text-[#6A6253]">
+            {pastPlans.length} ATTENDED
+          </span>
+        </div>
 
+        {pastPlans.length > 0 ? (
           <div className="space-y-4 divide-y divide-[#D8CEBC]/40">
             {pastPlans.map((ev) => (
               <PastEventCard
@@ -725,11 +792,18 @@ export default function DashboardPage() {
                 onSelectReaction={(token) => handleSelectVibeReaction(ev.id, token)}
                 showAfterglow={ev.id === activeAfterglowEventId}
                 userIdentifier={user?.email || user?.phoneNumber || user?.uid || undefined}
+                isConfirmedAttendee={isConfirmedAttendee(ev.id) && !isPolledCandidate(ev)}
               />
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-6 text-xs text-[#6A6253] space-y-2">
+            <p className="font-semibold text-[#2B271F]">
+              No past gatherings attended yet. Check out upcoming polls to join the next one!
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 

@@ -15,6 +15,7 @@ interface PastEventCardProps {
   onSelectReaction?: (token: string) => void;
   showAfterglow?: boolean;
   userIdentifier?: string;
+  isConfirmedAttendee?: boolean;
 }
 
 export default function PastEventCard({
@@ -24,8 +25,20 @@ export default function PastEventCard({
   onSelectReaction,
   showAfterglow = true,
   userIdentifier,
+  isConfirmedAttendee = true,
 }: PastEventCardProps) {
   const { eventName } = splitEventTitle(event.title, event.brandPrefix);
+
+  const isPolledCandidate = Boolean(
+    event.isPolledOption === true ||
+    event.title?.includes("(Polled Gathering)") ||
+    event.id.includes("legacy") ||
+    event.id.includes("polled") ||
+    event.categoryLabel?.toLowerCase().includes("polled")
+  );
+
+  const canShowAttended = isConfirmedAttendee && !isPolledCandidate;
+  const canShowFeedback = canShowAttended && phase === "afterglow" && showAfterglow;
 
   return (
     <div className="pt-3 first:pt-0">
@@ -44,10 +57,12 @@ export default function PastEventCard({
             <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#C8643F] flex items-center">
               <BrandName />
             </div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EFE8DF] text-stone-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
-              YOU ATTENDED
-            </div>
+            {canShowAttended && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EFE8DF] text-stone-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                YOU ATTENDED
+              </div>
+            )}
           </div>
           <h4 className="text-xs font-bold text-[#2B271F] leading-tight">
             {eventName}
@@ -63,8 +78,8 @@ export default function PastEventCard({
         </div>
       </div>
 
-      {/* 24-Hour Afterglow Feedback Card (Renders directly below the attended card when in afterglow state) */}
-      {phase === 'afterglow' && showAfterglow && (
+      {/* 24-Hour Afterglow Feedback Card (Renders strictly for confirmed attendees) */}
+      {canShowFeedback && (
         <AfterglowCard
           eventId={event.id}
           selectedReaction={selectedReaction}

@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { getEventById } from "@/lib/eventsConfig";
+import { checkEventDateMatch } from "@/lib/userEvents";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export type AllowedReaction = "Energizing" | "Relaxed" | "Deep Talk";
-
-const VALID_REACTIONS: AllowedReaction[] = ["Energizing", "Relaxed", "Deep Talk"];
 
 export function normalizeReaction(raw: any): AllowedReaction | null {
   if (!raw || typeof raw !== "string") return null;
@@ -41,10 +41,130 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const memberId =
-      memberPhoneOrEmail && typeof memberPhoneOrEmail === "string" && memberPhoneOrEmail.trim()
-        ? memberPhoneOrEmail.trim()
-        : "anonymous";
+    const rawIdentifier =
+      typeof memberPhoneOrEmail === "string" ? memberPhoneOrEmail.trim() : "";
+
+    if (!rawIdentifier || rawIdentifier.toLowerCase() === "anonymous") {
+      return NextResponse.json(
+        { error: "Member did not attend this event" },
+        { status: 403 }
+      );
+    }
+
+    const targetEvent = getEventById(trimmedEventId);
+    if (
+      !targetEvent ||
+      targetEvent.isPolledOption === true ||
+      targetEvent.title.includes("(Polled Gathering)") ||
+      targetEvent.id.includes("legacy") ||
+      targetEvent.id.includes("polled") ||
+      targetEvent.categoryLabel?.toLowerCase().includes("polled")
+    ) {
+      return NextResponse.json(
+        { error: "Member did not attend this event" },
+        { status: 403 }
+      );
+    }
+
+    // Server-side verification: Query responses and users to confirm an authentic RSVP exists
+    let isAttendeeVerified = false;
+    const normalizedEmail = rawIdentifier.toLowerCase();
+    const rawDigits = rawIdentifier.replace(/\D/g, "");
+    const phoneDigits = rawDigits.length >= 7 ? rawDigits.slice(-10) : "";
+
+    // 1. Check responses collection in Firestore
+    try {
+      let responsesDocs: any[] = [];
+      if (adminDb) {
+        const snap = await adminDb.collection("responses").get();
+        responsesDocs = snap.docs.map((d) => d.data());
+      } else {
+        const snap = await getDocs(collection(db, "responses"));
+        responsesDocs = snap.docs.map((d) => d.data());
+      }
+
+      for (const r of responsesDocs) {
+        if (!r) continue;
+        if (
+          r.deleted === true ||
+          r.isDeleted === true ||
+          r.archived === true ||
+          r._orphaned === true
+        ) {
+          continue;
+        }
+        const rEmail = (r.email || "").trim().toLowerCase();
+        const rPhoneDigits = (r.phoneNumber || "").replace(/\D/g, "");
+        const emailMatches = Boolean(normalizedEmail && rEmail && rEmail === normalizedEmail);
+        const phoneMatches = Boolean(phoneDigits && rPhoneDigits && rPhoneDigits.endsWith(phoneDigits));
+
+        if (emailMatches || phoneMatches) {
+          if (Array.isArray(r.eventIds) && r.eventIds.includes(trimmedEventId)) {
+            isAttendeeVerified = true;
+            break;
+          }
+          const userDates = [
+            ...(Array.isArray(r.dates) ? r.dates : typeof r.dates === "string" ? [r.dates] : []),
+            ...(r.customDate ? [r.customDate] : []),
+          ];
+          if (checkEventDateMatch(targetEvent, userDates)) {
+            isAttendeeVerified = true;
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not query responses for feedback attendee verification:", err);
+    }
+
+    // 2. Check users collection in Firestore (for direct dashboard registered RSVPs)
+    if (!isAttendeeVerified) {
+      try {
+        let usersDocs: any[] = [];
+        if (adminDb) {
+          const snap = await adminDb.collection("users").get();
+          usersDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } else {
+          const snap = await getDocs(collection(db, "users"));
+          usersDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        }
+
+        for (const u of usersDocs) {
+          if (!u) continue;
+          if (
+            u.deleted === true ||
+            u.isDeleted === true ||
+            u.archived === true ||
+            u._orphaned === true
+          ) {
+            continue;
+          }
+          const uEmail = (u.email || "").trim().toLowerCase();
+          const uPhoneDigits = (u.phoneNumber || "").replace(/\D/g, "");
+          const idMatches = Boolean(u.id && u.id === rawIdentifier);
+          const emailMatches = Boolean(normalizedEmail && uEmail && uEmail === normalizedEmail);
+          const phoneMatches = Boolean(phoneDigits && uPhoneDigits && uPhoneDigits.endsWith(phoneDigits));
+
+          if (idMatches || emailMatches || phoneMatches) {
+            const isDeclined = Array.isArray(u.declinedEventIds) && u.declinedEventIds.includes(trimmedEventId);
+            const isRsvpd = Array.isArray(u.rsvpEventIds) && u.rsvpEventIds.includes(trimmedEventId);
+            if (isRsvpd && !isDeclined) {
+              isAttendeeVerified = true;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not query users for feedback attendee verification:", err);
+      }
+    }
+
+    if (!isAttendeeVerified) {
+      return NextResponse.json(
+        { error: "Member did not attend this event" },
+        { status: 403 }
+      );
+    }
 
     const cleanCity =
       city && typeof city === "string" && city.trim()
@@ -55,7 +175,7 @@ export async function POST(request: NextRequest) {
       eventId: trimmedEventId,
       reaction: cleanReaction,
       createdAt: new Date().toISOString(),
-      memberId,
+      memberId: rawIdentifier,
       city: cleanCity,
     };
 
