@@ -509,21 +509,17 @@ export default function DashboardPage() {
 
   // Dynamic splitting of attending gatherings: upcoming/live vs afterglow/archived
   // STRICT RSVP ATTENDANCE FILTERING:
-  // An event must ONLY appear under YOUR PLANS or PAST GATHERINGS if:
-  // 1. The user explicitly completed an RSVP/ticket registration for that exact eventId (saved in Firestore or manual session override)
-  //    OR was matched from a non-polled ticketed gathering survey.
-  // 2. It is NOT a placeholder, demo seed, or general polled option (isPolledOption === true, categoryLabel containing 'polled', or id containing 'polled'/'legacy').
+  // Never allow a candidate poll option to be treated as an attended ticketed event
   const attendingEvents = resolvedEvents.filter((e) => {
     if (e.attendanceStatus !== "attending") return false;
-    const isPolledCandidate =
+    if (
       e.isPolledOption === true ||
+      e.title.includes("(Polled Gathering)") ||
       e.id.includes("legacy") ||
       e.id.includes("polled") ||
-      e.categoryLabel?.toLowerCase().includes("polled") ||
-      e.title.toLowerCase().includes("(polled");
-    if (isPolledCandidate) {
-      const isExplicitRsvp = (manualOverrides[e.id] === 'attending') || savedRsvpIds.includes(e.id);
-      if (!isExplicitRsvp) return false;
+      e.categoryLabel?.toLowerCase().includes("polled")
+    ) {
+      return false;
     }
     return true;
   });

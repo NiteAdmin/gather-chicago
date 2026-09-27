@@ -362,6 +362,22 @@ export function resolveUserAttendance(
   const overrides = manualAttendanceOverrides || {};
 
   return events.map((event) => {
+    // 0. Candidate poll options and legacy voting options are never treated as attended ticketed events
+    const isPolledCandidate =
+      event.isPolledOption === true ||
+      event.id.includes("legacy") ||
+      event.id.includes("polled") ||
+      event.categoryLabel?.toLowerCase().includes("polled") ||
+      event.title.toLowerCase().includes("(polled");
+
+    if (isPolledCandidate) {
+      return {
+        ...event,
+        attendanceStatus: 'open',
+        matchingReason: 'Polled gathering option',
+      };
+    }
+
     // 1. Session-level manual toggle
     if (overrides[event.id]) {
       return {
@@ -392,15 +408,7 @@ export function resolveUserAttendance(
     }
 
     // 4. Specific match from Firestore survey responses (response.eventIds or response.dates)
-    // Polled options / legacy candidates are voting options and must never be auto-matched from survey consensus dates
-    const isPolledCandidate =
-      event.isPolledOption === true ||
-      event.id.includes("legacy") ||
-      event.id.includes("polled") ||
-      event.categoryLabel?.toLowerCase().includes("polled") ||
-      event.title.toLowerCase().includes("(polled");
-
-    if (!isPolledCandidate && responses && responses.length > 0) {
+    if (responses && responses.length > 0) {
       for (const res of responses) {
         const resCity = (res.city || 'chicago').toLowerCase();
         if (resCity !== event.city.toLowerCase() && resCity !== 'all') {
