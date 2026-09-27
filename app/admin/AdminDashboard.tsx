@@ -179,6 +179,72 @@ export default function AdminDashboard() {
     }
   }, [selectedEventId]);
 
+  // Door Check-In State & Handler
+  const [checkInLoading, setCheckInLoading] = useState<string | null>(null);
+
+  const handleToggleCheckIn = async (responseId?: string, currentStatus?: boolean) => {
+    if (!responseId) return;
+    const nextStatus = !currentStatus;
+
+    // Optimistically update responses state
+    setResponses((prev) =>
+      prev.map((r) =>
+        r.id === responseId
+          ? {
+              ...r,
+              checkedIn: nextStatus,
+              checkedInAt: nextStatus ? new Date().toISOString() : null,
+            }
+          : r
+      )
+    );
+
+    setCheckInLoading(responseId);
+    try {
+      const res = await fetch('/api/admin/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          responseId,
+          checkedIn: nextStatus,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update check-in status');
+      }
+      const data = await res.json();
+      if (data?.checkedIn !== undefined) {
+        setResponses((prev) =>
+          prev.map((r) =>
+            r.id === responseId
+              ? {
+                  ...r,
+                  checkedIn: data.checkedIn,
+                  checkedInAt: data.checkedIn ? new Date().toISOString() : null,
+                }
+              : r
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Error toggling check-in:', err);
+      // Revert optimistic update
+      setResponses((prev) =>
+        prev.map((r) =>
+          r.id === responseId
+            ? {
+                ...r,
+                checkedIn: currentStatus,
+              }
+            : r
+        )
+      );
+    } finally {
+      setCheckInLoading(null);
+    }
+  };
+
   // Announce Winning Date Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [modalStep, setModalStep] = useState<'configure' | 'review'>('configure');
@@ -1427,7 +1493,7 @@ export default function AdminDashboard() {
                   </>
                 )}
                 <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
-                  ⚡ Energizing: {feedbackCounts.Energizing}  ·  ☕ Relaxed: {feedbackCounts.Relaxed}  ·  🌱 Deep Talk: {feedbackCounts.DeepTalk}
+                  Attendee Vibes: ⚡ {feedbackCounts.Energizing}  ·  ☕ {feedbackCounts.Relaxed}  ·  🌱 {feedbackCounts.DeepTalk}
                 </span>
               </div>
               <div className={`text-xs font-mono ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
@@ -1504,7 +1570,7 @@ export default function AdminDashboard() {
                     Vibe Check
                   </span>
                   <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
-                    ⚡ Energizing: {feedbackCounts.Energizing}  ·  ☕ Relaxed: {feedbackCounts.Relaxed}  ·  🌱 Deep Talk: {feedbackCounts.DeepTalk}
+                    Attendee Vibes: ⚡ {feedbackCounts.Energizing}  ·  ☕ {feedbackCounts.Relaxed}  ·  🌱 {feedbackCounts.DeepTalk}
                   </span>
                 </div>
               </div>
@@ -2219,6 +2285,7 @@ export default function AdminDashboard() {
                     <tr className="border-b border-[#EADBCC]">
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Attendee</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Status &amp; Guests</th>
+                      <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap text-center">Door Check-In</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Phone</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Market</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2]">Interests</th>
@@ -2231,7 +2298,7 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-[#EADBCC]">
                     {filteredResponses.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-12 px-4 text-xs text-stone-500 italic">
+                        <td colSpan={10} className="text-center py-12 px-4 text-xs text-stone-500 italic">
                           No contacts match your current filter criteria.
                         </td>
                       </tr>
@@ -2331,6 +2398,23 @@ export default function AdminDashboard() {
                                   {guestBadgeText}
                                 </span>
                               </div>
+                            </td>
+
+                            {/* Door Check-In */}
+                            <td className="py-3.5 px-4 border-b border-[#EADBCC] text-center whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCheckIn(r.id, r.checkedIn)}
+                                disabled={!r.id || checkInLoading === r.id}
+                                className={
+                                  r.checkedIn
+                                    ? "px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-[#EFE8DF] text-[#C8643F] border border-[#C8643F]/30 transition-colors cursor-pointer"
+                                    : "px-2.5 py-1 rounded-full text-xs font-mono border border-stone-300 text-stone-600 hover:border-[#C8643F] transition-colors cursor-pointer"
+                                }
+                                title={r.checkedIn ? "Click to undo check-in" : "Click to mark attendee checked in"}
+                              >
+                                {r.checkedIn ? "✓ Checked In" : "Check In"}
+                              </button>
                             </td>
 
                             {/* Phone */}

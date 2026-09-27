@@ -553,6 +553,12 @@ export default function DashboardPage() {
         ];
         if (checkEventDateMatch(ev, userDates, baseEvents)) {
           list.push({ eventId: ev.id, status: 'confirmed', cancelled: false });
+        } else if (res.checkedIn === true) {
+          const evCity = (ev.city || 'chicago').toLowerCase();
+          const resCity = (res.city || 'chicago').toLowerCase();
+          if (evCity === resCity) {
+            list.push({ eventId: ev.id, status: 'confirmed', cancelled: false });
+          }
         }
       });
     });

@@ -21,6 +21,8 @@ export interface SurveyResponse {
   drink?: string | null;
   quarterlyReminder?: boolean;
   lastQuarterlyReminderSentAt?: any;
+  checkedIn?: boolean;
+  checkedInAt?: string | null;
 }
 
 export interface BroadcastPayload {

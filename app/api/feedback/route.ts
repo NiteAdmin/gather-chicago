@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
       let responsesDocs: any[] = [];
       if (adminDb) {
         const snap = await adminDb.collection("responses").get();
-        responsesDocs = snap.docs.map((d) => d.data());
+        responsesDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       } else {
         const snap = await getDocs(collection(db, "responses"));
-        responsesDocs = snap.docs.map((d) => d.data());
+        responsesDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       }
 
       for (const r of responsesDocs) {
@@ -97,8 +97,13 @@ export async function POST(request: NextRequest) {
         const rPhoneDigits = (r.phoneNumber || "").replace(/\D/g, "");
         const emailMatches = Boolean(normalizedEmail && rEmail && rEmail === normalizedEmail);
         const phoneMatches = Boolean(phoneDigits && rPhoneDigits && rPhoneDigits.endsWith(phoneDigits));
+        const idMatches = Boolean(r.id && (r.id === rawIdentifier || r.id === trimmedEventId));
 
-        if (emailMatches || phoneMatches) {
+        if (emailMatches || phoneMatches || idMatches) {
+          if (r.checkedIn === true) {
+            isAttendeeVerified = true;
+            break;
+          }
           if (Array.isArray(r.eventIds) && r.eventIds.includes(trimmedEventId)) {
             isAttendeeVerified = true;
             break;
