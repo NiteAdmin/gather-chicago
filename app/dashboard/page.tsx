@@ -724,6 +724,7 @@ export default function DashboardPage() {
                 selectedReaction={vibeReactions[ev.id]}
                 onSelectReaction={(token) => handleSelectVibeReaction(ev.id, token)}
                 showAfterglow={ev.id === activeAfterglowEventId}
+                userIdentifier={user?.email || user?.phoneNumber || user?.uid || undefined}
               />
             ))}
           </div>

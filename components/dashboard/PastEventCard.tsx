@@ -14,6 +14,7 @@ interface PastEventCardProps {
   selectedReaction?: string;
   onSelectReaction?: (token: string) => void;
   showAfterglow?: boolean;
+  userIdentifier?: string;
 }
 
 export default function PastEventCard({
@@ -22,6 +23,7 @@ export default function PastEventCard({
   selectedReaction,
   onSelectReaction,
   showAfterglow = true,
+  userIdentifier,
 }: PastEventCardProps) {
   const { eventName } = splitEventTitle(event.title, event.brandPrefix);
 
@@ -67,6 +69,7 @@ export default function PastEventCard({
           eventId={event.id}
           selectedReaction={selectedReaction}
           onSelectReaction={onSelectReaction}
+          userIdentifier={userIdentifier}
         />
       )}
     </div>

@@ -141,6 +141,44 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState<CommunityEvent[]>(() => getEventsForCity('chicago'));
   const [selectedEventId, setSelectedEventId] = useState<string>('chi-sep-26-gathering');
 
+  // Live Vibe Feedback Aggregation State
+  const [feedbackCounts, setFeedbackCounts] = useState<{
+    Energizing: number;
+    Relaxed: number;
+    DeepTalk: number;
+  }>({
+    Energizing: 0,
+    Relaxed: 0,
+    DeepTalk: 0,
+  });
+
+  const fetchFeedback = async (targetEventId: string) => {
+    if (!targetEventId) return;
+    try {
+      const res = await fetch(`/api/feedback?eventId=${encodeURIComponent(targetEventId)}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.counts) {
+          setFeedbackCounts({
+            Energizing: Number(data.counts.Energizing) || 0,
+            Relaxed: Number(data.counts.Relaxed) || 0,
+            DeepTalk: Number(data.counts['Deep Talk']) || Number(data.counts.DeepTalk) || 0,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch feedback for event:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedEventId) {
+      fetchFeedback(selectedEventId);
+    }
+  }, [selectedEventId]);
+
   // Announce Winning Date Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [modalStep, setModalStep] = useState<'configure' | 'review'>('configure');
@@ -310,6 +348,7 @@ export default function AdminDashboard() {
         fetchResults(trimmedPasscode, selectedCity),
         loadBroadcasts(selectedCity, trimmedPasscode),
         loadChapterEvents(selectedCity),
+        fetchFeedback(selectedEventId),
       ]);
       setAuthenticated(true);
       setAdminPasscode(trimmedPasscode);
@@ -329,6 +368,7 @@ export default function AdminDashboard() {
           fetchResults(passcode, newCity),
           loadBroadcasts(newCity, passcode),
           loadChapterEvents(newCity),
+          fetchFeedback(selectedEventId),
         ]);
       } catch (err: any) {
         console.error('Failed to update city filter:', err);
@@ -340,7 +380,10 @@ export default function AdminDashboard() {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      await handleCityChange(selectedCity);
+      await Promise.all([
+        handleCityChange(selectedCity),
+        fetchFeedback(selectedEventId),
+      ]);
       setLastSyncedTime(formatSyncTime());
     } catch (err) {
       console.error('Refresh error:', err);
@@ -1383,6 +1426,9 @@ export default function AdminDashboard() {
                     </span>
                   </>
                 )}
+                <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
+                  ⚡ Energizing: {feedbackCounts.Energizing}  ·  ☕ Relaxed: {feedbackCounts.Relaxed}  ·  🌱 Deep Talk: {feedbackCounts.DeepTalk}
+                </span>
               </div>
               <div className={`text-xs font-mono ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                 {selectedEvent.displayDate || 'Upcoming'} · {selectedEvent.timeWindow || 'Time TBD'}
@@ -1449,6 +1495,16 @@ export default function AdminDashboard() {
                   </span>
                   <span className={`font-semibold whitespace-nowrap shrink-0 ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
                     {cockpitPercent}% filled
+                  </span>
+                </div>
+
+                {/* Live Vibe Aggregation Summary */}
+                <div className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'}`}>
+                  <span className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                    Vibe Check
+                  </span>
+                  <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
+                    ⚡ Energizing: {feedbackCounts.Energizing}  ·  ☕ Relaxed: {feedbackCounts.Relaxed}  ·  🌱 Deep Talk: {feedbackCounts.DeepTalk}
                   </span>
                 </div>
               </div>
