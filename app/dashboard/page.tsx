@@ -38,7 +38,7 @@ import UserNavButton from "@/components/nav/UserNavButton";
 import MemberCalendar from "@/components/dashboard/MemberCalendar";
 import DashboardHero from "@/components/dashboard/DashboardHero";
 import PastEventCard from "@/components/dashboard/PastEventCard";
-import { getCommunityEventPhase, EventPhase, getEventDateTimes } from "@/lib/eventStatus";
+import { getCommunityEventPhase, EventPhase, getEventDateTimes, isPreferenceDatePast } from "@/lib/eventStatus";
 import { useIsMounted } from "@/lib/useEventStatus";
 import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle } from "@/lib/eventsConfig";
 import {
@@ -1022,14 +1022,29 @@ export default function DashboardPage() {
                   </div>
                   {formattedDatesFree.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {formattedDatesFree.map((dateStr, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#C8643F]/10 text-[#C8643F] border border-[#C8643F]/30"
-                        >
-                          {dateStr}
-                        </span>
-                      ))}
+                      {formattedDatesFree.map((dateStr, idx) => {
+                        const isPast = isPreferenceDatePast(dateStr);
+                        if (isPast) {
+                          return (
+                            <span
+                              key={idx}
+                              title="Gathering Concluded"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EFECE6] text-[#8C8270] border border-[#DDD7CB]"
+                            >
+                              <span className="text-[10px] opacity-75 font-bold" aria-hidden="true">✓</span>
+                              <span>{dateStr}</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border border-[#DFCDC1] text-[#C8643F] bg-[#FDFBF7]"
+                          >
+                            {dateStr}
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-xs text-[#8C8270] italic">None specified</p>

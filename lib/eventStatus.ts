@@ -85,6 +85,67 @@ export function isDateInPast(dateStr: string): boolean {
 }
 
 /**
+ * Evaluates whether a survey preference date chip (e.g., "Sep 26", "Oct 28") has completed.
+ * Dates on or prior to today whose event window has completed in CDT are marked as past.
+ */
+export function isPreferenceDatePast(dateStr: string): boolean {
+  try {
+    if (!dateStr) return false;
+    const clean = dateStr.trim();
+    if (/all\s+(?:october|november|december)\s+weekends/i.test(clean)) return false;
+    if (/down\s+for\s+whatever/i.test(clean)) return false;
+    if (/all\s+september\s+weekends/i.test(clean)) return true;
+
+    const monthNames: Record<string, string> = {
+      jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+      jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+      january: '01', february: '02', march: '03', april: '04', june: '06',
+      july: '07', august: '08', september: '09', october: '10', november: '11', december: '12',
+    };
+
+    let targetIso = '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      targetIso = clean;
+    } else {
+      const match = clean.match(/\b([A-Za-z]+)\s+(\d{1,2})(?:,?\s*(\d{4}))?\b/i);
+      if (match) {
+        const mKey = match[1].toLowerCase();
+        const m = monthNames[mKey];
+        if (m) {
+          const d = String(parseInt(match[2], 10)).padStart(2, '0');
+          const y = match[3] || '2026';
+          targetIso = `${y}-${m}-${d}`;
+        }
+      }
+    }
+
+    if (!targetIso) return false;
+
+    const todayIso = getTodayDateString();
+    if (targetIso < todayIso) {
+      return true;
+    }
+    if (targetIso === todayIso) {
+      try {
+        const hourStr = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Chicago',
+          hour: 'numeric',
+          hour12: false,
+        }).format(new Date());
+        const currentHour = parseInt(hourStr, 10);
+        return currentHour >= 12;
+      } catch {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Checks if an event is concluded (either its start time is in the past, or phase is 'afterglow' / 'archived').
  */
 export function isEventConcluded(event: EventDateOptions): boolean {
