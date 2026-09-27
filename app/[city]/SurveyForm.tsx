@@ -33,6 +33,8 @@ import {
   getAudienceBadge,
   getAudienceIcon,
 } from '@/lib/eventsConfig';
+import { isDateInPast, isEventConcluded } from '@/lib/eventStatus';
+import { useIsMounted } from '@/lib/useEventStatus';
 import {
   parseIcsBusyIntervals,
   getCandidateSlotIntervals,
@@ -353,6 +355,7 @@ export default function SurveyForm({
   const [calendarScanMessage, setCalendarScanMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSyncingCalendar = checkingCalendar;
+  const isMounted = useIsMounted();
   const handleTriggerIcsUpload = () => fileInputRef.current?.click();
 
   const [customDate, setCustomDate] = useState('');
@@ -439,6 +442,9 @@ export default function SurveyForm({
   }, [activeEventModalEvents, multiEventModalDay]);
 
   const toggleEventSelection = (ev: CommunityEvent) => {
+    if (isMounted && isEventConcluded(ev)) {
+      return;
+    }
     const selKey = getEventSelectionKey(ev);
     const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
     if (isEventSelected(ev, selectedDates)) {
@@ -469,6 +475,7 @@ export default function SurveyForm({
   };
 
   const handleDateToggle = (dateStr: string) => {
+    if (isMounted && isDateInPast(dateStr)) return;
     setAvailableDates((prev) =>
       prev.includes(dateStr)
         ? prev.filter((d) => d !== dateStr)
@@ -488,7 +495,7 @@ export default function SurveyForm({
         newStatusMap[c.label] = 'busy';
       } else {
         newStatusMap[c.label] = 'free';
-        if (!selectedDates.includes(c.label)) {
+        if (!selectedDates.includes(c.label) && !isDateInPast(c.label)) {
           autoSelectDates.push(c.label);
         }
       }
@@ -1522,6 +1529,7 @@ export default function SurveyForm({
                           const hasEvents = eventsForDay.length > 0;
                           const isWeekend = (curConfig.startDayOfWeek + dayNum - 1) % 7 === 0 || (curConfig.startDayOfWeek + dayNum - 1) % 7 === 6;
                           const openDateKey = `${curConfig.monthShort} ${dayNum}, 2026`;
+                          const cellDateStr = `${calendarMonth}-${String(dayNum).padStart(2, "0")}`;
                           const isPollDay = isChicago && ((calendarMonth === "2026-10" && dayNum === 4) || (calendarMonth === "2026-11" && dayNum === 14));
                           const pollTitle = isPollDay
                             ? calendarMonth === "2026-10"
@@ -1532,50 +1540,61 @@ export default function SurveyForm({
                           const isDateMarkedAvailable = availableDates.includes(openDateKey);
                           const isEventAttending = hasEvents && eventsForDay.some((ev) => isEventSelected(ev, selectedDates));
                           const isDaySelected = isDateMarkedAvailable || isEventAttending;
+                          const isPastDate = isMounted && (isDateInPast(openDateKey) || isDateInPast(cellDateStr));
+                          const isPastDisabled = isPastDate && !hasEvents;
 
                           return (
                             <div
                               key={`day-${dayNum}`}
-                              role="button"
-                              tabIndex={0}
+                              role={isPastDisabled ? "presentation" : "button"}
+                              tabIndex={isPastDisabled ? -1 : 0}
+                              aria-disabled={isPastDisabled ? true : undefined}
                               title={isPollDay ? pollTitle : undefined}
                               onClick={() => {
+                                if (isPastDisabled) return;
                                 if (hasEvents) {
                                   setActiveEventModalEvents(eventsForDay);
                                   setActiveModalEventIndex(0);
                                   return;
                                 }
+                                if (isPastDate) return;
                                 handleDateToggle(openDateKey);
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
                                   e.preventDefault();
+                                  if (isPastDisabled) return;
                                   if (hasEvents) {
                                     setActiveEventModalEvents(eventsForDay);
                                     setActiveModalEventIndex(0);
                                     return;
                                   }
+                                  if (isPastDate) return;
                                   handleDateToggle(openDateKey);
                                 }
                               }}
-                              className={`min-h-[40px] sm:min-h-[58px] p-0.5 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer select-none overflow-hidden group/cell ${
-                                isDateMarkedAvailable
-                                  ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30"
+                              className={`min-h-[40px] sm:min-h-[58px] p-0.5 sm:p-1.5 rounded-xl border text-left transition-all relative flex flex-col justify-between select-none overflow-hidden group/cell ${
+                                isPastDisabled
+                                  ? "bg-[#F4EEE2]/30 border-[#D8CEBC]/30 text-stone-400 cursor-not-allowed pointer-events-none opacity-60"
+                                  : isDateMarkedAvailable
+                                  ? "bg-[#C8643F] text-white border-[#C8643F] shadow-md ring-2 ring-[#C8643F]/30 cursor-pointer"
                                   : isEventAttending
-                                  ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25"
+                                  ? "bg-white border-[#C8643F] shadow-sm ring-2 ring-[#C8643F]/25 cursor-pointer"
                                   : isPollDay
-                                  ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                                  ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
                                   : hasEvents
-                                  ? "bg-white border-[#C8643F]/60 shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                                  ? "bg-white border-[#C8643F]/60 shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
                                   : isWeekend
-                                  ? "bg-[#FBF7EE] border-[#D8CEBC]/60 text-stone-600 hover:bg-white"
-                                  : "bg-[#FAF7F2] border-[#D8CEBC]/40 text-stone-500 hover:bg-white"
+                                  ? "bg-[#FBF7EE] border-[#D8CEBC]/60 text-stone-600 hover:bg-white cursor-pointer"
+                                  : "bg-[#FAF7F2] border-[#D8CEBC]/40 text-stone-500 hover:bg-white cursor-pointer"
                               }`}
                             >
                               <div className="flex items-center justify-between w-full leading-none">
                                 <span
                                   className={`text-[10px] sm:text-xs font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full ${
-                                    isDateMarkedAvailable
+                                    isPastDisabled
+                                      ? "text-stone-400"
+                                      : isDateMarkedAvailable
                                       ? "bg-white text-[#C8643F]"
                                       : isEventAttending
                                       ? "bg-[#2B271F] text-white"
@@ -1586,7 +1605,7 @@ export default function SurveyForm({
                                 >
                                   {dayNum}
                                 </span>
-                                {isDaySelected && (
+                                {isDaySelected && !isPastDisabled && (
                                   <Check className={`w-3 h-3 shrink-0 sm:block hidden ${isDateMarkedAvailable ? "text-white" : "text-[#C8643F]"}`} />
                                 )}
                               </div>
@@ -1596,9 +1615,10 @@ export default function SurveyForm({
                                 <div className="mt-0.5 sm:mt-1 space-y-0.5 min-w-0">
                                   {eventsForDay.map((ev) => {
                                     const isEvSelected = isEventSelected(ev, selectedDates);
+                                    const isConcluded = isMounted && isEventConcluded(ev);
                                     const sTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
                                     const chipText = ev.chipLabel || sTitle;
-                                    const evTooltip = `${chipText} • ${ev.timeWindow || ""} • ${ev.venueName || ""}`;
+                                    const evTooltip = `${chipText} • ${ev.timeWindow || ""} • ${ev.venueName || ""}${isConcluded ? " • Concluded" : ""}`;
                                     const audIcon = getAudienceIcon(ev.audience, ev.audienceLabel);
 
                                     return (
@@ -1616,6 +1636,8 @@ export default function SurveyForm({
                                             ? isDateMarkedAvailable
                                               ? "bg-white text-[#C8643F] shadow-xs"
                                               : "bg-[#C8643F] text-white shadow-xs"
+                                            : isConcluded
+                                            ? "bg-[#FAF7F2] text-stone-400 border border-[#D8CEBC]/50 hover:bg-[#F4EEE2]"
                                             : isDateMarkedAvailable
                                             ? "bg-white/25 text-white hover:bg-white/40"
                                             : "bg-[#FBE8DF] text-[#A63A24] hover:bg-[#F5C2BA]"
@@ -2059,6 +2081,7 @@ export default function SurveyForm({
         const curEvent = activeEventModalEvents[activeModalEventIndex] || activeEventModalEvents[0];
         const sTitle = splitEventTitle(curEvent.title, curEvent.brandPrefix).eventName;
         const isAttending = isEventSelected(curEvent, selectedDates);
+        const isConcluded = isMounted && isEventConcluded(curEvent);
 
         return (
           <div
@@ -2137,15 +2160,27 @@ export default function SurveyForm({
               {/* Attendance Status Banner */}
               <div
                 className={`p-3 rounded-2xl border mb-4 flex items-center justify-between text-xs font-semibold ${
-                  isAttending
+                  isConcluded
+                    ? isAttending
+                      ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
+                      : "bg-[#F5F1E8] border-[#D8CEBC] text-stone-400"
+                    : isAttending
                     ? "bg-[#EEF5EB] border-[#C5DEC0] text-[#3D5634]"
                     : "bg-[#F5F1E8] border-[#D8CEBC] text-[#6A6253]"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${isAttending ? "text-emerald-600" : "text-[#8C8270]"}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${
+                    isConcluded
+                      ? isAttending ? "text-emerald-600" : "text-stone-400"
+                      : isAttending ? "text-emerald-600" : "text-[#8C8270]"
+                  }`} />
                   <span>
-                    {isAttending
+                    {isConcluded
+                      ? isAttending
+                        ? "You Attended — Gathering Concluded"
+                        : "Gathering Concluded — RSVPs Closed"
+                      : isAttending
                       ? "You're Attending — Marked in your survey availability"
                       : "Spots Open — Mark your attendance to join"}
                   </span>
@@ -2187,17 +2222,27 @@ export default function SurveyForm({
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => toggleEventSelection(curEvent)}
-                  className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                    isAttending
-                      ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
-                      : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
-                  }`}
-                >
-                  {isAttending ? "✓ Attending (Click to Remove)" : "I'm Attending This Gathering →"}
-                </button>
+                {isConcluded ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-stone-100 text-stone-400 border border-[#D8CEBC] cursor-not-allowed opacity-75"
+                  >
+                    Gathering Concluded
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleEventSelection(curEvent)}
+                    className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      isAttending
+                        ? "bg-[#FDF2F0] hover:bg-[#F5C2BA] text-[#A63A24] border border-[#F5C2BA]"
+                        : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-md hover:shadow-lg"
+                    }`}
+                  >
+                    {isAttending ? "✓ Attending (Click to Remove)" : "I'm Attending This Gathering →"}
+                  </button>
+                )}
 
                 <button
                   type="button"

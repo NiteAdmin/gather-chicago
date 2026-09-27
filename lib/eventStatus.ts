@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-
 export type EventPhase = 'upcoming' | 'live' | 'afterglow' | 'archived';
 
 /**
@@ -26,6 +24,85 @@ export function getEventPhase(startDateStr: string, endDateStr?: string): EventP
     return 'archived';
   } catch {
     return 'upcoming';
+  }
+}
+
+/**
+ * Returns today's date in YYYY-MM-DD format locked to America/Chicago (CDT) time.
+ */
+export function getTodayDateString(): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date());
+  } catch {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+}
+
+/**
+ * Checks if a given date string (e.g. "YYYY-MM-DD" or "Sep 25, 2026") is prior to today in CDT.
+ */
+export function isDateInPast(dateStr: string): boolean {
+  try {
+    if (!dateStr) return false;
+    let isoStr = dateStr.trim();
+    if (/^[A-Za-z]{3}\s+\d{1,2}(?:,\s*\d{4})?$/i.test(isoStr)) {
+      const match = isoStr.match(/^([A-Za-z]{3})\s+(\d{1,2})(?:,\s*(\d{4}))?$/i);
+      if (match) {
+        const monthNames: Record<string, string> = {
+          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+        };
+        const mKey = match[1].toLowerCase();
+        const m = monthNames[mKey] || '10';
+        const d = String(parseInt(match[2], 10)).padStart(2, '0');
+        const y = match[3] || '2026';
+        isoStr = `${y}-${m}-${d}`;
+      }
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) {
+      const today = getTodayDateString();
+      return isoStr < today;
+    }
+
+    const target = new Date(isoStr);
+    if (isNaN(target.getTime())) return false;
+    const targetIso = target.toISOString().split('T')[0];
+    return targetIso < getTodayDateString();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks if an event is concluded (either its start time is in the past, or phase is 'afterglow' / 'archived').
+ */
+export function isEventConcluded(event: EventDateOptions): boolean {
+  try {
+    const { startIso } = getEventDateTimes(event);
+    const startMs = !isNaN(new Date(startIso).getTime())
+      ? new Date(startIso).getTime()
+      : event.startDate && !isNaN(new Date(event.startDate).getTime())
+      ? new Date(event.startDate).getTime()
+      : NaN;
+
+    if (!isNaN(startMs) && startMs < Date.now()) {
+      return true;
+    }
+    const phase = getCommunityEventPhase(event);
+    return phase === 'afterglow' || phase === 'archived';
+  } catch {
+    return false;
   }
 }
 
@@ -139,34 +216,4 @@ export function getCommunityEventPhase(event: EventDateOptions): EventPhase {
 
   const { startIso, endIso } = getEventDateTimes(event);
   return getEventPhase(startIso, endIso);
-}
-
-/**
- * Hydration-safe React hook that prevents SSR clock-skew and mismatch warnings.
- * Evaluates event phase only after mounting on the client.
- */
-export function useEventPhase(event: EventDateOptions): {
-  phase: EventPhase;
-  isMounted: boolean;
-} {
-  const [isMounted, setIsMounted] = useState(false);
-  const [phase, setPhase] = useState<EventPhase>('upcoming');
-
-  useEffect(() => {
-    setIsMounted(true);
-    setPhase(getCommunityEventPhase(event));
-  }, [event.date, event.timeWindow, event.startDate, event.endDate, event.status]);
-
-  return { phase: isMounted ? phase : 'upcoming', isMounted };
-}
-
-/**
- * Hook to guard client-only temporal evaluations
- */
-export function useIsMounted(): boolean {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  return mounted;
 }

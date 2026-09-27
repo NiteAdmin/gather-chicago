@@ -13,7 +13,14 @@ import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import PotteryPollModal from "@/app/components/PotteryPollModal";
 import AfterglowCard from "@/components/dashboard/AfterglowCard";
-import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
+import {
+  getCommunityEventPhase,
+  EventPhase,
+  getTodayDateString,
+  isDateInPast,
+  isEventConcluded,
+} from "@/lib/eventStatus";
+import { useIsMounted } from "@/lib/useEventStatus";
 import {
   Calendar as CalendarIcon,
   List,
@@ -155,7 +162,9 @@ export default function MemberCalendar({
 
   const isMounted = useIsMounted();
   const currentActivePhase: EventPhase = isMounted && currentActiveEvent ? getCommunityEventPhase(currentActiveEvent) : 'upcoming';
-  const isCurrentActivePast = currentActivePhase === 'afterglow' || currentActivePhase === 'archived';
+  const isCurrentActivePast = isMounted && currentActiveEvent
+    ? (currentActivePhase === 'afterglow' || currentActivePhase === 'archived' || isEventConcluded(currentActiveEvent))
+    : false;
 
   // Lock body scroll and dismiss on Escape when event modal is open
   useEffect(() => {
@@ -306,6 +315,12 @@ export default function MemberCalendar({
   });
 
   const handleBlankDateClick = (dayNum: number) => {
+    const cellDateStr = `${selectedMonth}-${String(dayNum).padStart(2, "0")}`;
+    const todayStr = isMounted ? getTodayDateString() : "2026-09-26";
+    if (isMounted && cellDateStr <= todayStr) {
+      return;
+    }
+
     const shortMonth = getMonthShortName(selectedMonth);
     const dateKey = `${shortMonth} ${dayNum}, 2026`;
     const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
@@ -702,13 +717,21 @@ export default function MemberCalendar({
                   : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Nov 14 option)"
                 : undefined;
 
+              const cellDateStr = `${selectedMonth}-${String(dayNum).padStart(2, "0")}`;
+              const todayStr = isMounted ? getTodayDateString() : "2026-09-26";
+              const isPastDate = isMounted && cellDateStr < todayStr;
+              const hasAttendedEvent = hasEvents && dayEvents.some((ev) => ev.attendanceStatus === "attending");
+              const isPastDisabled = isPastDate && !hasAttendedEvent;
+
               return (
                 <div
                   key={`day-${dayNum}`}
-                  role="button"
-                  tabIndex={0}
+                  role={isPastDisabled ? "presentation" : "button"}
+                  tabIndex={isPastDisabled ? -1 : 0}
                   title={
-                    isPollDay
+                    isPastDisabled
+                      ? `${currentMonthConfig.name} ${dayNum} (Past date — selection locked)`
+                      : isPollDay
                       ? pollTitle
                       : hasEvents
                       ? undefined
@@ -717,7 +740,9 @@ export default function MemberCalendar({
                       : `Click to mark ${currentMonthConfig.name} ${dayNum} as free to gather`
                   }
                   aria-label={
-                    isPollDay
+                    isPastDisabled
+                      ? `${currentMonthConfig.name} ${dayNum}, past date.`
+                      : isPollDay
                       ? pollTitle
                       : hasEvents
                       ? `View gatherings for ${currentMonthConfig.name} ${dayNum}`
@@ -725,7 +750,15 @@ export default function MemberCalendar({
                       ? `${currentMonthConfig.name} ${dayNum}, currently marked as free. Tap to remove availability.`
                       : `${currentMonthConfig.name} ${dayNum}, blank date. Tap to mark as free to gather.`
                   }
+                  aria-disabled={isPastDisabled ? true : undefined}
                   onClick={() => {
+                    if (isPastDate) {
+                      if (hasAttendedEvent) {
+                        const attended = dayEvents.find((e) => e.attendanceStatus === "attending") || dayEvents[0];
+                        setActivePopoverEvent(attended);
+                      }
+                      return;
+                    }
                     if (isPollDay) {
                       setIsPotteryModalOpen(true);
                     } else if (hasEvents) {
@@ -737,6 +770,13 @@ export default function MemberCalendar({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
+                      if (isPastDate) {
+                        if (hasAttendedEvent) {
+                          const attended = dayEvents.find((e) => e.attendanceStatus === "attending") || dayEvents[0];
+                          setActivePopoverEvent(attended);
+                        }
+                        return;
+                      }
                       if (isPollDay) {
                         setIsPotteryModalOpen(true);
                       } else if (hasEvents) {
@@ -746,22 +786,28 @@ export default function MemberCalendar({
                       }
                     }
                   }}
-                  className={`min-h-[44px] sm:min-h-[62px] p-0.5 sm:p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 group/cell cursor-pointer select-none ${
-                    isPollDay
-                      ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm"
+                  className={`min-h-[44px] sm:min-h-[62px] p-0.5 sm:p-1 rounded-xl border transition-all relative flex flex-col justify-between overflow-hidden min-w-0 group/cell select-none ${
+                    isPastDisabled
+                      ? "bg-[#F4EEE2]/30 border-[#D8CEBC]/30 text-stone-400 cursor-not-allowed pointer-events-none opacity-60"
+                      : isPastDate && hasAttendedEvent
+                      ? "bg-[#FAF7F2] border-[#D8CEBC] cursor-pointer hover:border-[#8C8270]"
+                      : isPollDay
+                      ? "bg-white border-[#C8643F] shadow-xs hover:border-[#C8643F] hover:shadow-sm cursor-pointer"
                       : hasEvents
-                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20 hover:border-[#C8643F]"
+                      ? "bg-white border-[#C8643F]/60 shadow-xs ring-1 ring-[#C8643F]/20 hover:border-[#C8643F] cursor-pointer"
                       : isPreferred
-                      ? "bg-[#FAF3EF] border-[#C8643F] ring-1 ring-[#C8643F]/40 shadow-xs"
+                      ? "bg-[#FAF3EF] border-[#C8643F] ring-1 ring-[#C8643F]/40 shadow-xs cursor-pointer"
                       : isWeekend
-                      ? "bg-[#FAF5EA] border-[#D8CEBC]/60 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40"
-                      : "bg-[#FBF7EE] border-[#D8CEBC]/50 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40"
+                      ? "bg-[#FAF5EA] border-[#D8CEBC]/60 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40 cursor-pointer"
+                      : "bg-[#FBF7EE] border-[#D8CEBC]/50 hover:border-[#C8643F]/60 hover:bg-[#FAF3EF]/40 cursor-pointer"
                   }`}
                 >
                   <div className="flex items-center justify-between leading-none w-full">
                     <span
                       className={`text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${
-                        hasEvents || isPollDay
+                        isPastDisabled
+                          ? "text-stone-400 bg-transparent"
+                          : hasEvents || isPollDay
                           ? "bg-[#2B271F] text-white"
                           : isPreferred
                           ? "bg-[#C8643F] text-white"
@@ -834,11 +880,11 @@ export default function MemberCalendar({
                           <span className="sm:hidden">Free</span>
                         </span>
                       </div>
-                    ) : (
+                    ) : !isPastDate ? (
                       <div className="mt-auto pt-0.5 opacity-0 group-hover/cell:opacity-100 transition-opacity hidden sm:flex items-center text-[9px] text-[#8C8270]">
                         <span>+ Free</span>
                       </div>
-                    )
+                    ) : null
                   )}
 
                   {/* Desktop Event Bubbles (>= sm) */}
@@ -850,61 +896,83 @@ export default function MemberCalendar({
                       const evTooltip = `${sTitle} • ${ev.timeWindow} • ${ev.venueName}`;
                       const audIcon = getAudienceIcon(ev.audience, ev.audienceLabel);
 
+                      const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+                      const isEvPast = isMounted ? (evPhase === 'afterglow' || evPhase === 'archived' || isEventConcluded(ev)) : false;
+                      const isEvDisabled = isEvPast && !isAttending;
+
                       return (
                         <div key={ev.id} className="relative group/bubble min-w-0">
-                          <button
-                            type="button"
-                            aria-label={`View details for ${sTitle} on ${ev.displayDate}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActivePopoverEvent(ev);
-                            }}
-                            className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight min-w-0 ${style.bg} ${style.border} ${style.text}`}
-                            title={evTooltip}
-                          >
-                            <span className="truncate flex items-center gap-1 min-w-0">
-                              <span className="shrink-0 flex items-center">
-                                <EventIcon
-                                  iconName={ev.iconName}
-                                  eventId={ev.id}
-                                  category={ev.category}
-                                  fallbackIcon={ev.icon}
-                                  className="w-3.5 h-3.5 text-[#C8643F]"
-                                />
-                              </span>
-                              {audIcon && (
-                                <span className="shrink-0 text-[8.5px] sm:text-[9.5px] leading-none" aria-hidden="true">
-                                  {audIcon}
-                                </span>
-                              )}
-                              <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
-                            </span>
-                            {isAttending ? (
-                              (() => {
-                                const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
-                                const isEvPast = evPhase === 'afterglow' || evPhase === 'archived';
-                                const isEvLive = evPhase === 'live';
-                                return (
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                      isEvPast
-                                        ? "bg-stone-500"
-                                        : isEvLive
-                                        ? "bg-[#D97706] animate-pulse"
-                                        : "bg-emerald-600"
-                                    }`}
-                                    title={
-                                      isEvPast
-                                        ? "You Attended"
-                                        : isEvLive
-                                        ? "Happening Now"
-                                        : "You're Going"
-                                    }
+                          {isEvDisabled ? (
+                            <div
+                              className="w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold cursor-not-allowed opacity-60 bg-stone-100 border-stone-200 text-stone-400 flex items-center justify-between gap-1 leading-tight min-w-0 pointer-events-none select-none"
+                              title={`${evTooltip} (Concluded)`}
+                            >
+                              <span className="truncate flex items-center gap-1 min-w-0">
+                                <span className="shrink-0 flex items-center">
+                                  <EventIcon
+                                    iconName={ev.iconName}
+                                    eventId={ev.id}
+                                    category={ev.category}
+                                    fallbackIcon={ev.icon}
+                                    className="w-3.5 h-3.5 text-stone-400"
                                   />
-                                );
-                              })()
-                            ) : null}
-                          </button>
+                                </span>
+                                <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label={`View details for ${sTitle} on ${ev.displayDate}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePopoverEvent(ev);
+                              }}
+                              className={`w-full text-left py-0.5 px-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all hover:scale-102 cursor-pointer flex items-center justify-between gap-1 leading-tight min-w-0 ${style.bg} ${style.border} ${style.text}`}
+                              title={evTooltip}
+                            >
+                              <span className="truncate flex items-center gap-1 min-w-0">
+                                <span className="shrink-0 flex items-center">
+                                  <EventIcon
+                                    iconName={ev.iconName}
+                                    eventId={ev.id}
+                                    category={ev.category}
+                                    fallbackIcon={ev.icon}
+                                    className="w-3.5 h-3.5 text-[#C8643F]"
+                                  />
+                                </span>
+                                {audIcon && (
+                                  <span className="shrink-0 text-[8.5px] sm:text-[9.5px] leading-none" aria-hidden="true">
+                                    {audIcon}
+                                  </span>
+                                )}
+                                <span className="font-bold truncate min-w-0">{ev.chipLabel || sTitle}</span>
+                              </span>
+                              {isAttending ? (
+                                (() => {
+                                  const isEvLive = evPhase === 'live';
+                                  return (
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        isEvPast
+                                          ? "bg-stone-500"
+                                          : isEvLive
+                                          ? "bg-[#D97706] animate-pulse"
+                                          : "bg-emerald-600"
+                                      }`}
+                                      title={
+                                        isEvPast
+                                          ? "You Attended"
+                                          : isEvLive
+                                          ? "Happening Now"
+                                          : "You're Going"
+                                      }
+                                    />
+                                  );
+                                })()
+                              ) : null}
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -912,14 +980,26 @@ export default function MemberCalendar({
 
                   {/* Mobile Tap Target (< sm) */}
                   {hasEvents && (
-                    <div className="sm:hidden mt-auto pt-0.5 flex justify-center w-full">
+                    <div className={`sm:hidden mt-auto pt-0.5 flex justify-center w-full ${isPastDisabled ? "pointer-events-none opacity-40" : ""}`}>
                       <button
                         type="button"
+                        disabled={isPastDisabled}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isPastDate) {
+                            if (hasAttendedEvent) {
+                              const attended = dayEvents.find((ev) => ev.attendanceStatus === "attending") || dayEvents[0];
+                              setActivePopoverEvent(attended);
+                            }
+                            return;
+                          }
                           setActivePopoverEvent(dayEvents[0]);
                         }}
-                        className="w-full flex items-center justify-center gap-1 p-1 rounded-md bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
+                        className={`w-full flex items-center justify-center gap-1 p-1 rounded-md ${
+                          isPastDisabled
+                            ? "bg-stone-100 text-stone-400 cursor-not-allowed"
+                            : "bg-[#EDE4D3]/50 text-[#C8643F] hover:bg-[#EDE4D3]"
+                        }`}
                         aria-label={`View event details on ${currentMonthConfig.name} ${dayNum}`}
                       >
                         <EventIcon
@@ -1218,30 +1298,53 @@ export default function MemberCalendar({
 
                   {/* Actions */}
                   <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D8CEBC]/40">
-                    <button
-                      type="button"
-                      aria-label={`${isAttending ? "Cancel RSVP for" : "RSVP to attend"} ${splitEventTitle(ev.title, ev.brandPrefix).eventName}`}
-                      onClick={() => onToggleRSVP && onToggleRSVP(ev.id)}
-                      className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        isAttending
-                          ? "bg-[#EEF5EB] text-[#3D5634] border border-[#C5DEC0] hover:bg-[#FDF2F0] hover:text-[#A63A24] hover:border-[#F5C2BA]"
-                          : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-xs"
-                      }`}
-                    >
-                      {isAttending ? "Attending ✓" : "RSVP to Attend →"}
-                    </button>
+                    {(() => {
+                      const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+                      const isEvPast = isMounted ? (evPhase === 'afterglow' || evPhase === 'archived' || isEventConcluded(ev)) : false;
+                      if (isEvPast) {
+                        return (
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold border border-[#D8CEBC] bg-stone-100 text-stone-400 cursor-not-allowed"
+                          >
+                            Gathering Concluded
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          aria-label={`${isAttending ? "Cancel RSVP for" : "RSVP to attend"} ${splitEventTitle(ev.title, ev.brandPrefix).eventName}`}
+                          onClick={() => onToggleRSVP && onToggleRSVP(ev.id)}
+                          className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            isAttending
+                              ? "bg-[#EEF5EB] text-[#3D5634] border border-[#C5DEC0] hover:bg-[#FDF2F0] hover:text-[#A63A24] hover:border-[#F5C2BA]"
+                              : "bg-[#C8643F] hover:bg-[#b05230] text-white shadow-xs"
+                          }`}
+                        >
+                          {isAttending ? "Attending ✓" : "RSVP to Attend →"}
+                        </button>
+                      );
+                    })()}
 
-                    {(ev.externalUrl || ev.partifulUrl) && (
-                      <a
-                        href={ev.externalUrl || ev.partifulUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-[#6A6253] hover:text-[#2B271F] underline transition-colors"
-                      >
-                        <span>{ev.externalUrlLabel || "Open Link"}</span>
-                        <ExternalLink className="w-3.5 h-3.5 ml-1.5 inline" />
-                      </a>
-                    )}
+                    {(() => {
+                      const evPhase = isMounted ? getCommunityEventPhase(ev) : 'upcoming';
+                      const isEvPast = isMounted ? (evPhase === 'afterglow' || evPhase === 'archived' || isEventConcluded(ev)) : false;
+                      if (isEvPast) return null;
+                      if (!ev.externalUrl && !ev.partifulUrl) return null;
+                      return (
+                        <a
+                          href={ev.externalUrl || ev.partifulUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-[#6A6253] hover:text-[#2B271F] underline transition-colors"
+                        >
+                          <span>{ev.externalUrlLabel || "Open Link"}</span>
+                          <ExternalLink className="w-3.5 h-3.5 ml-1.5 inline" />
+                        </a>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -1521,16 +1624,21 @@ export default function MemberCalendar({
             {/* Popover Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               {isCurrentActivePast ? (
-                currentActiveEvent.attendanceStatus === "attending" ? (
-                  <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#EFE8DF] text-stone-700 border border-[#D8CEBC]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
-                    Gathering Completed &bull; You Attended
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#FAF7F2] text-[#8C8270] border border-[#D8CEBC]">
-                    Gathering Ended
-                  </div>
-                )
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-stone-100 text-stone-400 border border-[#D8CEBC] cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    Gathering Concluded
+                  </button>
+                  {currentActiveEvent.attendanceStatus === "attending" && (
+                    <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#EFE8DF] text-stone-700 border border-[#D8CEBC]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                      You Attended
+                    </div>
+                  )}
+                </div>
               ) : (
                 <button
                   type="button"
@@ -1549,7 +1657,7 @@ export default function MemberCalendar({
                 </button>
               )}
 
-              {(currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl) && (
+              {!isCurrentActivePast && (currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl) && (
                 <a
                   href={currentActiveEvent.externalUrl || currentActiveEvent.partifulUrl}
                   target="_blank"

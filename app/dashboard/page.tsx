@@ -38,7 +38,8 @@ import UserNavButton from "@/components/nav/UserNavButton";
 import MemberCalendar from "@/components/dashboard/MemberCalendar";
 import DashboardHero from "@/components/dashboard/DashboardHero";
 import PastEventCard from "@/components/dashboard/PastEventCard";
-import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
+import { getCommunityEventPhase, EventPhase, getEventDateTimes } from "@/lib/eventStatus";
+import { useIsMounted } from "@/lib/useEventStatus";
 import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle } from "@/lib/eventsConfig";
 import {
   fetchUserRSVPs,
@@ -205,6 +206,20 @@ export default function DashboardPage() {
   };
 
   const handleToggleRSVP = async (eventId: string) => {
+    // Temporal lockout guard: strictly prevent booking or RSVPing for past gatherings
+    const targetEvent = baseEvents.find((e) => e.id === eventId) || resolvedEvents.find((e) => e.id === eventId);
+    if (targetEvent) {
+      const phase = getCommunityEventPhase(targetEvent);
+      const { startIso } = getEventDateTimes(targetEvent);
+      const startMs = new Date(startIso).getTime();
+      const isPast = phase === "afterglow" || phase === "archived" || (!isNaN(startMs) && startMs < Date.now());
+      if (isPast) {
+        setRsvpToast("Cannot RSVP for a past gathering.");
+        setTimeout(() => setRsvpToast(null), 4000);
+        return;
+      }
+    }
+
     // 1. Snapshot previous state for rollback
     const prevOverrides = { ...manualOverrides };
     const prevSavedRsvpIds = [...savedRsvpIds];

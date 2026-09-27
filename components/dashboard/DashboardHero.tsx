@@ -6,7 +6,8 @@ import { splitEventTitle } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import AfterglowCard from "@/components/dashboard/AfterglowCard";
-import { getCommunityEventPhase, EventPhase, useIsMounted } from "@/lib/eventStatus";
+import { getCommunityEventPhase, EventPhase } from "@/lib/eventStatus";
+import { useIsMounted } from "@/lib/useEventStatus";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -208,9 +209,13 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                   </button>
                 )}
                 {isPast && (
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 text-[#D8CEBC] text-xs font-semibold border border-white/10">
-                    Gathering Completed
-                  </span>
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 text-[#D8CEBC] text-xs font-semibold border border-white/10 cursor-not-allowed opacity-75"
+                  >
+                    Gathering Concluded
+                  </button>
                 )}
                 <a
                   href={googleMapsUrl}
@@ -221,7 +226,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                   <Navigation className="w-3.5 h-3.5 text-[#F5B096]" />
                   <span>Open in Maps</span>
                 </a>
-                {externalLinkUrl && (
+                {!isPast && externalLinkUrl && (
                   <a
                     href={externalLinkUrl}
                     target="_blank"
