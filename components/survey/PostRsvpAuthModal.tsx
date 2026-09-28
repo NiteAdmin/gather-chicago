@@ -19,7 +19,6 @@ import { auth } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification,
 } from "firebase/auth";
 
 interface PostRsvpAuthModalProps {
@@ -71,14 +70,7 @@ export default function PostRsvpAuthModal({
         }, 1000);
       } else {
         // Create new user account
-        const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-
-        // Dispatch verification email
-        try {
-          await sendEmailVerification(userCredential.user);
-        } catch (verErr) {
-          console.warn("Could not dispatch email verification:", verErr);
-        }
+        await createUserWithEmailAndPassword(auth, trimmedEmail, password);
 
         setSuccessMsg("Account created! Redirecting to your member dashboard...");
         setTimeout(() => {

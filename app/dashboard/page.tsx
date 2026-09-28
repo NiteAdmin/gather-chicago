@@ -31,7 +31,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  sendEmailVerification,
   User as FirebaseUser,
 } from "firebase/auth";
 import UserNavButton from "@/components/nav/UserNavButton";
@@ -424,12 +423,7 @@ export default function DashboardPage() {
       if (mode === "signin") {
         await signInWithEmailAndPassword(auth, trimmedEmail, password);
       } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-        try {
-          await sendEmailVerification(userCredential.user);
-        } catch (verErr) {
-          console.warn("Could not send verification email:", verErr);
-        }
+        await createUserWithEmailAndPassword(auth, trimmedEmail, password);
         setAuthSuccessMsg("Account created! Welcome to your Actually dashboard.");
       }
     } catch (err: any) {

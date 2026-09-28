@@ -13,7 +13,6 @@ import { buildGoogleCalendarUrl } from '@/lib/calendar';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification,
   sendPasswordResetEmail,
   onAuthStateChanged,
   fetchSignInMethodsForEmail,
@@ -416,12 +415,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
           router.push('/dashboard');
         }, 800);
       } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-        try {
-          await sendEmailVerification(userCredential.user);
-        } catch (verErr) {
-          console.warn('Could not dispatch verification email:', verErr);
-        }
+        await createUserWithEmailAndPassword(auth, trimmedEmail, password);
         setAccountSuccess('Account created! Redirecting to your member dashboard...');
         setTimeout(() => {
           router.push('/dashboard');
