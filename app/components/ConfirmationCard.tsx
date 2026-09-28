@@ -14,7 +14,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
+  sendPasswordResetEmail,
   onAuthStateChanged,
+  fetchSignInMethodsForEmail,
   User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -119,7 +121,7 @@ export default function ConfirmationCard({
   onReset,
 }: ConfirmationCardProps) {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submittingAccount, setSubmittingAccount] = useState(false);
@@ -345,6 +347,53 @@ function getAttendingEventTime(ev: CommunityEvent): string {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+    const checkUserExists = async () => {
+      const trimmedEmail = (email || '').trim().toLowerCase();
+      if (!trimmedEmail || currentUser) {
+        if (!currentUser) setIsExistingUser(false);
+        return;
+      }
+
+      // 1. Check via Firebase Auth client fetchSignInMethodsForEmail
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, trimmedEmail);
+        if (methods && methods.length > 0) {
+          if (!isCancelled) setIsExistingUser(true);
+          return;
+        }
+      } catch (authErr: any) {
+        // e.g. email enumeration protection
+        console.warn('[AUTH CHECK] fetchSignInMethodsForEmail:', authErr?.message || authErr);
+      }
+
+      // 2. Check via API endpoint (Firebase Admin Auth & Firestore users check)
+      try {
+        const res = await fetch(`/api/auth/check-user?email=${encodeURIComponent(trimmedEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && data.exists) {
+            setIsExistingUser(true);
+            return;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[AUTH CHECK] Server check-user error:', apiErr);
+      }
+
+      if (!isCancelled) {
+        setIsExistingUser(false);
+      }
+    };
+
+    checkUserExists();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [email, currentUser]);
+
   const handleAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAccountError(null);
@@ -379,16 +428,16 @@ function getAttendingEventTime(ev: CommunityEvent): string {
         }, 1000);
       }
     } catch (err: any) {
-      console.error('Post-survey account creation error:', err);
+      console.error('Post-survey account submission error:', err);
       if (err.code === 'auth/email-already-in-use') {
         setIsExistingUser(true);
-        setAccountError('Account exists — enter your password to sign in and view your plans:');
+        setAccountError('Account exists — sign in with your password to view your updated dashboard.');
       } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setAccountError('Incorrect password. Please try again.');
       } else if (err.code === 'auth/weak-password') {
         setAccountError('Password must be at least 6 characters long.');
       } else {
-        setAccountError(err.message || 'Unable to create account. Please try again.');
+        setAccountError(err.message || 'Unable to complete request. Please try again.');
       }
     } finally {
       setSubmittingAccount(false);
@@ -798,14 +847,51 @@ function getAttendingEventTime(ev: CommunityEvent): string {
         </p>
 
         {/* Profile Claim / Account Prompt */}
-        {!currentUser || accountSuccess ? (
+        {currentUser ? (
+          <div style={{ paddingTop: '16px', borderTop: '1px solid #EDE4D3' }}>
+            <div style={{ marginBottom: '14px' }}>
+              <p style={{ fontSize: '0.92rem', color: '#2B271F', fontWeight: 600, margin: 0, lineHeight: 1.45 }}>
+                Your preferences are saved and synced to your member profile.
+              </p>
+            </div>
+
+            <Link
+              href="/dashboard"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                backgroundColor: '#C8643F',
+                color: '#FFFFFF',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px -2px rgba(200, 100, 63, 0.35)',
+                transition: 'background-color 0.18s',
+              }}
+            >
+              <span>View Your Dashboard &rarr;</span>
+            </Link>
+          </div>
+        ) : (
           <div style={{ paddingTop: '16px', borderTop: '1px solid #EDE4D3' }}>
             <div style={{ marginBottom: '12px' }}>
               <strong style={{ fontSize: '0.88rem', color: '#2B271F', display: 'block', fontWeight: 700, marginBottom: '2px' }}>
-                Claim your profile to save your preferences and track {cityName} gatherings.
+                {isExistingUser
+                  ? 'Welcome back!'
+                  : `Claim your profile to save your preferences and track ${cityName} gatherings.`}
               </strong>
               <p style={{ fontSize: '0.78rem', color: '#8C8270', margin: 0, lineHeight: 1.4 }}>
-                Set a password for <strong style={{ color: '#2B271F' }}>{email}</strong> to transition smoothly into your dashboard and community ledger.
+                {isExistingUser
+                  ? 'Sign in with your password to view your updated dashboard.'
+                  : (
+                    <>
+                      Set a password for <strong style={{ color: '#2B271F' }}>{email}</strong> to transition smoothly into your dashboard and community ledger.
+                    </>
+                  )}
               </p>
             </div>
 
@@ -813,7 +899,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
               <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder={isExistingUser ? 'Enter your password to sign in' : 'Create a password (at least 6 characters)'}
+                  placeholder={isExistingUser ? 'Enter your password' : 'Create a password (at least 6 characters)'}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -892,36 +978,14 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                 }}
               >
                 {submittingAccount ? (
-                  <span>Saving account...</span>
+                  <span>{isExistingUser ? 'Signing in...' : 'Saving account...'}</span>
                 ) : isExistingUser ? (
-                  <span>Sign In &amp; View Community Ledger &rarr;</span>
+                  <span>Sign In / View Dashboard &rarr;</span>
                 ) : (
                   <span>Create Account / View Community Ledger &rarr;</span>
                 )}
               </button>
             </form>
-          </div>
-        ) : (
-          <div style={{ paddingTop: '14px', borderTop: '1px solid #EDE4D3' }}>
-            <Link
-              href="/dashboard"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                backgroundColor: '#C8643F',
-                color: '#FFFFFF',
-                padding: '12px 18px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '0.88rem',
-                textDecoration: 'none',
-                boxShadow: '0 4px 12px -2px rgba(200, 100, 63, 0.35)',
-              }}
-            >
-              <span>View Community Ledger &rarr;</span>
-            </Link>
           </div>
         )}
       </div>

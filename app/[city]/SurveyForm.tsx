@@ -367,7 +367,7 @@ export default function SurveyForm({
   const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const [turnstileError, setTurnstileError] = useState(false);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const submittingRef = useRef<boolean>(false);
   const [notes, setNotes] = useState('');
@@ -408,6 +408,12 @@ export default function SurveyForm({
         }
       } else {
         checkVoted();
+        if (user.email) {
+          setEmail((prev) => prev || user.email || '');
+        }
+        if (user.displayName) {
+          setName((prev) => prev || user.displayName || '');
+        }
       }
     });
 
@@ -716,7 +722,7 @@ export default function SurveyForm({
         drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
-        turnstileToken: currentToken || turnstileToken || 'fallback-client-error',
+        turnstileToken: currentToken || (turnstileError ? 'fallback-client-error' : (turnstileToken || 'fallback-client-error')),
       };
 
       const confirmRes = await fetch('/api/confirm', {
@@ -2044,20 +2050,20 @@ export default function SurveyForm({
               </label>
 
               {/* Cloudflare Turnstile Bot Protection Widget (Visible Managed Verification) */}
-              <div className="my-4 flex flex-col items-center justify-center min-h-[65px]">
+              <div className={`my-4 flex flex-col items-center justify-center min-h-[65px] ${turnstileError ? 'hidden' : ''}`}>
                 <Turnstile
                   ref={turnstileRef}
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
                   options={{ theme: 'light', size: 'normal' }}
                   onSuccess={(token) => {
                     setTurnstileToken(token);
-                    setTurnstileFailed(false);
+                    setTurnstileError(false);
                     setFormError(null);
                   }}
                   onError={() => {
                     console.warn('[TURNSTILE] Failed to initialize or blocked by client/origin.');
                     setTurnstileToken(null);
-                    setTurnstileFailed(true);
+                    setTurnstileError(true);
                   }}
                   onExpire={() => {
                     setTurnstileToken(null);
@@ -2065,7 +2071,11 @@ export default function SurveyForm({
                 />
               </div>
 
-              <button className="submit" type="submit" disabled={submitting}>
+              <button
+                className="submit"
+                type="submit"
+                disabled={submitting || (!turnstileToken && !turnstileError)}
+              >
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
               <p className="note">
