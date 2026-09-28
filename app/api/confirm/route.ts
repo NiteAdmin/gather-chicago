@@ -104,10 +104,10 @@ export async function POST(req: Request) {
       turnstileToken,
     } = body;
 
-    // Honeypot check: If visually hidden website_url field is filled, silently return success
+    // Honeypot check: If visually hidden website_url field is filled, reject immediately as bot (HTTP 400)
     if (website_url && typeof website_url === "string" && website_url.trim().length > 0) {
-      console.warn("Honeypot triggered! Silently rejecting bot submission.");
-      return NextResponse.json({ success: true, botTrapped: true });
+      console.warn("Honeypot triggered! Rejecting bot submission with HTTP 400.");
+      return NextResponse.json({ error: "Bot submission rejected" }, { status: 400 });
     }
 
     const trimmedName = typeof name === "string" ? name.trim().slice(0, 100) : "";
@@ -125,15 +125,18 @@ export async function POST(req: Request) {
     const sanitizedPhone = rawPhoneDigits.length === 10 ? rawPhoneDigits : null;
     const sanitizedSmsOptIn = Boolean(smsOptIn && sanitizedPhone);
 
-    if (!trimmedName || !trimmedEmail || !trimmedEmail.includes("@")) {
-      console.error('[CONFIRM API] Validation failed: Name or email missing');
+    // RFC 5322 compliant regex for email validation with valid domain structure
+    const RFC_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+    if (!trimmedName || !trimmedEmail || !RFC_EMAIL_REGEX.test(trimmedEmail)) {
+      console.error('[CONFIRM API] Validation failed: Name or valid RFC email missing');
       return NextResponse.json(
         { error: "Name and a valid email address are required" },
         { status: 400 }
       );
     }
 
-    // Cloudflare Turnstile Bot Verification with Resilient Fallback
+    // Cloudflare Turnstile Bot Verification (Optional with Resilient Honeypot Fallback)
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
     let turnstileVerified = false;
 

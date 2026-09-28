@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
 import PotteryPollModal from '@/app/components/PotteryPollModal';
 import UserNavButton from '@/components/nav/UserNavButton';
@@ -366,9 +365,6 @@ export default function SurveyForm({
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileError, setTurnstileError] = useState(false);
-  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const submittingRef = useRef<boolean>(false);
   const [notes, setNotes] = useState('');
 
@@ -685,16 +681,6 @@ export default function SurveyForm({
     setSubmitting(true);
 
     try {
-      // Retrieve or refresh Turnstile token if available
-      let currentToken = turnstileToken;
-      if (!currentToken && turnstileRef.current) {
-        try {
-          currentToken = turnstileRef.current.getResponse() || null;
-        } catch {
-          // ignore
-        }
-      }
-
       const selectedEventIds: string[] = [];
       ALL_COMMUNITY_EVENTS.forEach((ev) => {
         if (isEventSelected(ev, allChosenDates) && !selectedEventIds.includes(ev.id)) {
@@ -722,7 +708,6 @@ export default function SurveyForm({
         drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
-        turnstileToken: currentToken || (turnstileError ? 'fallback-client-error' : (turnstileToken || 'fallback-client-error')),
       };
 
       const confirmRes = await fetch('/api/confirm', {
@@ -2048,34 +2033,7 @@ export default function SurveyForm({
                 />
                 <span>Keep my availability active — remind me to update my schedule every 3 months.</span>
               </label>
-
-              {/* Cloudflare Turnstile Bot Protection Widget (Visible Managed Verification) */}
-              <div className={`my-4 flex flex-col items-center justify-center min-h-[65px] ${turnstileError ? 'hidden' : ''}`}>
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
-                  options={{ theme: 'light', size: 'normal' }}
-                  onSuccess={(token) => {
-                    setTurnstileToken(token);
-                    setTurnstileError(false);
-                    setFormError(null);
-                  }}
-                  onError={() => {
-                    console.warn('[TURNSTILE] Failed to initialize or blocked by client/origin.');
-                    setTurnstileToken(null);
-                    setTurnstileError(true);
-                  }}
-                  onExpire={() => {
-                    setTurnstileToken(null);
-                  }}
-                />
-              </div>
-
-              <button
-                className="submit"
-                type="submit"
-                disabled={submitting || (!turnstileToken && !turnstileError)}
-              >
+              <button className="submit" type="submit" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
               <p className="note">
