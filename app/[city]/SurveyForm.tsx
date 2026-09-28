@@ -724,7 +724,13 @@ export default function SurveyForm({
       }
 
       if (!confirmRes.ok) {
-        setFormError(confirmData.error || 'Unable to process RSVP. Please try again.');
+        console.error('[SURVEY SUBMISSION FAILED]', confirmRes.status, confirmData);
+        setFormError(
+          confirmData.error ||
+          confirmData.message ||
+          confirmData.details ||
+          (confirmRes.status ? `Unable to process RSVP (Server error ${confirmRes.status}). Please try again.` : 'Unable to process RSVP. Please try again.')
+        );
         return;
       }
 

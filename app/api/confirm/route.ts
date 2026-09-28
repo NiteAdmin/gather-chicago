@@ -106,6 +106,10 @@ export async function POST(req: Request) {
 
     // Honeypot check: If visually hidden website_url field is filled, reject immediately as bot (HTTP 400)
     if (website_url && typeof website_url === "string" && website_url.trim().length > 0) {
+      console.error("[CONFIRM API REJECTION]", {
+        reason: "Honeypot field populated (bot detected)",
+        bodyKeys: Object.keys(body || {}),
+      });
       console.warn("Honeypot triggered! Rejecting bot submission with HTTP 400.");
       return NextResponse.json({ error: "Bot submission rejected" }, { status: 400 });
     }
@@ -129,7 +133,13 @@ export async function POST(req: Request) {
     const RFC_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
     if (!trimmedName || !trimmedEmail || !RFC_EMAIL_REGEX.test(trimmedEmail)) {
-      console.error('[CONFIRM API] Validation failed: Name or valid RFC email missing');
+      console.error("[CONFIRM API REJECTION]", {
+        reason: "Validation failed: Name or valid RFC email missing",
+        bodyKeys: Object.keys(body || {}),
+        hasName: Boolean(trimmedName),
+        hasEmail: Boolean(trimmedEmail),
+        emailFormatValid: RFC_EMAIL_REGEX.test(trimmedEmail),
+      });
       return NextResponse.json(
         { error: "Name and a valid email address are required" },
         { status: 400 }
@@ -199,6 +209,10 @@ export async function POST(req: Request) {
 
     // Verify Firebase Admin SDK initialization
     if (!adminDb) {
+      console.error("[CONFIRM API REJECTION]", {
+        reason: "Firebase Admin SDK is not initialized",
+        bodyKeys: Object.keys(body || {}),
+      });
       console.error("[CONFIRM API] Firebase Admin SDK is not initialized.");
       return NextResponse.json(
         { success: false, error: "Server database configuration error" },
@@ -292,6 +306,11 @@ export async function POST(req: Request) {
 
       savedResponseId = await Promise.race([dbSaveTask(), timeoutTask]);
     } catch (dbErr: any) {
+      console.error("[CONFIRM API REJECTION]", {
+        reason: "Critical database failure persisting survey response",
+        error: dbErr?.message || String(dbErr),
+        bodyKeys: Object.keys(body || {}),
+      });
       console.error("[CONFIRM API] Critical database failure. Failing closed to prevent silent data loss:", dbErr);
       return NextResponse.json(
         {
@@ -658,6 +677,10 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
       sender: primarySender,
     });
   } catch (err: any) {
+    console.error("[CONFIRM API REJECTION]", {
+      reason: "Fatal uncaught exception in POST handler",
+      error: err?.message || String(err),
+    });
     console.error("[CONFIRM API FATAL ERROR]", err);
     return NextResponse.json(
       { success: false, error: err?.message || "Failed to process RSVP confirmation" },
