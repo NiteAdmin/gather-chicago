@@ -3,7 +3,7 @@ import { fetchBroadcasts, logBroadcast } from '@/lib/firebase';
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url, "http://localhost");
     const city = searchParams.get('city') || undefined;
     const querySecret = searchParams.get('secret');
     const headerSecret = req.headers.get('x-admin-secret');

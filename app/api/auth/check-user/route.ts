@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url, "http://localhost");
     const emailParam = searchParams.get("email");
 
     if (!emailParam || !emailParam.includes("@")) {
