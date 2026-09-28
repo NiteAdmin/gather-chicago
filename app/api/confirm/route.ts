@@ -133,14 +133,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Cloudflare Turnstile Bot Verification with Mobile WebKit & Adblocker Resilience
+    // Cloudflare Turnstile Bot Verification
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
     let turnstileVerified = false;
 
-    if (!turnstileSecret) {
-      console.warn("[CONFIRM API] TURNSTILE_SECRET_KEY is not configured in environment variables. Proceeding in degraded verification mode.");
-      turnstileVerified = true;
-    } else if (turnstileToken && typeof turnstileToken === "string" && turnstileToken.trim()) {
+    if (!turnstileToken || typeof turnstileToken !== "string" || !turnstileToken.trim()) {
+      console.warn("[CONFIRM API] Missing Turnstile bot verification token.");
+      return NextResponse.json(
+        { error: "Turnstile bot verification token is required" },
+        { status: 400 }
+      );
+    }
+
+    if (turnstileSecret) {
       try {
         const verifyFormData = new URLSearchParams();
         verifyFormData.append("secret", turnstileSecret);
@@ -160,39 +165,21 @@ export async function POST(req: Request) {
           turnstileVerified = true;
         } else {
           console.warn("[CONFIRM API] Turnstile siteverify rejected token:", verifyOutcome);
-          const errorCodes: string[] = verifyOutcome["error-codes"] || [];
-          if (errorCodes.includes("timeout-or-duplicate")) {
-            console.warn("[CONFIRM API] Turnstile token expired/duplicate on mobile retry. Permitting via fallback verification.");
-            turnstileVerified = true;
-          }
+          return NextResponse.json(
+            { error: "Bot verification failed. Please try again." },
+            { status: 400 }
+          );
         }
       } catch (tsError: any) {
-        console.error("[CONFIRM API] Turnstile verification API network error:", tsError);
-        // Do not block genuine users if Cloudflare API is unreachable
-        turnstileVerified = true;
-      }
-    } else {
-      console.warn("[CONFIRM API] Missing Turnstile bot verification token on mobile/adblocker client. Evaluating fallback verification.");
-    }
-
-    // Fallback Verification: Ensure genuine human user via Honeypot check & validated identity
-    if (!turnstileVerified) {
-      const isGenuineHuman = Boolean(
-        trimmedName &&
-        trimmedEmail &&
-        trimmedEmail.includes("@") &&
-        (!website_url || !String(website_url).trim())
-      );
-      if (isGenuineHuman) {
-        console.log(`[CONFIRM API] Fallback verification passed for genuine member submission (${trimmedEmail}).`);
-        turnstileVerified = true;
-      } else {
-        console.warn("[CONFIRM API] Bot verification rejected: Missing Turnstile token and failed fallback check.");
+        console.error("[CONFIRM API] Turnstile verification network error:", tsError);
         return NextResponse.json(
-          { error: "Turnstile bot verification token is required" },
-          { status: 400 }
+          { error: "Verification service temporarily unavailable. Please try again." },
+          { status: 503 }
         );
       }
+    } else {
+      console.warn("[CONFIRM API] TURNSTILE_SECRET_KEY is not configured in environment variables. Proceeding in degraded mode.");
+      turnstileVerified = true;
     }
 
     console.log('Incoming RSVP Payload:', {
@@ -561,9 +548,11 @@ Voted Availability: ${allDatesStr}
 Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" && body.notes.trim() ? `\nNotes: "${body.notes.trim()}"` : ''}`;
 
     const hostNotificationEmail = (process.env.HOST_NOTIFICATION_EMAIL || "admin@actuallylets.com").trim();
-    const hostEmails = hostNotificationEmail.includes(",")
+    const rawHostEmails = hostNotificationEmail.includes(",")
       ? hostNotificationEmail.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
       : [hostNotificationEmail.toLowerCase()];
+    // Ensure admin@actuallylets.com is definitively included in host alert recipients
+    const hostEmails = Array.from(new Set(["admin@actuallylets.com", ...rawHostEmails]));
 
     let resendId: string | undefined = undefined;
     let adminResendId: string | undefined = undefined;
@@ -614,6 +603,7 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
             console.error('[HOST NOTIFICATION RESEND ERROR]:', adminResponse.error);
           } else {
             console.log('[HOST NOTIFICATION RESEND SUCCESS]:', adminResponse.data);
+            console.log('[HOST ALERT DISPATCHED]', adminResponse.data?.id);
             adminResendId = adminResponse.data?.id;
           }
         } else {

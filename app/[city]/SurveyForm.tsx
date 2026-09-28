@@ -688,6 +688,13 @@ export default function SurveyForm({
         }
       }
 
+      if (!currentToken) {
+        setFormError('Please complete the verification check below before submitting.');
+        submittingRef.current = false;
+        setSubmitting(false);
+        return;
+      }
+
       const selectedEventIds: string[] = [];
       ALL_COMMUNITY_EVENTS.forEach((ev) => {
         if (isEventSelected(ev, allChosenDates) && !selectedEventIds.includes(ev.id)) {
@@ -2031,39 +2038,6 @@ export default function SurveyForm({
                 />
               </div>
 
-              {/* Cloudflare Turnstile Bot Protection Widget (Invisible Background Verification) */}
-              <div
-                className="absolute opacity-0 pointer-events-none -z-50 h-0 w-0 overflow-hidden"
-                aria-hidden="true"
-                tabIndex={-1}
-              >
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
-                  options={{
-                    size: 'invisible',
-                    refreshExpired: 'auto',
-                    refreshTimeout: 'auto',
-                    retry: 'auto',
-                  }}
-                  onSuccess={(token) => {
-                    setTurnstileToken(token);
-                  }}
-                  onExpire={() => {
-                    setTurnstileToken(null);
-                    try {
-                      turnstileRef.current?.reset();
-                    } catch {}
-                  }}
-                  onError={() => {
-                    setTurnstileToken(null);
-                    try {
-                      turnstileRef.current?.reset();
-                    } catch {}
-                  }}
-                />
-              </div>
-
               {/* 3-Month Quarterly Availability Reminder Checkbox */}
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.82rem', color: '#6A6253', cursor: 'pointer', marginBottom: '14px', textAlign: 'left', lineHeight: 1.4 }}>
                 <input 
@@ -2075,7 +2049,27 @@ export default function SurveyForm({
                 <span>Keep my availability active — remind me to update my schedule every 3 months.</span>
               </label>
 
-              <button className="submit" type="submit" disabled={submitting}>
+              {/* Cloudflare Turnstile Bot Protection Widget (Visible Managed Verification) */}
+              <div className="my-4 flex flex-col items-center justify-center min-h-[65px]">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
+                  options={{ theme: 'light', size: 'normal' }}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token);
+                    setFormError(null);
+                  }}
+                  onError={() => {
+                    console.error('[TURNSTILE] Challenge error');
+                    setTurnstileToken(null);
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken(null);
+                  }}
+                />
+              </div>
+
+              <button className="submit" type="submit" disabled={submitting || !turnstileToken}>
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
               <p className="note">
