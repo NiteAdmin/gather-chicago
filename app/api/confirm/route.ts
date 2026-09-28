@@ -246,6 +246,7 @@ export async function POST(req: Request) {
       drink: typeof body.drink === "string" ? body.drink.trim().slice(0, 50) : null,
       notes: trimmedNotes,
       quarterlyReminder: typeof body.quarterlyReminder === "boolean" ? body.quarterlyReminder : true,
+      turnstileVerified: Boolean(turnstileVerified),
     };
 
     // Save to Firestore using Firebase Admin SDK (Eliminating silent data loss: fail-closed on error or timeout)

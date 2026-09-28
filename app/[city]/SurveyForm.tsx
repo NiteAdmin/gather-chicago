@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
+import { Turnstile } from '@marsidev/react-turnstile';
 import PotteryPollModal from '@/app/components/PotteryPollModal';
 import UserNavButton from '@/components/nav/UserNavButton';
 import { BrandName } from '@/components/brand/BrandName';
@@ -365,6 +366,8 @@ export default function SurveyForm({
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAAEHoBK71fRuK8Zu2";
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const submittingRef = useRef<boolean>(false);
   const [notes, setNotes] = useState('');
 
@@ -708,6 +711,7 @@ export default function SurveyForm({
         drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
+        turnstileToken: turnstileToken || null,
       };
 
       const confirmRes = await fetch('/api/confirm', {
@@ -1298,6 +1302,7 @@ export default function SurveyForm({
               setCalendarScanMessage(null);
               setShowPostRsvpModal(false);
               setSubmittedEmail('');
+              setTurnstileToken(null);
             }}
           />
         ) : (
@@ -2045,6 +2050,19 @@ export default function SurveyForm({
                 />
                 <span>Keep my availability active — remind me to update my schedule every 3 months.</span>
               </label>
+              <Turnstile
+                siteKey={siteKey}
+                onSuccess={(token) => {
+                  setTurnstileToken(token);
+                  setFormError(null);
+                }}
+                onError={(err) => {
+                  console.warn("[TURNSTILE] Token generation bypassed/failed:", err);
+                }}
+                options={{
+                  size: "invisible",
+                }}
+              />
               <button className="submit" type="submit" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
