@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.4",
     "firebase": "^12.16.0",

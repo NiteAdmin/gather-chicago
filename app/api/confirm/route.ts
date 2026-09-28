@@ -5,6 +5,9 @@ import { FieldValue } from "firebase-admin/firestore";
 import { sendSms } from "@/lib/twilio";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 // In-memory sliding window IP rate limiter (25 requests per 15 minutes to accommodate community testers & shared Wi-Fi)
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 25;

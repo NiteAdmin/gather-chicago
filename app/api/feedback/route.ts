@@ -5,6 +5,7 @@ import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { getEventById } from "@/lib/eventsConfig";
 import { checkEventDateMatch } from "@/lib/userEvents";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
