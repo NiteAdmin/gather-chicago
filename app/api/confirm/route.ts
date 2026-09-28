@@ -238,33 +238,42 @@ export async function POST(req: Request) {
         // Idempotent duplicate check: If a response exists for (email, city) or (phoneNumber, city), update it
         let existingDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
-        const emailQuery = await db
-          .collection("responses")
-          .where("email", "==", trimmedEmail)
-          .where("city", "==", persistedCitySlug)
-          .get();
-
-        if (!emailQuery.empty) {
-          existingDoc = emailQuery.docs[0];
-        } else if (sanitizedPhone) {
-          const phoneQuery = await db
+        try {
+          const emailQuery = await db
             .collection("responses")
-            .where("phoneNumber", "==", sanitizedPhone)
+            .where("email", "==", trimmedEmail)
             .where("city", "==", persistedCitySlug)
             .get();
 
-          if (!phoneQuery.empty) {
-            existingDoc = phoneQuery.docs[0];
+          if (!emailQuery.empty) {
+            existingDoc = emailQuery.docs[0];
+          } else if (sanitizedPhone) {
+            const phoneQuery = await db
+              .collection("responses")
+              .where("phoneNumber", "==", sanitizedPhone)
+              .where("city", "==", persistedCitySlug)
+              .get();
+
+            if (!phoneQuery.empty) {
+              existingDoc = phoneQuery.docs[0];
+            }
           }
+        } catch (dbError) {
+          console.error("[CONFIRM API] Deduplication lookup failed, falling back to direct create:", dbError);
+          existingDoc = null;
         }
 
         if (existingDoc) {
-          await existingDoc.ref.update({
-            ...surveyDocData,
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          console.log(`[CONFIRM API] Idempotently updated existing response ${existingDoc.id} for ${trimmedEmail} (phone: ${sanitizedPhone || 'none'})`);
-          return existingDoc.id;
+          try {
+            await existingDoc.ref.update({
+              ...surveyDocData,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            console.log(`[CONFIRM API] Idempotently updated existing response ${existingDoc.id} for ${trimmedEmail} (phone: ${sanitizedPhone || 'none'})`);
+            return existingDoc.id;
+          } catch (updateErr) {
+            console.error("[CONFIRM API] Response update failed, falling back to direct create:", updateErr);
+          }
         }
 
         const newDocRef = await db.collection("responses").add({
@@ -276,9 +285,9 @@ export async function POST(req: Request) {
         return newDocRef.id;
       };
 
-      // Strict timeout: Fail closed if Firestore write does not complete within 5000ms
+      // Strict timeout: Fail closed if Firestore write does not complete within 10000ms
       const timeoutTask = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firestore write timed out after 5000ms")), 5000)
+        setTimeout(() => reject(new Error("Firestore write timed out after 10000ms")), 10000)
       );
 
       savedResponseId = await Promise.race([dbSaveTask(), timeoutTask]);
@@ -562,9 +571,9 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
     let adminResendId: string | undefined = undefined;
     let emailError: string | undefined = !resendApiKey ? "RESEND_API_KEY is not configured" : undefined;
 
-    if (resendApiKey) {
-      const resend = new Resend(resendApiKey);
-      try {
+    try {
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
         console.log(`[EMAIL DISPATCH] Triggering attendee confirmation (${trimmedEmail}) & host notification alert (${hostEmails.join(", ")})...`);
         const [attendeeResult, adminResult] = await Promise.allSettled([
           resend.emails.send({
@@ -613,10 +622,10 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
         } else {
           console.error('[HOST NOTIFICATION RESEND REJECTION]:', adminResult.reason);
         }
-      } catch (resendErr: any) {
-        console.error('[RESEND DISPATCH EXCEPTION]:', resendErr);
-        emailError = resendErr?.message || "Resend dispatch exception";
       }
+    } catch (emailErr) {
+      console.error("[CONFIRM API] Host email failed to send, but RSVP persisted:", emailErr);
+      emailError = (emailErr as any)?.message || "Email dispatch failed";
     }
 
     // Send automated Twilio SMS if user opted in and provided a valid 10-digit phone number
@@ -648,10 +657,10 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
       emailError: emailError || undefined,
       sender: primarySender,
     });
-  } catch (error: any) {
-    console.error('Fatal Confirm API Error:', error);
+  } catch (err: any) {
+    console.error("[CONFIRM API FATAL ERROR]", err);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to process RSVP confirmation" },
+      { success: false, error: err?.message || "Failed to process RSVP confirmation" },
       { status: 500 }
     );
   }

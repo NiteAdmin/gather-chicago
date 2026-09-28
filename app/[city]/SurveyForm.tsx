@@ -716,7 +716,12 @@ export default function SurveyForm({
         body: JSON.stringify(payload),
       });
 
-      const confirmData = await confirmRes.json();
+      let confirmData: any = {};
+      try {
+        confirmData = await confirmRes.json();
+      } catch {
+        confirmData = {};
+      }
 
       if (!confirmRes.ok) {
         setFormError(confirmData.error || 'Unable to process RSVP. Please try again.');
