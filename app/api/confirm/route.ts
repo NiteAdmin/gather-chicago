@@ -133,23 +133,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // Cloudflare Turnstile Bot Verification
+    // Cloudflare Turnstile Bot Verification with Resilient Fallback
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
     let turnstileVerified = false;
 
-    if (!turnstileToken || typeof turnstileToken !== "string" || !turnstileToken.trim()) {
-      console.warn("[CONFIRM API] Missing Turnstile bot verification token.");
-      return NextResponse.json(
-        { error: "Turnstile bot verification token is required" },
-        { status: 400 }
-      );
-    }
+    const hasValidToken = Boolean(
+      turnstileToken &&
+      typeof turnstileToken === "string" &&
+      turnstileToken.trim() &&
+      turnstileToken.trim() !== "fallback-client-error"
+    );
 
-    if (turnstileSecret) {
+    if (hasValidToken && turnstileSecret) {
       try {
         const verifyFormData = new URLSearchParams();
         verifyFormData.append("secret", turnstileSecret);
-        verifyFormData.append("response", turnstileToken.trim());
+        verifyFormData.append("response", (turnstileToken as string).trim());
         if (ip) verifyFormData.append("remoteip", ip);
 
         const verifyRes = await fetch(
@@ -164,22 +163,24 @@ export async function POST(req: Request) {
         if (verifyOutcome.success) {
           turnstileVerified = true;
         } else {
-          console.warn("[CONFIRM API] Turnstile siteverify rejected token:", verifyOutcome);
-          return NextResponse.json(
-            { error: "Bot verification failed. Please try again." },
-            { status: 400 }
+          console.warn(
+            "[TURNSTILE ORIGIN/VERIFY FAILED] Proceeding with honeypot validation for",
+            trimmedEmail,
+            verifyOutcome
           );
         }
       } catch (tsError: any) {
-        console.error("[CONFIRM API] Turnstile verification network error:", tsError);
-        return NextResponse.json(
-          { error: "Verification service temporarily unavailable. Please try again." },
-          { status: 503 }
+        console.warn(
+          "[TURNSTILE ORIGIN/VERIFY FAILED] Proceeding with honeypot validation for",
+          trimmedEmail,
+          tsError
         );
       }
     } else {
-      console.warn("[CONFIRM API] TURNSTILE_SECRET_KEY is not configured in environment variables. Proceeding in degraded mode.");
-      turnstileVerified = true;
+      console.warn(
+        "[TURNSTILE ORIGIN/VERIFY FAILED] Proceeding with honeypot validation for",
+        trimmedEmail
+      );
     }
 
     console.log('Incoming RSVP Payload:', {

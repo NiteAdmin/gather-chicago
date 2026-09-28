@@ -367,6 +367,7 @@ export default function SurveyForm({
   const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileFailed, setTurnstileFailed] = useState(false);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const submittingRef = useRef<boolean>(false);
   const [notes, setNotes] = useState('');
@@ -688,13 +689,6 @@ export default function SurveyForm({
         }
       }
 
-      if (!currentToken) {
-        setFormError('Please complete the verification check below before submitting.');
-        submittingRef.current = false;
-        setSubmitting(false);
-        return;
-      }
-
       const selectedEventIds: string[] = [];
       ALL_COMMUNITY_EVENTS.forEach((ev) => {
         if (isEventSelected(ev, allChosenDates) && !selectedEventIds.includes(ev.id)) {
@@ -722,7 +716,7 @@ export default function SurveyForm({
         drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
-        turnstileToken: currentToken || turnstileToken || null,
+        turnstileToken: currentToken || turnstileToken || 'fallback-client-error',
       };
 
       const confirmRes = await fetch('/api/confirm', {
@@ -2057,11 +2051,13 @@ export default function SurveyForm({
                   options={{ theme: 'light', size: 'normal' }}
                   onSuccess={(token) => {
                     setTurnstileToken(token);
+                    setTurnstileFailed(false);
                     setFormError(null);
                   }}
                   onError={() => {
-                    console.error('[TURNSTILE] Challenge error');
+                    console.warn('[TURNSTILE] Failed to initialize or blocked by client/origin.');
                     setTurnstileToken(null);
+                    setTurnstileFailed(true);
                   }}
                   onExpire={() => {
                     setTurnstileToken(null);
@@ -2069,7 +2065,7 @@ export default function SurveyForm({
                 />
               </div>
 
-              <button className="submit" type="submit" disabled={submitting || !turnstileToken}>
+              <button className="submit" type="submit" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send my answers'}
               </button>
               <p className="note">
