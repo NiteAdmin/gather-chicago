@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const trimmedEmail = emailParam.trim().toLowerCase();
 
     // 1. Check Firebase Admin Auth
-    if (adminAuth) {
+    if (adminAuth as any) {
       try {
         const userRecord = await adminAuth.getUserByEmail(trimmedEmail);
         if (userRecord && userRecord.uid) {
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     const trimmedEmail = emailParam.trim().toLowerCase();
 
     // 1. Check Firebase Admin Auth
-    if (adminAuth) {
+    if (adminAuth as any) {
       try {
         const userRecord = await adminAuth.getUserByEmail(trimmedEmail);
         if (userRecord && userRecord.uid) {
