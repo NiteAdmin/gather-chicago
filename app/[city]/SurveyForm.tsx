@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import { saveResponse, auth } from '@/lib/firebase';
 import { formatPhoneNumber } from '@/lib/formatPhone';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import ConfirmationCard from '@/app/components/ConfirmationCard';
 import PotteryPollModal from '@/app/components/PotteryPollModal';
 import UserNavButton from '@/components/nav/UserNavButton';
@@ -367,6 +367,8 @@ export default function SurveyForm({
   const [quarterlyReminder, setQuarterlyReminder] = useState(true);
   const [websiteUrl, setWebsiteUrl] = useState(''); // Visually hidden honeypot field
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const submittingRef = useRef<boolean>(false);
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -622,6 +624,7 @@ export default function SurveyForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || submittingRef.current) return;
     setFormError(null);
     setPhoneError(null);
 
@@ -671,9 +674,20 @@ export default function SurveyForm({
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
 
     try {
+      // Retrieve or refresh Turnstile token if available
+      let currentToken = turnstileToken;
+      if (!currentToken && turnstileRef.current) {
+        try {
+          currentToken = turnstileRef.current.getResponse() || null;
+        } catch {
+          // ignore
+        }
+      }
+
       const selectedEventIds: string[] = [];
       ALL_COMMUNITY_EVENTS.forEach((ev) => {
         if (isEventSelected(ev, allChosenDates) && !selectedEventIds.includes(ev.id)) {
@@ -701,7 +715,7 @@ export default function SurveyForm({
         drink: null,
         notes: notes ? notes.trim() : null,
         website_url: websiteUrl || null,
-        turnstileToken: turnstileToken || null,
+        turnstileToken: currentToken || turnstileToken || null,
       };
 
       const confirmRes = await fetch('/api/confirm', {
@@ -757,6 +771,7 @@ export default function SurveyForm({
       console.error("Error submitting response:", err);
       setFormError('Something went wrong submitting your RSVP. Please try again.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -2017,13 +2032,35 @@ export default function SurveyForm({
               </div>
 
               {/* Cloudflare Turnstile Bot Protection Widget (Invisible Background Verification) */}
-              <div style={{ display: 'none' }} aria-hidden="true">
+              <div
+                className="absolute opacity-0 pointer-events-none -z-50 h-0 w-0 overflow-hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+              >
                 <Turnstile
+                  ref={turnstileRef}
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAEHoBDshELwy5QVR'}
-                  options={{ size: 'invisible' }}
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  onExpire={() => setTurnstileToken(null)}
-                  onError={() => setTurnstileToken(null)}
+                  options={{
+                    size: 'invisible',
+                    refreshExpired: 'auto',
+                    refreshTimeout: 'auto',
+                    retry: 'auto',
+                  }}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token);
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken(null);
+                    try {
+                      turnstileRef.current?.reset();
+                    } catch {}
+                  }}
+                  onError={() => {
+                    setTurnstileToken(null);
+                    try {
+                      turnstileRef.current?.reset();
+                    } catch {}
+                  }}
                 />
               </div>
 
