@@ -62,32 +62,32 @@ function escapeHtml(str: string | null | undefined): string {
 export async function POST(req: Request) {
   console.log('--- CONFIRM EMAIL REQUEST RECEIVED ---');
 
-  // Extract client IP address
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "127.0.0.1";
-
-  // IP Rate Limiting Check
-  const rateLimitStatus = checkRateLimit(ip);
-  if (rateLimitStatus.limited) {
-    const retryMinutes = Math.max(1, Math.ceil((rateLimitStatus.retryAfterSeconds || 60) / 60));
-    console.warn(`Rate limit exceeded for IP: ${ip} (retry in ${retryMinutes}m)`);
-    return NextResponse.json(
-      {
-        error: `Too many RSVP requests from this connection. Please try again in about ${retryMinutes} minute${retryMinutes === 1 ? '' : 's'}.`,
-        retryAfter: rateLimitStatus.retryAfterSeconds,
-      },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(rateLimitStatus.retryAfterSeconds || 60),
-        },
-      }
-    );
-  }
-
   try {
+    // Extract client IP address
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    // IP Rate Limiting Check
+    const rateLimitStatus = checkRateLimit(ip);
+    if (rateLimitStatus.limited) {
+      const retryMinutes = Math.max(1, Math.ceil((rateLimitStatus.retryAfterSeconds || 60) / 60));
+      console.warn(`Rate limit exceeded for IP: ${ip} (retry in ${retryMinutes}m)`);
+      return NextResponse.json(
+        {
+          error: `Too many RSVP requests from this connection. Please try again in about ${retryMinutes} minute${retryMinutes === 1 ? '' : 's'}.`,
+          retryAfter: rateLimitStatus.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimitStatus.retryAfterSeconds || 60),
+          },
+        }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const {
       city,
@@ -213,10 +213,10 @@ export async function POST(req: Request) {
         reason: "Firebase Admin SDK is not initialized",
         bodyKeys: Object.keys(body || {}),
       });
-      console.error("[CONFIRM API] Firebase Admin SDK is not initialized.");
+      console.error("[FIREBASE ADMIN ERROR] adminDb is not initialized. Check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in production hosting dashboard.");
       return NextResponse.json(
-        { success: false, error: "Server database configuration error" },
-        { status: 500 }
+        { error: "Database service unavailable. Please check production credentials." },
+        { status: 503 }
       );
     }
     const db = adminDb;
@@ -677,13 +677,13 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
       sender: primarySender,
     });
   } catch (err: any) {
-    console.error("[CONFIRM API REJECTION]", {
-      reason: "Fatal uncaught exception in POST handler",
-      error: err?.message || String(err),
-    });
-    console.error("[CONFIRM API FATAL ERROR]", err);
+    console.error("[CONFIRM API FATAL EXCEPTION]:", err);
     return NextResponse.json(
-      { success: false, error: err?.message || "Failed to process RSVP confirmation" },
+      {
+        error: err?.message || "Internal Server Error",
+        details: err?.code || err?.name || "UNKNOWN_ERROR",
+        stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
+      },
       { status: 500 }
     );
   }
