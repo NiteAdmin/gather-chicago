@@ -1,6 +1,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth, Auth } from "firebase-admin/auth";
+import type { Auth } from "firebase-admin/auth";
 
 function cleanEnvVar(val?: string): string | undefined {
   if (!val) return undefined;
@@ -68,11 +68,16 @@ export const adminDb: Firestore | null = (() => {
   }
 })();
 
-export const adminAuth: Auth | null = (() => {
+// Type-only import prevents runtime ERR_REQUIRE_ESM (jose/jwks-rsa) in serverless environments
+export const adminAuth: Auth | null = null;
+
+export async function getAdminAuth(): Promise<Auth | null> {
+  if (!app) return null;
   try {
-    return app ? getAuth(app) : null;
-  } catch (svcErr) {
-    console.error("[FIREBASE-ADMIN] Auth initialization error:", svcErr);
+    const { getAuth } = await import("firebase-admin/auth");
+    return getAuth(app);
+  } catch (err) {
+    console.warn("[FIREBASE-ADMIN] Auth dynamic load error:", err);
     return null;
   }
-})();
+}
