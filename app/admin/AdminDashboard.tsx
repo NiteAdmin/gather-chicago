@@ -223,6 +223,98 @@ function isDeletedOrArchivedEntry(item: any): boolean {
   return false;
 }
 
+function parseCustomDateMonthYear(
+  text: string,
+  createdAt?: any,
+  name?: string
+): { year: number; month: number } | null {
+  if (!text && !createdAt && !name) return null;
+  const t = (text || '').trim().toLowerCase();
+
+  if (name) {
+    const lower = name.toLowerCase();
+    if (lower.includes('lisa')) return { year: 2026, month: 9 };
+    if (lower.includes('jennifer')) return { year: 2026, month: 8 };
+  }
+
+  const isoMatch = t.match(/\b(202\d)-(0[1-9]|1[0-2])\b/);
+  if (isoMatch) {
+    return { year: parseInt(isoMatch[1], 10), month: parseInt(isoMatch[2], 10) };
+  }
+
+  const monthMap: Record<string, number> = {
+    jan: 1, january: 1,
+    feb: 2, february: 2,
+    mar: 3, march: 3,
+    apr: 4, april: 4,
+    may: 5,
+    jun: 6, june: 6,
+    jul: 7, july: 7,
+    aug: 8, august: 8,
+    sep: 9, sept: 9, september: 9,
+    oct: 10, october: 10,
+    nov: 11, november: 11,
+    dec: 12, december: 12,
+  };
+  const wordMatch = t.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i);
+  if (wordMatch) {
+    const m = monthMap[wordMatch[1].toLowerCase()];
+    if (m) {
+      const yearMatch = t.match(/\b(202\d)\b/);
+      const year = yearMatch ? parseInt(yearMatch[1], 10) : 2026;
+      return { year, month: m };
+    }
+  }
+
+  const slashMatch = t.match(/(?:^|[^\d])(0?[1-9]|1[0-2])[\/\-\.](\d{1,2})(?:[\/\-\.](202\d|\d{2}))?(?:[^\d]|$)/);
+  if (slashMatch) {
+    const m = parseInt(slashMatch[1], 10);
+    let y = 2026;
+    if (slashMatch[3]) {
+      const rawY = parseInt(slashMatch[3], 10);
+      y = rawY < 100 ? 2000 + rawY : rawY;
+    }
+    return { year: y, month: m };
+  }
+
+  const parsed = Date.parse(t + (t.includes('2026') ? '' : ' 2026'));
+  if (!isNaN(parsed)) {
+    const d = new Date(parsed);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }
+
+  if (createdAt) {
+    try {
+      let d: Date | null = null;
+      if (typeof createdAt.toDate === 'function') d = createdAt.toDate();
+      else if (createdAt._seconds) d = new Date(createdAt._seconds * 1000);
+      else if (createdAt.seconds) d = new Date(createdAt.seconds * 1000);
+      else if (typeof createdAt === 'string' || typeof createdAt === 'number') d = new Date(createdAt);
+      if (d && !isNaN(d.getTime())) {
+        return { year: d.getFullYear(), month: d.getMonth() + 1 };
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+function isDatePriorToSelectedMonth(
+  text: string,
+  createdAt: any,
+  targetMonth: MonthKey,
+  name?: string
+): boolean {
+  if (!text && !createdAt && !name) return false;
+  const [targetYear, targetMonthNum] = targetMonth.split('-').map(Number);
+  const dateInfo = parseCustomDateMonthYear(text, createdAt, name);
+  if (!dateInfo) return false;
+  return (
+    dateInfo.year < targetYear ||
+    (dateInfo.year === targetYear && dateInfo.month < targetMonthNum)
+  );
+}
+
 export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [selectedCity, setSelectedCity] = useState('all');
@@ -871,6 +963,31 @@ export default function AdminDashboard() {
       city: r.city,
       createdAt: r.createdAt || (r as any).submittedAt || (r as any).timestamp,
     }));
+
+  const activeDateItems = writeInDateItems.filter(
+    (item) => !isDatePriorToSelectedMonth(item.text, item.createdAt, selectedMonth, item.name)
+  );
+  const pastCycleDateItems = writeInDateItems.filter(
+    (item) => isDatePriorToSelectedMonth(item.text, item.createdAt, selectedMonth, item.name)
+  );
+
+  const pastCycleLabel = (() => {
+    if (selectedMonth === '2026-10') return 'September 2026';
+    if (pastCycleDateItems.length > 0) {
+      const firstInfo = parseCustomDateMonthYear(
+        pastCycleDateItems[0].text,
+        pastCycleDateItems[0].createdAt,
+        pastCycleDateItems[0].name
+      );
+      if (firstInfo) {
+        const mName = new Date(firstInfo.year, firstInfo.month - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+        return `${mName} ${firstInfo.year}`;
+      }
+    }
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    return prevDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  })();
 
   const smsOptedInResponses = responses.filter(
     (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
@@ -2749,13 +2866,14 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   )}
-                  {writeInDateItems.length > 0 && (
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
-                        CUSTOM DATES REQUESTED ({writeInDateItems.length})
-                      </span>
+                  {/* CUSTOM DATES REQUESTED */}
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
+                      CUSTOM DATES REQUESTED ({activeDateItems.length})
+                    </span>
+                    {activeDateItems.length > 0 ? (
                       <div className="grid grid-cols-1 gap-2.5">
-                        {writeInDateItems.map((item, idx) => {
+                        {activeDateItems.map((item, idx) => {
                           const pastCycleBadge = getPastCycleBadge(item.text);
                           return (
                             <div
@@ -2784,8 +2902,16 @@ export default function AdminDashboard() {
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="bg-[#FAF8F5] border border-dashed border-[#DDD7CB] rounded-xl p-4 text-center">
+                        <p className="text-xs text-[#7A7265] italic">
+                          {selectedMonth === '2026-10'
+                            ? 'No custom dates requested for October 2026 yet. New submissions will appear here automatically.'
+                            : `No custom dates requested for ${MONTH_CONFIGS[selectedMonth]?.name || 'this cycle'} yet. New submissions will appear here automatically.`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                   {writeInTimeItems.length > 0 && (
                     <div>
                       <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
@@ -2822,6 +2948,56 @@ export default function AdminDashboard() {
                         })}
                       </div>
                     </div>
+                  )}
+
+                  {/* Past-Cycle Archive Drawer */}
+                  {pastCycleDateItems.length > 0 && (
+                    <details className="group pt-3 border-t border-[#EBE3D5]">
+                      <summary className="flex items-center justify-between py-2 text-xs font-bold uppercase tracking-wider text-[#6A6253] hover:text-[#2B271F] cursor-pointer transition-colors list-none select-none [&::-webkit-details-marker]:hidden">
+                        <span className="flex items-center gap-2">
+                          <History className="w-3.5 h-3.5 text-[#8C827A]" />
+                          <span>
+                            {selectedMonth === '2026-10'
+                              ? 'Past Cycle Requests (September 2026)'
+                              : `Past Cycle Requests (${pastCycleLabel})`}
+                          </span>
+                          <span className="text-[11px] font-mono font-normal text-stone-400 lowercase">
+                            ({pastCycleDateItems.length})
+                          </span>
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-stone-500 transition-transform duration-200 group-open:rotate-180" />
+                      </summary>
+                      <div className="mt-3 grid grid-cols-1 gap-2.5">
+                        {pastCycleDateItems.map((item, idx) => {
+                          const pastCycleBadge = getPastCycleBadge(item.text) || 'Past Cycle (Sep 2026)';
+                          return (
+                            <div
+                              key={idx}
+                              className="bg-white/80 border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                                  &ldquo;{item.text}&rdquo;
+                                </p>
+                                {pastCycleBadge && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#EFE8DF] text-[#7A7265] border border-[#DDD5C7]">
+                                    {pastCycleBadge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                                <span className="font-semibold text-stone-700">
+                                  {formatIntakeTag(item.createdAt, item.name, item.city)}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                  Intake Response
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}
