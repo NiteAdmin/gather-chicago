@@ -598,3 +598,62 @@ export const chicagoPotteryPoll: CommunityPoll = {
     },
   ],
 };
+
+export interface ChapterMarket {
+  id: string;
+  name: string;
+  subtitle: string;
+  status: 'live' | 'polling' | 'soon' | 'all';
+  badgeColor: string;
+}
+
+/**
+ * Returns chapter markets and computes active status dynamically based on configured events
+ */
+export function getChapterMarkets(
+  confirmedCount: number = 0,
+  relativeDateLabel: string = 'October Lineup',
+  totalResponses: number = 0
+): ChapterMarket[] {
+  const chicagoEvents = getEventsForCity('chicago');
+  const austinEvents = getEventsForCity('austin');
+
+  return [
+    {
+      id: 'chicago',
+      name: 'Chicago Chapter',
+      subtitle: chicagoEvents.length > 0 ? `${relativeDateLabel} · ${confirmedCount} RSVPs` : 'Coming Soon',
+      status: chicagoEvents.length > 0 ? 'live' : 'soon',
+      badgeColor: chicagoEvents.length > 0 ? 'bg-emerald-500' : 'bg-stone-300',
+    },
+    {
+      id: 'austin',
+      name: 'Austin',
+      subtitle: austinEvents.length > 0 ? 'Polling Open' : 'Coming Soon',
+      status: austinEvents.length > 0 ? 'polling' : 'soon',
+      badgeColor: austinEvents.length > 0 ? 'bg-amber-500' : 'bg-stone-300',
+    },
+    {
+      id: 'new-york',
+      name: 'New York',
+      subtitle: 'Coming Soon',
+      status: 'soon',
+      badgeColor: 'bg-stone-300',
+    },
+    {
+      id: 'san-francisco',
+      name: 'San Francisco',
+      subtitle: 'Coming Soon',
+      status: 'soon',
+      badgeColor: 'bg-stone-300',
+    },
+    {
+      id: 'all',
+      name: 'All Chapters',
+      subtitle: `Global roll-up (${totalResponses} responses)`,
+      status: 'all',
+      badgeColor: 'bg-[#C8643F]',
+    },
+  ];
+}
+

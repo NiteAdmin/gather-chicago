@@ -5,7 +5,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { SurveyResponse } from '@/types/survey';
 import { formatPhoneNumber } from '@/lib/formatPhone';
 import { db, BroadcastRecord } from '@/lib/firebase';
-import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
+import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle, getChapterMarkets } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
 import { getRelativeDateInfo, getTodayDateString } from '@/lib/eventStatus';
 import { BrandName } from '@/components/brand/BrandName';
@@ -920,43 +920,7 @@ export default function AdminDashboard() {
   const isAtCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount >= eventCapacity);
   const isOverCapacity = Boolean(eventCapacity && eventAttendance.confirmedCount > eventCapacity);
 
-  const CHAPTERS = [
-    {
-      id: 'chicago',
-      name: 'Chicago Chapter',
-      subtitle: `${relativeDateInfo.label} · ${eventAttendance.confirmedCount} RSVPs`,
-      status: 'live',
-      badgeColor: 'bg-emerald-500',
-    },
-    {
-      id: 'austin',
-      name: 'Austin',
-      subtitle: 'Polling Open',
-      status: 'polling',
-      badgeColor: 'bg-amber-500',
-    },
-    {
-      id: 'new-york',
-      name: 'New York',
-      subtitle: 'Coming Soon',
-      status: 'soon',
-      badgeColor: 'bg-stone-300',
-    },
-    {
-      id: 'san-francisco',
-      name: 'San Francisco',
-      subtitle: 'Coming Soon',
-      status: 'soon',
-      badgeColor: 'bg-stone-300',
-    },
-    {
-      id: 'all',
-      name: 'All Chapters',
-      subtitle: `Global roll-up (${responses.length} responses)`,
-      status: 'all',
-      badgeColor: 'bg-[#C8643F]',
-    },
-  ];
+  const CHAPTERS = getChapterMarkets(eventAttendance.confirmedCount, relativeDateInfo.label, responses.length);
 
   const confirmedForSelectedEventCount = selectedEvent
     ? responses.filter((r) => isContactAttendingEvent(r, selectedEvent, users)).length
@@ -1753,8 +1717,6 @@ export default function AdminDashboard() {
                         className={`w-2 h-2 rounded-full shrink-0 ${
                           selectedCity === 'chicago'
                             ? 'bg-emerald-500 animate-pulse'
-                            : selectedCity === 'austin'
-                            ? 'bg-amber-500'
                             : selectedCity === 'all'
                             ? 'bg-[#C8643F]'
                             : 'bg-stone-400'
@@ -1768,8 +1730,6 @@ export default function AdminDashboard() {
                       <span className="text-[10px] text-stone-500 font-normal hidden lg:inline">
                         {selectedCity === 'chicago'
                           ? `(${relativeDateInfo.label})`
-                          : selectedCity === 'austin'
-                          ? `(Polling Open)`
                           : selectedCity === 'all'
                           ? `(Global)`
                           : `(Coming Soon)`}
