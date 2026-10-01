@@ -240,7 +240,7 @@ export default function AdminDashboard() {
 
   const handleSelectEvent = (eventId: string) => {
     setSelectedEventId(eventId);
-    if (typeof document !== 'undefined') {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       document.getElementById('gathering-cockpit')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
@@ -1679,86 +1679,90 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SLEEK EDITORIAL MONTH NAVIGATION CONTROLS */}
-          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full min-w-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
-                <Calendar className="w-4 h-4 text-[#C8643F]" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
-                    Calendar Cycle
-                  </span>
-                  {selectedMonth === CURRENT_CYCLE_MONTH && (
-                    <span className="text-[10px] font-bold uppercase tracking-wide bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] px-2 py-0.5 rounded-full">
-                      Active Cycle
-                    </span>
-                  )}
+          {/* MASTER-DETAIL WORKSPACE: TWO-COLUMN STICKY CALENDAR & GATHERING COCKPIT */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-8 items-start w-full">
+            {/* LEFT COLUMN: STICKY MONTH NAVIGATION & CALENDAR GRID */}
+            <div className="lg:col-span-7 space-y-4 lg:sticky lg:top-6 self-start w-full min-w-0">
+              {/* SLEEK EDITORIAL MONTH NAVIGATION CONTROLS */}
+              <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                    <Calendar className="w-4 h-4 text-[#C8643F]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
+                        Calendar Cycle
+                      </span>
+                      {selectedMonth === CURRENT_CYCLE_MONTH && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] px-2 py-0.5 rounded-full">
+                          Active Cycle
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] truncate">
+                      {`${MONTH_CONFIGS[selectedMonth].name} Schedule & Availability`}
+                    </h2>
+                  </div>
                 </div>
-                <h2 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] truncate">
-                  {`${MONTH_CONFIGS[selectedMonth].name} Schedule & Availability`}
-                </h2>
+
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {/* Month Navigation Controls: [ < Previous Month ] [ Month Year ] [ Next Month > ] */}
+                  <div className="inline-flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+                    <button
+                      type="button"
+                      aria-label="Previous Month"
+                      disabled={isPrevMonthDisabled}
+                      onClick={handlePrevMonth}
+                      title={isPrevMonthDisabled && prevMonthKey ? `No gatherings scheduled for ${MONTH_CONFIGS[prevMonthKey].name}` : 'Previous Month'}
+                      className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                        isPrevMonthDisabled
+                          ? 'opacity-30 cursor-not-allowed'
+                          : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
+                      }`}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span className="text-[11px] font-medium hidden sm:inline">Previous Month</span>
+                    </button>
+
+                    <span className="px-3 py-1 font-bold text-[#2B271F] text-xs whitespace-nowrap">
+                      {MONTH_CONFIGS[selectedMonth].name}
+                    </span>
+
+                    <button
+                      type="button"
+                      aria-label="Next Month"
+                      disabled={isNextMonthDisabled}
+                      onClick={handleNextMonth}
+                      title={isNextMonthDisabled && nextMonthKey ? `No gatherings scheduled for ${MONTH_CONFIGS[nextMonthKey].name}` : 'Next Month'}
+                      className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                        isNextMonthDisabled
+                          ? 'opacity-30 cursor-not-allowed'
+                          : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
+                      }`}
+                    >
+                      <span className="text-[11px] font-medium hidden sm:inline">Next Month</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Quick "Today / Current Month" reset toggle */}
+                  <button
+                    type="button"
+                    onClick={handleResetToCurrentMonth}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs border ${
+                      selectedMonth === CURRENT_CYCLE_MONTH
+                        ? 'bg-[#2B271F] text-[#FDFBF7] border-[#2B271F]'
+                        : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] hover:text-[#2B271F] border-[#D8CEBC]'
+                    }`}
+                  >
+                    Today / Current Month
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              {/* Month Navigation Controls: [ < Previous Month ] [ Month Year ] [ Next Month > ] */}
-              <div className="inline-flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
-                <button
-                  type="button"
-                  aria-label="Previous Month"
-                  disabled={isPrevMonthDisabled}
-                  onClick={handlePrevMonth}
-                  title={isPrevMonthDisabled && prevMonthKey ? `No gatherings scheduled for ${MONTH_CONFIGS[prevMonthKey].name}` : 'Previous Month'}
-                  className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                    isPrevMonthDisabled
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
-                  }`}
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span className="text-[11px] font-medium hidden sm:inline">Previous Month</span>
-                </button>
-
-                <span className="px-3 py-1 font-bold text-[#2B271F] text-xs whitespace-nowrap">
-                  {MONTH_CONFIGS[selectedMonth].name}
-                </span>
-
-                <button
-                  type="button"
-                  aria-label="Next Month"
-                  disabled={isNextMonthDisabled}
-                  onClick={handleNextMonth}
-                  title={isNextMonthDisabled && nextMonthKey ? `No gatherings scheduled for ${MONTH_CONFIGS[nextMonthKey].name}` : 'Next Month'}
-                  className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                    isNextMonthDisabled
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
-                  }`}
-                >
-                  <span className="text-[11px] font-medium hidden sm:inline">Next Month</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Quick "Today / Current Month" reset toggle */}
-              <button
-                type="button"
-                onClick={handleResetToCurrentMonth}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs border ${
-                  selectedMonth === CURRENT_CYCLE_MONTH
-                    ? 'bg-[#2B271F] text-[#FDFBF7] border-[#2B271F]'
-                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] hover:text-[#2B271F] border-[#D8CEBC]'
-                }`}
-              >
-                Today / Current Month
-              </button>
-            </div>
-          </div>
-
-          {/* SCOPED 7-COLUMN MONTH CALENDAR GRID */}
-          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 w-full min-w-0">
+              {/* SCOPED 7-COLUMN MONTH CALENDAR GRID */}
+              <div id="admin-calendar-section" className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3 w-full min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-[#EBE3D5]">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-[#C8643F]" />
@@ -1796,7 +1800,7 @@ export default function AdminDashboard() {
               {Array.from({ length: startDayOfWeek }).map((_, index) => (
                 <div
                   key={`empty-leading-${index}`}
-                  className="min-h-[58px] sm:min-h-[82px] p-1.5 bg-[#F4EEE2]/30 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                  className="min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 bg-[#F4EEE2]/30 rounded-lg sm:rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
                 />
               ))}
 
@@ -1817,7 +1821,7 @@ export default function AdminDashboard() {
                         handleSelectEvent(dayEvents[0].id);
                       }
                     }}
-                    className={`min-h-[58px] sm:min-h-[82px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between ${
+                    className={`min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border transition-all flex flex-col justify-between ${
                       hasEvents ? 'cursor-pointer hover:border-[#C8643F] hover:shadow-xs' : 'cursor-default'
                     } ${
                       isDaySelected
@@ -1834,9 +1838,9 @@ export default function AdminDashboard() {
                     {/* Top row: day number + tags */}
                     <div className="flex items-center justify-between">
                       <span
-                        className={`text-xs font-mono font-bold ${
+                        className={`text-[11px] sm:text-xs font-mono font-bold ${
                           isToday
-                            ? 'w-5 h-5 rounded-full bg-[#C8643F] text-white flex items-center justify-center text-[10px]'
+                            ? 'w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#C8643F] text-white flex items-center justify-center text-[9px] sm:text-[10px]'
                             : isDaySelected
                             ? 'text-[#C8643F]'
                             : 'text-[#2B271F]'
@@ -1877,7 +1881,7 @@ export default function AdminDashboard() {
                               e.stopPropagation();
                               handleSelectEvent(ev.id);
                             }}
-                            className={`w-full text-left p-1 sm:p-1.5 rounded-lg text-[10px] sm:text-[11px] leading-tight transition-all font-medium flex items-center justify-between gap-1 cursor-pointer truncate ${
+                            className={`w-full text-left p-0.5 sm:p-1.5 rounded-md sm:rounded-lg text-[10px] sm:text-[11px] leading-tight transition-all font-medium flex items-center justify-between gap-1 cursor-pointer truncate ${
                               isEvSelected
                                 ? 'bg-[#2B271F] text-white shadow-xs font-semibold ring-1 ring-[#2B271F]'
                                 : 'bg-[#FAF0EB] text-[#C8643F] hover:bg-[#F3E3DA] border border-[#EED4C8]'
@@ -1921,12 +1925,15 @@ export default function AdminDashboard() {
               {Array.from({ length: trailingEmptySlots }).map((_, index) => (
                 <div
                   key={`empty-trailing-${index}`}
-                  className="min-h-[58px] sm:min-h-[82px] p-1.5 bg-[#F4EEE2]/30 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                  className="min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 bg-[#F4EEE2]/30 rounded-lg sm:rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
                 />
               ))}
             </div>
           </div>
+        </div>
 
+        {/* RIGHT COLUMN: GATHERING COCKPIT & CONSENSUS TALLIES */}
+        <div className="lg:col-span-5 space-y-4 w-full min-w-0">
           {/* GATHERING COCKPIT */}
           <div id="gathering-cockpit" className="space-y-4 w-full min-w-0">
             {!selectedEvent ? (
@@ -2026,9 +2033,9 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-              {/* Event Callout (7 cols) */}
-              <div className="lg:col-span-7 space-y-2 min-w-0">
+            <div className="grid grid-cols-1 gap-4 items-start">
+              {/* Event Callout */}
+              <div className="space-y-2 min-w-0">
                 <div className={`text-xs font-mono uppercase tracking-wider ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                   {relativeDateInfo.isToday ? 'LIVE TODAY' : relativeDateInfo.isTomorrow ? 'EVENT TOMORROW' : relativeDateInfo.isPast ? 'CONCLUDED GATHERING' : 'UPCOMING GATHERING'}
                 </div>
@@ -2051,9 +2058,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Headcount Gauge (5 cols) */}
+              {/* Headcount Gauge */}
               <div
-                className={`lg:col-span-5 rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-[210px] ${
+                className={`rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-0 ${
                   isImminentEvent
                     ? 'bg-white/5 border border-white/10'
                     : 'bg-white border border-[#EADBCC] shadow-2xs'
@@ -2299,10 +2306,52 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* Mobile Return to Calendar shortcut */}
+            <div className="flex justify-center pt-2 lg:hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('admin-calendar-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-[#2B271F] text-[#FDFBF7] shadow-md hover:bg-[#3E3832] active:scale-95 transition-all cursor-pointer"
+              >
+                <span>↑ Back to Calendar</span>
+              </button>
+            </div>
           </div>
         </>
       )}
     </div>
+
+          {/* DATE POLLING RESULTS CONSENSUS CARD */}
+          <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-5 sm:p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-5 border-b border-[#EBE3D5] w-full min-w-0">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#8C827A]" />
+                <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
+                  Date Polling Results — {MONTH_CONFIGS[selectedMonth].name} ({formatCityName(selectedCity)})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenAdminModal(selectedEvent || undefined)}
+                className="bg-[#C8643F] hover:bg-[#B25532] text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors w-full sm:w-auto"
+              >
+                <Megaphone className="w-4 h-4" />
+                <span>Announce Winning Date</span>
+              </button>
+            </div>
+            {dateTally.length > 0 ? (
+              renderBars(dateTally)
+            ) : (
+              <div className="py-6 text-center text-xs text-stone-500 italic bg-white/50 rounded-xl border border-[#EBE3D5]">
+                No date preferences recorded for {MONTH_CONFIGS[selectedMonth].name} yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
           {/* SECTION 2: COMMUNITY POLLING */}
           <div className="space-y-4 pt-2">
@@ -2402,35 +2451,8 @@ export default function AdminDashboard() {
 
           {/* SECTION 3: 2-COLUMN BALANCED ANALYTICS SUITE */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-            {/* Left Col: Date Polling, Time Preferences, Member Notes & Ideas */}
+            {/* Left Col: Time Preferences, Member Notes & Ideas */}
             <div className="space-y-6 w-full">
-              {/* Date Polling Results */}
-              <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-5 border-b border-[#EBE3D5] w-full min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#8C827A]" />
-                    <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                      Date Polling Results — {MONTH_CONFIGS[selectedMonth].name} ({formatCityName(selectedCity)})
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAdminModal(selectedEvent || undefined)}
-                    className="bg-[#C8643F] hover:bg-[#B25532] text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors w-full sm:w-auto"
-                  >
-                    <Megaphone className="w-4 h-4" />
-                    <span>Announce Winning Date</span>
-                  </button>
-                </div>
-                {dateTally.length > 0 ? (
-                  renderBars(dateTally)
-                ) : (
-                  <div className="py-6 text-center text-xs text-stone-500 italic bg-white/50 rounded-xl border border-[#EBE3D5]">
-                    No date preferences recorded for {MONTH_CONFIGS[selectedMonth].name} yet.
-                  </div>
-                )}
-              </div>
-
               {/* Time Preferences */}
               <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 mb-4 border-b border-[#EBE3D5]">
