@@ -66,6 +66,7 @@ export interface CommunityEvent {
   city: string;
   brandPrefix?: string;
   title: string;
+  subtitle?: string;
   chipLabel?: string;
   date: string; // ISO format 'YYYY-MM-DD'
   displayDate: string; // e.g., 'Fri, Oct 9'
@@ -78,6 +79,7 @@ export interface CommunityEvent {
   iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
   venueName: string;
   venueAddress?: string;
+  price?: string;
   description: string;
   externalUrl?: string;
   externalUrlLabel?: string;
@@ -149,6 +151,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Footprints",
     venueName: "Lincoln Square Ravenswood",
     venueAddress: "4505 N Lincoln Ave, Chicago, IL 60625",
+    price: "Free admission ($5 suggested donation)",
     description: "Autumn weekend in Lincoln Square with local apple growers, hot spiced cider, fresh baked goods, and live street music along Lincoln Ave. Free admission ($5 suggested donation).",
     externalUrl: "https://www.lincolnsquare.org/apple-fest",
     externalUrlLabel: "Official Apple Fest Site",
@@ -160,7 +163,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     id: "chi-2026-10-05-little-lark-pizza",
     city: "chicago",
     brandPrefix: "Actually, Let's™",
-    title: "Little Lark — Free Margherita Pizza & Wine",
+    title: "Little Lark — Free Margherita Pizza Night",
+    subtitle: "Free Margherita Pizza with the purchase of any bottle of wine",
     chipLabel: "Little Lark Pizza & Wine",
     date: "2026-10-05",
     displayDate: "Mon, Oct 5 & Mondays",
@@ -173,6 +177,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Pizza",
     venueName: "Little Lark",
     venueAddress: "3132 N Rockwell St, Chicago, IL 60618",
+    price: "Free pizza with wine bottle purchase",
     description: "Ease into the week at Little Lark along the river. Receive a complimentary Margherita pizza with the purchase of any bottle of wine. Relaxed, welcoming atmosphere for families and neighbors.",
     externalUrl: "http://littlelarkchicago.com/",
     externalUrlLabel: "Little Lark Chicago",
@@ -184,7 +189,8 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     id: "chi-2026-10-08-little-lark-pinsa",
     city: "chicago",
     brandPrefix: "Actually, Let's™",
-    title: "Little Lark — Pinsa Night + $10 Wine",
+    title: "Little Lark — Pinsa Night & $10 Wine",
+    subtitle: "Pinsa Night + $10 glasses of Wine",
     chipLabel: "Little Lark Pinsa Night",
     date: "2026-10-08",
     displayDate: "Thu, Oct 8 & Thursdays",
@@ -197,6 +203,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Pizza",
     venueName: "Little Lark",
     venueAddress: "3132 N Rockwell St, Chicago, IL 60618",
+    price: "$10 glasses of wine / menu pricing",
     description: "Crispy Roman-style pinsa flatbreads straight from the oven paired with $10 glasses of wine. Perfect mid-week gathering spot to share food and connect with friends.",
     externalUrl: "http://littlelarkchicago.com/",
     externalUrlLabel: "Little Lark Chicago",
@@ -221,6 +228,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Coffee",
     venueName: "Jonquil Park",
     venueAddress: "1001 W Wrightwood Ave, Chicago, IL 60614",
+    price: "GA from $30; VIP from $67.50",
     description: "Jonquil Park transforms into an autumnal open-air wine garden featuring curated global varietals, food pairings, and acoustic music. GA from $30; VIP passes available.",
     externalUrl: "https://chicagoevents.com/event/lincoln-park-wine-fest/",
     externalUrlLabel: "Wine Fest Tickets",
@@ -232,7 +240,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     id: "chi-2026-10-16-soul-smoke",
     city: "chicago",
     brandPrefix: "Actually, Let's™",
-    title: "Soul & Smoke BBQ",
+    title: "Soul & Smoke — Avondale at Rockwell on the River",
     chipLabel: "Soul & Smoke BBQ",
     date: "2026-10-16",
     displayDate: "Fri, Oct 16",
@@ -245,6 +253,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Flame",
     venueName: "Soul & Smoke",
     venueAddress: "3057 N Rockwell St, Chicago, IL 60618",
+    price: "Menu pricing / pay on site",
     description: "Award-winning craft barbecue. Slow-smoked brisket, savory pulled pork, rich mac and cheese, and casual community picnic vibes.",
     externalUrl: "https://soulandsmoke.com",
     externalUrlLabel: "Soul & Smoke",
@@ -269,6 +278,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Lincoln Park Zoo",
     venueAddress: "2001 N Clark St, Chicago, IL 60614",
+    price: "Free",
     description: "Lincoln Park Zoo's daytime trick-or-treating with music, animal viewing, and craft stations across the grounds. Free to attend—bring family or join fellow members for a relaxed autumn walk.",
     externalUrl: "https://www.lpzoo.org/event/spooky-zoo/",
     externalUrlLabel: "Zoo Event Details",
@@ -293,6 +303,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Goebbert's Farm",
     venueAddress: "42W813 Reinking Rd, Pingree Grove, IL 60140",
+    price: "Free (Ages 2 & under); $27–$30 (Weekends)",
     description: "Fall festival out in Pingree Grove with pumpkin patches, fresh apple cider donuts, wagon rides, and farm attractions. A great seasonal weekend trip.",
     externalUrl: "https://goebbertspumpkinfarm.com/fall-festival/ticket-prices/",
     externalUrlLabel: "Festival Tickets",
@@ -317,6 +328,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Mic",
     venueName: "Laugh Factory Chicago",
     venueAddress: "3175 N Broadway, Chicago, IL 60657",
+    price: "From $29.51",
     description: "High-energy stand-up comedy showcase featuring top Chicago comics and national headliners on Belmont and Broadway. Tickets start from $29.51 with two-beverage minimum.",
     externalUrl: "https://www.eventbrite.com/e/friday-night-stand-up-comedy-at-laugh-factory-chicago-tickets-1999810695624",
     externalUrlLabel: "Comedy Tickets",
@@ -341,6 +353,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     iconName: "Trees",
     venueName: "Brookfield Zoo Chicago",
     venueAddress: "31st St & Golfview Ave, Brookfield, IL 60513",
+    price: "Included with admission ($32.95 adult / $27.95 senior / $23.95 child); Parking $17–$20",
     description: "Brookfield Zoo's Halloween gathering featuring pumpkin carving demos, carousel rides, and fall animal treats. Included with regular zoo admission.",
     externalUrl: "https://www.brookfieldzoo.org/events/boo-at-the-zoo",
     externalUrlLabel: "Brookfield Zoo Details",
