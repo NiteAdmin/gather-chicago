@@ -79,14 +79,17 @@ export default function UserNavButton({
     setAuthSuccessMsg(null);
   }, [pathname]);
 
-  // Close dropdown on outside click
+  // Close dropdown or modal on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+        setShowModal(false);
+        setAuthError(null);
+        setAuthSuccessMsg(null);
       }
     }
-    if (showDropdown) {
+    if (showDropdown || showModal) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("touchstart", handleClickOutside);
     }
@@ -94,7 +97,7 @@ export default function UserNavButton({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [showDropdown]);
+  }, [showDropdown, showModal]);
 
   // Close modal and dropdown on Escape key
   useEffect(() => {
@@ -326,44 +329,44 @@ export default function UserNavButton({
         </div>
       )}
 
-      {/* Auth Modal */}
+      {/* Auth Dropdown Popover */}
       {showModal && !isConfirmation && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleCloseModal();
-          }}
-        >
-          <div className="relative w-full max-w-sm bg-[#FAF7F2] rounded-2xl border border-[#EADBCC] shadow-2xl p-6 my-auto animate-fade-in">
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 p-2 text-[#8C8270] hover:text-[#2B271F] transition-colors rounded-full hover:bg-[#EDE4D3]/50 cursor-pointer"
-              aria-label="Close auth modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <>
+          {/* Invisible backdrop to dismiss on click outside */}
+          <div
+            className="fixed inset-0 z-40 bg-black/10 sm:bg-transparent"
+            onClick={handleCloseModal}
+          />
 
-            {/* Modal Header */}
-            <div className="text-center mb-5">
-              <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#C8643F]">
-                MEMBER DASHBOARD
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
-                {mode === "signin" ? "Member Sign In" : "Claim Your Account"}
-              </h2>
-              <p className="text-xs text-[#6A6253] mt-1 leading-relaxed">
-                {mode === "signin"
-                  ? "Sign in to access your RSVP sync, events calendar, and city updates."
-                  : "Create your password to manage RSVPs and view your confirmed gathering schedule."}
-              </p>
+          {/* Popover anchored directly below avatar button */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Member Sign In"
+            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-80 bg-[#FAF7F2] rounded-2xl border border-[#D8C3A8] shadow-2xl p-5 sm:p-6 z-50 animate-fade-in text-left"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#EADBCC] mb-4">
+              <div>
+                <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#C8643F] block">
+                  MEMBER DASHBOARD
+                </span>
+                <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] mt-0.5">
+                  {mode === "signin" ? "Member Sign In" : "Claim Your Account"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="text-sm font-bold text-[#7A7265] hover:text-[#2B271F] p-1.5 rounded-lg hover:bg-[#EDE4D3]/50 transition-colors cursor-pointer"
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Mode Toggle Tabs */}
-            <div className="grid grid-cols-2 p-1 bg-[#EDE4D3]/70 rounded-xl mb-4 text-xs font-bold text-[#6A6253]">
+            <div className="grid grid-cols-2 p-1 bg-[#EDE4D3]/70 rounded-xl mb-3.5 text-xs font-bold text-[#6A6253]">
               <button
                 type="button"
                 onClick={() => {
@@ -398,16 +401,16 @@ export default function UserNavButton({
 
             {/* Feedback Banners */}
             {authSuccessMsg && (
-              <div className="mb-4 p-3 bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634] text-xs font-semibold rounded-xl flex items-start gap-2">
+              <div className="mb-3.5 p-2.5 bg-[#EEF5EB] border border-[#C5DEC0] text-[#3D5634] text-xs font-semibold rounded-xl flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{authSuccessMsg}</span>
               </div>
             )}
 
-            {/* Auth Form */}
-            <form onSubmit={handleAuthSubmit} className="space-y-3.5">
+            {/* Form Inputs with explicit visibility and heights */}
+            <form onSubmit={handleAuthSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1">
+                <label className="block text-xs font-bold text-[#2B271F] mb-1">
                   Email Address
                 </label>
                 <input
@@ -419,12 +422,12 @@ export default function UserNavButton({
                     setEmail(e.target.value);
                     if (authError) setAuthError(null);
                   }}
-                  className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3 py-2 text-xs sm:text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
+                  className="w-full px-3 py-2.5 bg-white rounded-xl border border-[#D8C3A8] text-[#2B271F] text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C8643F] transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6A6253] mb-1">
+                <label className="block text-xs font-bold text-[#2B271F] mb-1">
                   Password
                 </label>
                 <input
@@ -436,12 +439,12 @@ export default function UserNavButton({
                     setPassword(e.target.value);
                     if (authError) setAuthError(null);
                   }}
-                  className="w-full bg-[#FFFFFF] border border-[#D8CEBC] rounded-xl px-3 py-2 text-xs sm:text-sm text-[#2B271F] focus:outline-none focus:border-[#C8643F] transition-colors"
+                  className="w-full px-3 py-2.5 bg-white rounded-xl border border-[#D8C3A8] text-[#2B271F] text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C8643F] transition-all"
                 />
               </div>
 
               {authError && (
-                <p className="text-xs text-[#E07A5F] bg-[#FAF7F2] border border-[#EBE3D5] rounded-lg p-2.5 mt-1.5">
+                <p className="text-xs text-[#E07A5F] bg-white border border-[#EBE3D5] rounded-lg p-2.5 mt-1">
                   {authError}
                 </p>
               )}
@@ -449,7 +452,7 @@ export default function UserNavButton({
               <button
                 type="submit"
                 disabled={submittingAuth}
-                className="w-full bg-[#C8643F] hover:bg-[#b05230] text-white py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wide shadow-xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+                className="w-full py-2.5 bg-[#C8643F] hover:bg-[#B25532] text-white font-bold rounded-xl text-xs sm:text-sm shadow-xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
               >
                 {submittingAuth ? (
                   <>
@@ -459,18 +462,18 @@ export default function UserNavButton({
                 ) : mode === "signin" ? (
                   <>
                     <LogIn className="w-4 h-4" />
-                    <span>Sign In to Dashboard</span>
+                    <span>Sign In to Dashboard →</span>
                   </>
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4" />
-                    <span>Create &amp; Claim Account</span>
+                    <span>Create &amp; Claim Account →</span>
                   </>
                 )}
               </button>
             </form>
 
-            <div className="mt-4 pt-3 border-t border-[#D8CEBC]/50 text-center">
+            <div className="mt-3.5 pt-3 border-t border-[#D8CEBC]/50 text-center">
               <button
                 type="button"
                 onClick={() => {
@@ -483,7 +486,7 @@ export default function UserNavButton({
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
