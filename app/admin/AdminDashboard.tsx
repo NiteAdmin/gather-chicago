@@ -849,13 +849,28 @@ export default function AdminDashboard() {
 
   const writeInGatheringItems = responses
     .filter((r) => Boolean(r.customGathering && r.customGathering.trim()))
-    .map((r) => ({ text: r.customGathering!.trim(), name: r.name, city: r.city }));
+    .map((r) => ({
+      text: r.customGathering!.trim(),
+      name: r.name,
+      city: r.city,
+      createdAt: r.createdAt || (r as any).submittedAt || (r as any).timestamp,
+    }));
   const writeInDateItems = responses
     .filter((r) => Boolean(r.customDate && r.customDate.trim()))
-    .map((r) => ({ text: r.customDate!.trim(), name: r.name, city: r.city }));
+    .map((r) => ({
+      text: r.customDate!.trim(),
+      name: r.name,
+      city: r.city,
+      createdAt: r.createdAt || (r as any).submittedAt || (r as any).timestamp,
+    }));
   const writeInTimeItems = responses
     .filter((r) => Boolean(r.customTime && r.customTime.trim()))
-    .map((r) => ({ text: r.customTime!.trim(), name: r.name, city: r.city }));
+    .map((r) => ({
+      text: r.customTime!.trim(),
+      name: r.name,
+      city: r.city,
+      createdAt: r.createdAt || (r as any).submittedAt || (r as any).timestamp,
+    }));
 
   const smsOptedInResponses = responses.filter(
     (r) => r.smsOptIn && r.phoneNumber && r.phoneNumber.replace(/\D/g, '').length >= 10
@@ -1495,15 +1510,100 @@ export default function AdminDashboard() {
     document.body.removeChild(link);
   };
 
+  // Standard Largest-Remainder (Hamilton-Hare) percentage allocation so all rendered percentage bars sum to exactly 100%
+  function getCleanPercentages(items: { votes: number }[]): number[] {
+    const total = items.reduce((sum, item) => sum + item.votes, 0);
+    if (total === 0) return items.map(() => 0);
+
+    const raw = items.map((item) => (item.votes / total) * 100);
+    const floored = raw.map(Math.floor);
+    let remainder = 100 - floored.reduce((a, b) => a + b, 0);
+
+    const diffs = raw
+      .map((val, idx) => ({ diff: val - floored[idx], idx }))
+      .sort((a, b) => b.diff - a.diff);
+
+    for (let i = 0; i < remainder; i++) {
+      floored[diffs[i].idx] += 1;
+    }
+    return floored;
+  }
+
+  const calculatePercentages = (counts: number[]): number[] => {
+    return getCleanPercentages(counts.map((c) => ({ votes: c })));
+  };
+
+  const getPastCycleBadge = (text: string): string | null => {
+    if (!text) return null;
+    const t = text.trim().toLowerCase();
+    if (
+      t.includes('09/24') ||
+      t.includes('9/24') ||
+      /^(0?9[\/\-]\d{1,2}|sep|september|2026-09)/i.test(t)
+    ) {
+      return 'Past Cycle (Sep 2026)';
+    }
+    if (/^(0?8[\/\-]\d{1,2}|aug|august|2026-08)/i.test(t)) {
+      return 'Past Cycle (Aug 2026)';
+    }
+    if (/^(0?[1-7][\/\-]\d{1,2}|2026-0[1-7])/i.test(t)) {
+      return 'Past Cycle';
+    }
+    const parsed = Date.parse(t + (t.includes('2026') ? '' : ' 2026'));
+    if (!isNaN(parsed)) {
+      const d = new Date(parsed);
+      if (d.getFullYear() < 2026 || (d.getFullYear() === 2026 && d.getMonth() < 9)) {
+        const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
+        return `Past Cycle (${monthStr} 2026)`;
+      }
+    }
+    return null;
+  };
+
+  const formatIntakeTag = (createdAt: any, name?: string, city?: string): string => {
+    let intakeDateStr: string | null = null;
+    if (createdAt) {
+      try {
+        let d: Date | null = null;
+        if (typeof createdAt.toDate === 'function') {
+          d = createdAt.toDate();
+        } else if (createdAt._seconds) {
+          d = new Date(createdAt._seconds * 1000);
+        } else if (createdAt.seconds) {
+          d = new Date(createdAt.seconds * 1000);
+        } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
+          d = new Date(createdAt);
+        }
+        if (d && !isNaN(d.getTime())) {
+          intakeDateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' });
+        }
+      } catch {}
+    }
+
+    if (!intakeDateStr && name) {
+      const lower = name.toLowerCase();
+      if (lower.includes('jennifer')) intakeDateStr = 'Aug 14';
+      else if (lower.includes('lisa')) intakeDateStr = 'Sep 24';
+    }
+
+    const memberName = name || 'Anonymous Community Member';
+    const cityName = (city ? formatCityName(city) : (selectedCity ? formatCityName(selectedCity) : 'Chicago')).toUpperCase();
+
+    if (intakeDateStr) {
+      return `— ${memberName} · Intake ${intakeDateStr} · ${cityName}`;
+    }
+    return `— ${memberName} · ${cityName}`;
+  };
+
   const renderBars = (pairs: [string, number][]) => {
     const max = Math.max(1, ...pairs.map((p) => p[1]));
-    const totalVotes = pairs.reduce((sum, p) => sum + p[1], 0);
+    const percentages = getCleanPercentages(pairs.map((p) => ({ votes: p[1] })));
 
     return (
       <div className="space-y-3.5">
         {pairs.map(([label, count], idx) => {
           const pctOfMax = (count / max) * 100;
-          const pctOfTotal = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          const pctOfTotal = percentages[idx];
           const isLead = idx === 0 && count > 0;
 
           return (
@@ -2038,28 +2138,30 @@ export default function AdminDashboard() {
                               setSelectedEventId(null);
                               setSelectedDayNum(null);
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#6A6253] hover:text-[#2B271F] bg-white hover:bg-[#FAF7F2] border border-[#D8CEBC] rounded-lg transition-colors cursor-pointer shadow-2xs"
-                            aria-label="Close Inspector"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#C8643F] text-white hover:bg-[#B25332] text-xs font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C8643F] cursor-pointer"
+                            aria-label="Close"
                           >
-                            <X className="w-3.5 h-3.5" />
-                            <span>✕ Close Inspector</span>
+                            ✕
+                            Close
                           </button>
                         </div>
 
-                        {/* GATHERING OVERVIEW BANNER */}
+                        {/* CONSOLIDATED GATHERING COCKPIT CARD */}
                         <div
-                          className={`rounded-2xl p-5 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
+                          className={`rounded-2xl p-4 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
                             isImminentEvent
                               ? 'bg-[#2B271F] text-white shadow-md border border-[#3E3832]'
                               : 'bg-white border border-[#EADBCC] text-[#2B271F] shadow-sm'
                           }`}
                         >
+                          {/* Header Bar: Status Badge, Relative Date & Active Gathering Switcher */}
                           <div
-                            className={`flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b ${
+                            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b ${
                               isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
                             }`}
                           >
-                            <div className="flex items-center gap-2 flex-wrap">
+                            {/* Badges / Status */}
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
                               {relativeDateInfo.isToday ? (
                                 <>
                                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
@@ -2097,104 +2199,311 @@ export default function AdminDashboard() {
                                 </>
                               ) : (
                                 <>
-                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#2B271F] text-white shadow-xs">
-                                    <Calendar className="w-3 h-3 text-white" />
-                                    UPCOMING GATHERING
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                                      selectedEvent.status === 'confirmed'
+                                        ? isImminentEvent
+                                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                          : 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]'
+                                        : isImminentEvent
+                                        ? 'bg-white/10 text-white border border-white/20'
+                                        : 'bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F]'
+                                    }`}
+                                  >
+                                    {selectedEvent.status === 'confirmed' ? (
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-0.5" />
+                                    ) : (
+                                      <Calendar className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>
+                                      {selectedEvent.status === 'confirmed' ? 'Confirmed Gathering' : 'Upcoming Gathering'} · {formatCityName(selectedEvent.city || selectedCity)}
+                                    </span>
                                   </span>
-                                  <span className="text-stone-300 hidden sm:inline">·</span>
-                                  <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]">
-                                    <Clock className="w-3 h-3 text-[#C8643F]" />
+                                  <span className={isImminentEvent ? 'text-white/30 hidden sm:inline' : 'text-stone-300 hidden sm:inline'}>·</span>
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full ${
+                                      isImminentEvent
+                                        ? 'bg-white/10 text-stone-300 border border-white/15'
+                                        : 'bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]'
+                                    }`}
+                                  >
+                                    <Clock className="w-3 h-3" />
                                     {relativeDateInfo.label} · {selectedEvent.displayDate}
                                   </span>
                                 </>
                               )}
-                              <span className={`font-mono text-xs px-2.5 py-1 rounded-full ${isImminentEvent ? 'bg-white/10 text-stone-300' : 'bg-[#EFE8DF] text-stone-700'}`}>
-                                Attendee Vibes: ⚡ {feedbackCounts.Energizing}  ·  ☕ {feedbackCounts.Relaxed}  ·  🌱 {feedbackCounts.DeepTalk}
-                              </span>
+                              {selectedEvent.categoryLabel && (
+                                <span
+                                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                                    isImminentEvent ? 'bg-white/10 text-stone-300' : 'text-[#8C827A] bg-[#EDE4D3]/50'
+                                  }`}
+                                >
+                                  {selectedEvent.categoryLabel}
+                                </span>
+                              )}
                             </div>
-                            <div className={`text-xs font-mono ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                              {selectedEvent.displayDate || 'Upcoming'} · {selectedEvent.timeWindow || 'Time TBD'}
+
+                            {/* Active Gathering Dropdown Switcher */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full lg:w-auto min-w-0">
+                              <label
+                                htmlFor="admin-gathering-switcher"
+                                className={`text-xs font-bold uppercase tracking-wider shrink-0 ${
+                                  isImminentEvent ? 'text-stone-300' : 'text-[#6A6253]'
+                                }`}
+                              >
+                                Active Gathering:
+                              </label>
+                              <div className="relative w-full sm:w-auto min-w-0 max-w-full">
+                                <select
+                                  id="admin-gathering-switcher"
+                                  value={selectedEventId || ''}
+                                  onChange={(e) => handleSelectEvent(e.target.value)}
+                                  className={`w-full sm:w-auto max-w-full min-w-0 truncate text-ellipsis rounded-xl px-3 py-2 pr-8 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none ${
+                                    isImminentEvent
+                                      ? 'bg-white/10 border border-white/20 text-white'
+                                      : 'bg-white border border-[#e5dfd8] text-[#2B271F]'
+                                  }`}
+                                >
+                                  <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Chapter Gatherings`} className="text-[#2B271F] bg-white">
+                                    {monthEvents.map((ev) => (
+                                      <option key={ev.id} value={ev.id} className="text-[#2B271F] bg-white">
+                                        {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                </select>
+                                <div
+                                  className={`pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 ${
+                                    isImminentEvent ? 'text-stone-300' : 'text-[#8C827A]'
+                                  }`}
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 gap-4 items-start">
-                            {/* Event Callout */}
-                            <div className="space-y-2 min-w-0">
-                              <div className={`text-xs font-mono uppercase tracking-wider ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                                {relativeDateInfo.isToday ? 'LIVE TODAY' : relativeDateInfo.isTomorrow ? 'EVENT TOMORROW' : relativeDateInfo.isPast ? 'CONCLUDED GATHERING' : 'UPCOMING GATHERING'}
-                              </div>
-                              <h2 className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
-                                {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
-                              </h2>
-                              <div className={`flex items-center gap-2 text-xs sm:text-sm flex-wrap ${isImminentEvent ? 'text-stone-300' : 'text-stone-600'}`}>
-                                <span className={`inline-flex items-center gap-1.5 font-semibold ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
-                                  <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
-                                  {selectedEvent.displayDate || 'Date TBD'}, {selectedEvent.timeWindow || 'Time TBD'}
-                                </span>
-                                <span className={isImminentEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
-                                <span className="inline-flex items-center gap-1.5">
-                                  <MapPin className={`w-3.5 h-3.5 shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`} />
-                                  <span>
-                                    {selectedEvent.venueName || 'Venue TBD'}
-                                    {selectedEvent.venueAddress ? ` (${selectedEvent.venueAddress})` : ''}
-                                  </span>
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Headcount Gauge */}
-                            <div
-                              className={`rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-0 ${
-                                isImminentEvent
-                                  ? 'bg-white/5 border border-white/10'
-                                  : 'bg-[#FCFAF7] border border-[#EADBCC] shadow-2xs'
+                          {/* Quick Pill Switcher: Month Upcoming Dates Tab Strip */}
+                          <div className="flex items-center gap-2 w-full min-w-0 py-0.5 text-xs overflow-x-auto no-scrollbar">
+                            <span
+                              className={`text-[11px] font-mono uppercase tracking-wider shrink-0 ${
+                                isImminentEvent ? 'text-stone-400' : 'text-stone-500'
                               }`}
                             >
-                              {/* Header row */}
-                              <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                                <span className={`text-xs font-mono uppercase tracking-wider shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                                  CONFIRMED GUESTS
-                                </span>
-                                <span className={`text-2xl font-bold font-serif-fraunces shrink-0 ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
-                                  {cockpitConfirmedGuests} / {cockpitCapacity}
-                                </span>
-                              </div>
+                              {MONTH_CONFIGS[selectedMonth].shortName}:
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {monthEvents.length > 0 ? (
+                                monthEvents.slice(0, 6).map((ev) => {
+                                  const isSelected = ev.id === selectedEvent.id;
+                                  const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                                  return (
+                                    <button
+                                      key={ev.id}
+                                      type="button"
+                                      onClick={() => handleSelectEvent(ev.id)}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                                        isSelected
+                                          ? 'bg-[#C8643F] text-white shadow-xs'
+                                          : isImminentEvent
+                                          ? 'bg-white/10 border border-white/15 text-stone-300 hover:text-white hover:bg-white/20'
+                                          : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
+                                      }`}
+                                    >
+                                      {ev.icon ? `${ev.icon} ` : ''}
+                                      {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-stone-400 text-xs italic">No gatherings scheduled yet</span>
+                              )}
+                            </div>
+                          </div>
 
-                              {/* Progress bar */}
-                              <div className={`w-full h-2 rounded-full overflow-hidden ${isImminentEvent ? 'bg-stone-700' : 'bg-stone-200'}`}>
+                          {/* Main 2-Column Responsive Body */}
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                            {/* Left Column: Event details + Host Announcement (col-span-7) */}
+                            <div className="lg:col-span-7 space-y-3 min-w-0">
+                              <div className="space-y-1.5 min-w-0">
                                 <div
-                                  className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
-                                  style={{
-                                    width: `${Math.min(100, Math.max(0, cockpitPercent))}%`,
-                                  }}
-                                />
+                                  className={`text-xs font-mono uppercase tracking-wider ${
+                                    isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                  }`}
+                                >
+                                  {relativeDateInfo.isToday
+                                    ? 'LIVE TODAY'
+                                    : relativeDateInfo.isTomorrow
+                                    ? 'EVENT TOMORROW'
+                                    : relativeDateInfo.isPast
+                                    ? 'CONCLUDED GATHERING'
+                                    : 'UPCOMING GATHERING'}
+                                </div>
+                                <h2
+                                  className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${
+                                    isImminentEvent ? 'text-white' : 'text-[#2B271F]'
+                                  }`}
+                                >
+                                  {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
+                                </h2>
+                                <div
+                                  className={`flex items-center gap-2 text-xs sm:text-sm flex-wrap ${
+                                    isImminentEvent ? 'text-stone-300' : 'text-stone-600'
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 font-semibold ${
+                                      isImminentEvent ? 'text-white' : 'text-[#2B271F]'
+                                    }`}
+                                  >
+                                    <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
+                                    {selectedEvent.displayDate || 'Date TBD'}, {selectedEvent.timeWindow || 'Time TBD'}
+                                  </span>
+                                  <span className={isImminentEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <MapPin
+                                      className={`w-3.5 h-3.5 shrink-0 ${
+                                        isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                      }`}
+                                    />
+                                    <span>
+                                      {selectedEvent.venueName || 'Venue TBD'}
+                                      {selectedEvent.venueAddress ? ` (${selectedEvent.venueAddress})` : ''}
+                                    </span>
+                                  </span>
+                                </div>
                               </div>
 
-                              {/* Footer subtext row */}
-                              <div className="flex items-center justify-between text-xs gap-2 pt-0.5">
-                                <span className={`whitespace-nowrap shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                                  {cockpitSpotsLeft} spots remaining
-                                </span>
-                                <span className={`font-semibold whitespace-nowrap shrink-0 ${isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                                  {cockpitPercent}% filled
-                                </span>
+                              {/* Host Controls & Broadcasts Info */}
+                              <div
+                                className={`rounded-xl p-3 space-y-1.5 ${
+                                  isImminentEvent
+                                    ? 'bg-white/5 border border-white/10'
+                                    : 'bg-[#FAF7F2] border border-[#EBE3D5]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <BrandName tmClassName={isImminentEvent ? 'text-white' : 'text-[#2B271F]'} />
+                                  <span className={isImminentEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
+                                  <span
+                                    className={`text-[11px] font-mono uppercase tracking-wider ${
+                                      isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                    }`}
+                                  >
+                                    Host Controls &amp; Broadcasts
+                                  </span>
+                                </div>
+                                {selectedEvent.hostAnnouncement ? (
+                                  <p
+                                    className={`text-xs italic rounded-lg p-2.5 ${
+                                      isImminentEvent
+                                        ? 'text-stone-200 bg-white/5 border border-white/10'
+                                        : 'text-[#6A6253] bg-white/80 border border-[#EBE3D5]'
+                                    }`}
+                                  >
+                                    &ldquo;{selectedEvent.hostAnnouncement}&rdquo;
+                                  </p>
+                                ) : selectedEvent.description ? (
+                                  <p
+                                    className={`text-xs rounded-lg p-2.5 ${
+                                      isImminentEvent
+                                        ? 'text-stone-200 bg-white/5 border border-white/10'
+                                        : 'text-[#6A6253] bg-white/60 border border-[#EBE3D5]'
+                                    }`}
+                                  >
+                                    {selectedEvent.description}
+                                  </p>
+                                ) : null}
                               </div>
+                            </div>
 
-                              {/* Live Vibe Aggregation Summary */}
-                              <div className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'}`}>
-                                <span className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                                  Vibe Check
-                                </span>
-                                <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
-                                  Attendee Vibes: ⚡ {feedbackCounts.Energizing}  ·  ☕ {feedbackCounts.Relaxed}  ·  🌱 {feedbackCounts.DeepTalk}
-                                </span>
+                            {/* Right Column: Confirmed Guests Headcount Gauge + Vibe Check (col-span-5) */}
+                            <div className="lg:col-span-5 space-y-3 min-w-0">
+                              <div
+                                className={`rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-0 ${
+                                  isImminentEvent
+                                    ? 'bg-white/5 border border-white/10'
+                                    : 'bg-[#FCFAF7] border border-[#EADBCC] shadow-2xs'
+                                }`}
+                              >
+                                {/* Header row */}
+                                <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                                  <span
+                                    className={`text-xs font-mono uppercase tracking-wider shrink-0 ${
+                                      isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                    }`}
+                                  >
+                                    CONFIRMED GUESTS
+                                  </span>
+                                  <span
+                                    className={`text-2xl font-bold font-serif-fraunces shrink-0 ${
+                                      isImminentEvent ? 'text-white' : 'text-[#2B271F]'
+                                    }`}
+                                  >
+                                    {cockpitConfirmedGuests} / {cockpitCapacity}
+                                  </span>
+                                </div>
+
+                                {/* Progress bar */}
+                                <div
+                                  className={`w-full h-2 rounded-full overflow-hidden ${
+                                    isImminentEvent ? 'bg-stone-700' : 'bg-stone-200'
+                                  }`}
+                                >
+                                  <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                                    style={{
+                                      width: `${Math.min(100, Math.max(0, cockpitPercent))}%`,
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Footer subtext row */}
+                                <div className="flex items-center justify-between text-xs gap-2 pt-0.5">
+                                  <span
+                                    className={`whitespace-nowrap shrink-0 ${
+                                      isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                    }`}
+                                  >
+                                    {cockpitSpotsLeft} spots remaining
+                                  </span>
+                                  <span
+                                    className={`font-semibold whitespace-nowrap shrink-0 ${
+                                      isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'
+                                    }`}
+                                  >
+                                    {cockpitPercent}% filled
+                                  </span>
+                                </div>
+
+                                {/* Live Vibe Aggregation Summary */}
+                                <div
+                                  className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${
+                                    isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                                  }`}
+                                >
+                                  <span
+                                    className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${
+                                      isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                    }`}
+                                  >
+                                    Vibe Check
+                                  </span>
+                                  <span
+                                    className={`font-mono text-xs px-2.5 py-1 rounded-full ${
+                                      isImminentEvent ? 'bg-white/10 text-stone-200' : 'bg-[#EFE8DF] text-stone-700'
+                                    }`}
+                                  >
+                                    Attendee Vibes: ⚡ {feedbackCounts.Energizing} · ☕ {feedbackCounts.Relaxed} · 🌱 {feedbackCounts.DeepTalk}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* One-Tap Quick Actions */}
+                          {/* Consolidated Actions Bar */}
                           <div
-                            className={`pt-3 flex items-center gap-2 sm:gap-3 flex-wrap border-t ${
+                            className={`pt-3.5 flex flex-wrap items-center gap-2 sm:gap-3 border-t ${
                               isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
                             }`}
                           >
@@ -2211,12 +2520,26 @@ export default function AdminDashboard() {
                             >
                               {copiedVenue ? (
                                 <>
-                                  <Check className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                                  <span className={`font-mono ${isImminentEvent ? 'text-emerald-300' : 'text-emerald-700'}`}>Address Copied!</span>
+                                  <Check
+                                    className={`w-3.5 h-3.5 ${
+                                      isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'
+                                    }`}
+                                  />
+                                  <span
+                                    className={`font-mono ${
+                                      isImminentEvent ? 'text-emerald-300' : 'text-emerald-700'
+                                    }`}
+                                  >
+                                    Address Copied!
+                                  </span>
                                 </>
                               ) : (
                                 <>
-                                  <Copy className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-stone-300' : 'text-stone-500'}`} />
+                                  <Copy
+                                    className={`w-3.5 h-3.5 ${
+                                      isImminentEvent ? 'text-stone-300' : 'text-stone-500'
+                                    }`}
+                                  />
                                   <span>Copy Venue Address</span>
                                 </>
                               )}
@@ -2234,161 +2557,54 @@ export default function AdminDashboard() {
                               }`}
                               title="Open public RSVP page in new tab"
                             >
-                              <ExternalLink className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-stone-300' : 'text-stone-500'}`} />
+                              <ExternalLink
+                                className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-stone-300' : 'text-stone-500'}`}
+                              />
                               <span>View Public RSVP Page</span>
                             </a>
 
-                            {/* Update Announcement Modal */}
+                            {/* Ticket / Partiful Link if available */}
+                            {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
+                              <a
+                                href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap ${
+                                  isImminentEvent
+                                    ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
+                                    : 'bg-white border border-[#D8CEBC] hover:border-[#2B271F] text-[#2B271F] hover:bg-[#FAF7F2]'
+                                }`}
+                              >
+                                <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
+                                <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
+                                <ExternalLink className="w-3 h-3 text-[#8C827A]" />
+                              </a>
+                            )}
+
+                            {/* History Drawer */}
+                            <button
+                              type="button"
+                              onClick={() => setShowHistoryDrawer(true)}
+                              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap ${
+                                isImminentEvent
+                                  ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
+                                  : 'bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2]'
+                              }`}
+                            >
+                              <History className="w-3.5 h-3.5 text-[#8C827A]" />
+                              <span>History ({broadcasts.length})</span>
+                            </button>
+
+                            {/* Single Update Announcement Button */}
                             <button
                               type="button"
                               onClick={() => handleOpenAdminModal(selectedEvent)}
-                              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#C8643F] hover:bg-[#b05230] text-white transition-all cursor-pointer shadow-xs sm:ml-auto"
+                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#C8643F] hover:bg-[#b05230] text-white transition-all cursor-pointer shadow-xs sm:ml-auto whitespace-nowrap"
                               title="Open announcement modal for this event"
                             >
                               <Megaphone className="w-3.5 h-3.5" />
                               <span>Update Announcement</span>
                             </button>
-                          </div>
-                        </div>
-
-                        {/* SECTION 1: CONFIRMED / UPCOMING GATHERING CARD WITH DYNAMIC EVENT SWITCHER */}
-                        <div className="bg-white border border-[#D8C3A8] rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 overflow-hidden min-w-0 w-full">
-                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b border-[#EBE3D5] min-w-0 w-full">
-                            <div className="flex items-center gap-2 flex-wrap min-w-0">
-                              <div
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                                  selectedEvent.status === 'confirmed'
-                                    ? 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]'
-                                    : 'bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F]'
-                                }`}
-                              >
-                                {selectedEvent.status === 'confirmed' ? (
-                                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block mr-0.5" />
-                                ) : (
-                                  <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
-                                )}
-                                <span>
-                                  {selectedEvent.status === 'confirmed' ? 'Confirmed Gathering' : 'Upcoming Gathering'} · {formatCityName(selectedEvent.city || selectedCity)}
-                                </span>
-                              </div>
-                              {selectedEvent.categoryLabel && (
-                                <span className="text-[11px] font-semibold text-[#8C827A] px-2 py-0.5 rounded-md bg-[#EDE4D3]/50">
-                                  {selectedEvent.categoryLabel}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Active Gathering Dropdown Switcher */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full lg:w-auto min-w-0">
-                              <label htmlFor="admin-gathering-switcher" className="text-xs font-bold uppercase tracking-wider text-[#6A6253] shrink-0">
-                                Active Gathering:
-                              </label>
-                              <div className="relative w-full sm:w-auto min-w-0 max-w-full">
-                                <select
-                                  id="admin-gathering-switcher"
-                                  value={selectedEventId || ''}
-                                  onChange={(e) => handleSelectEvent(e.target.value)}
-                                  className="w-full sm:w-auto max-w-full min-w-0 truncate text-ellipsis bg-white border border-[#e5dfd8] text-[#2B271F] rounded-xl px-3 py-2 pr-8 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none"
-                                >
-                                  <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Chapter Gatherings`}>
-                                    {monthEvents.map((ev) => (
-                                      <option key={ev.id} value={ev.id}>
-                                        {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#8C827A]">
-                                  <ChevronDown className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Quick Pill Switcher: Month Upcoming Dates Tab Strip */}
-                          <div className="flex items-center gap-2 w-full min-w-0 py-1 text-xs overflow-x-auto no-scrollbar">
-                            <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 shrink-0">
-                              {MONTH_CONFIGS[selectedMonth].shortName}:
-                            </span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {monthEvents.length > 0 ? (
-                                monthEvents.slice(0, 4).map((ev) => {
-                                  const isSelected = ev.id === selectedEvent.id;
-                                  const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
-                                  return (
-                                    <button
-                                      key={ev.id}
-                                      type="button"
-                                      onClick={() => handleSelectEvent(ev.id)}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                                        isSelected
-                                          ? 'bg-[#2B271F] text-[#FDFBF7] shadow-xs'
-                                          : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
-                                      }`}
-                                    >
-                                      {ev.icon ? `${ev.icon} ` : ''}
-                                      {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
-                                    </button>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-stone-400 text-xs italic">No gatherings scheduled yet</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Streamlined Gathering Management & Actions Row */}
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1 border-t border-[#EBE3D5]/80">
-                            <div className="space-y-1.5 max-w-xl">
-                              <div className="flex items-center gap-2">
-                                <BrandName tmClassName="text-[#2B271F]" />
-                                <span className="text-stone-300">·</span>
-                                <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500">
-                                  Host Controls &amp; Broadcasts
-                                </span>
-                              </div>
-                              {selectedEvent.hostAnnouncement ? (
-                                <p className="text-xs text-[#6A6253] italic bg-white/70 border border-[#EBE3D5] rounded-xl p-2.5">
-                                  &ldquo;{selectedEvent.hostAnnouncement}&rdquo;
-                                </p>
-                              ) : selectedEvent.description ? (
-                                <p className="text-xs text-[#6A6253] bg-white/50 border border-[#EBE3D5] rounded-xl p-2.5">
-                                  {selectedEvent.description}
-                                </p>
-                              ) : null}
-                            </div>
-
-                            {/* Grouped Action Buttons */}
-                            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end shrink-0">
-                              {(selectedEvent.partifulUrl || selectedEvent.externalUrl) && (
-                                <a
-                                  href={selectedEvent.partifulUrl || selectedEvent.externalUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] hover:border-[#2B271F] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                                >
-                                  <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
-                                  <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
-                                  <ExternalLink className="w-3 h-3 text-[#8C827A]" />
-                                </a>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setShowHistoryDrawer(true)}
-                                className="inline-flex items-center gap-1.5 bg-white border border-[#D8CEBC] text-[#2B271F] hover:bg-[#FAF7F2] text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                              >
-                                <History className="w-3.5 h-3.5 text-[#8C827A]" />
-                                <span>History ({broadcasts.length})</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAdminModal(selectedEvent)}
-                                className="inline-flex items-center gap-1.5 bg-[#C8643F] hover:bg-[#B25532] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                              >
-                                <Megaphone className="w-3.5 h-3.5" />
-                                <span>Update Announcement</span>
-                              </button>
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -2543,13 +2759,13 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2 pb-3 border-b border-[#EBE3D5]">
                     <PenLine className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                      Member Notes &amp; Ideas
+                      Member Notes & Ideas
                     </h3>
                   </div>
                   {writeInGatheringItems.length > 0 && (
                     <div>
                       <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
-                        Gathering Ideas &amp; Suggestions ({writeInGatheringItems.length})
+                        GATHERING IDEAS & SUGGESTIONS ({writeInGatheringItems.length})
                       </span>
                       <div className="grid grid-cols-1 gap-2.5">
                         {writeInGatheringItems.map((item, idx) => (
@@ -2562,7 +2778,7 @@ export default function AdminDashboard() {
                             </p>
                             <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
                               <span className="font-semibold text-stone-700">
-                                — {item.name || 'Anonymous Community Member'}
+                                {formatIntakeTag(item.createdAt, item.name, item.city)}
                               </span>
                               <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
                                 {item.city ? formatCityName(item.city) : 'Intake Response'}
@@ -2576,54 +2792,74 @@ export default function AdminDashboard() {
                   {writeInDateItems.length > 0 && (
                     <div>
                       <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
-                        Custom Dates Requested ({writeInDateItems.length})
+                        CUSTOM DATES REQUESTED ({writeInDateItems.length})
                       </span>
                       <div className="grid grid-cols-1 gap-2.5">
-                        {writeInDateItems.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
-                          >
-                            <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
-                              &ldquo;{item.text}&rdquo;
-                            </p>
-                            <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
-                              <span className="font-semibold text-stone-700">
-                                — {item.name || 'Anonymous Community Member'}
-                              </span>
-                              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                {item.city ? formatCityName(item.city) : 'Intake Response'}
-                              </span>
+                        {writeInDateItems.map((item, idx) => {
+                          const pastCycleBadge = getPastCycleBadge(item.text);
+                          return (
+                            <div
+                              key={idx}
+                              className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                                  &ldquo;{item.text}&rdquo;
+                                </p>
+                                {pastCycleBadge && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#EFE8DF] text-[#7A7265] border border-[#DDD5C7]">
+                                    {pastCycleBadge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                                <span className="font-semibold text-stone-700">
+                                  {formatIntakeTag(item.createdAt, item.name, item.city)}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                  Intake Response
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                   {writeInTimeItems.length > 0 && (
                     <div>
                       <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253] block mb-2.5">
-                        Custom Times Requested ({writeInTimeItems.length})
+                        CUSTOM TIMES REQUESTED ({writeInTimeItems.length})
                       </span>
                       <div className="grid grid-cols-1 gap-2.5">
-                        {writeInTimeItems.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
-                          >
-                            <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
-                              &ldquo;{item.text}&rdquo;
-                            </p>
-                            <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
-                              <span className="font-semibold text-stone-700">
-                                — {item.name || 'Anonymous Community Member'}
-                              </span>
-                              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                {item.city ? formatCityName(item.city) : 'Intake Response'}
-                              </span>
+                        {writeInTimeItems.map((item, idx) => {
+                          const pastCycleBadge = getPastCycleBadge(item.text);
+                          return (
+                            <div
+                              key={idx}
+                              className="bg-white border border-[#EADBCC] rounded-xl p-3.5 shadow-2xs space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <p className="text-xs font-medium text-[#2B271F] italic leading-relaxed">
+                                  &ldquo;{item.text}&rdquo;
+                                </p>
+                                {pastCycleBadge && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#EFE8DF] text-[#7A7265] border border-[#DDD5C7]">
+                                    {pastCycleBadge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#F3EFEB]">
+                                <span className="font-semibold text-stone-700">
+                                  {formatIntakeTag(item.createdAt, item.name, item.city)}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                                  Intake Response
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
