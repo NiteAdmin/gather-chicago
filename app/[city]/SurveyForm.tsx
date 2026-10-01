@@ -1823,15 +1823,15 @@ export default function SurveyForm({
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl text-sm font-medium bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB]">
+                          <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl font-sans font-medium text-sm bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB]">
                             {calendarMonth === "2026-10" ? "Sun, Oct 4 · Lincoln Square" : "Sat, Nov 14 · GnarWare Pilsen"}
                           </span>
                           {hasVoted ? (
-                            <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl text-sm font-medium bg-[#E8EFE9] text-[#2D6A4F] border border-[#BBD3C5]">
+                            <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl font-sans font-medium text-sm bg-[#E8EFE9] text-[#2D6A4F] border border-[#BBD3C5]">
                               ✓ Voted
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl text-sm font-medium bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB]">
+                            <span className="inline-flex items-center px-3.5 py-1.5 rounded-2xl font-sans font-medium text-sm bg-[#EFECE6] text-[#2B271F] border border-[#DDD7CB]">
                               Community Poll
                             </span>
                           )}
@@ -1859,7 +1859,7 @@ export default function SurveyForm({
                         <button
                           type="button"
                           onClick={() => setIsPotteryModalOpen(true)}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-sm font-medium transition-all cursor-pointer border border-[#DDD7CB] bg-[#EFECE6] text-[#2B271F] hover:bg-[#E8E3DB] shadow-xs inline-flex items-center justify-center gap-1"
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-2xl font-sans font-medium text-sm transition-all cursor-pointer border border-[#DDD7CB] bg-[#EFECE6] text-[#2B271F] hover:bg-[#E8E3DB] shadow-xs inline-flex items-center justify-center gap-1"
                         >
                           Edit Vote
                         </button>
@@ -1867,7 +1867,7 @@ export default function SurveyForm({
                         <button
                           type="button"
                           onClick={() => setIsPotteryModalOpen(true)}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-sm font-medium transition-all cursor-pointer border border-[#DDD7CB] bg-[#EFECE6] text-[#2B271F] hover:bg-[#E8E3DB] shadow-xs inline-flex items-center justify-center gap-1"
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-2xl font-sans font-medium text-sm transition-all cursor-pointer border border-[#DDD7CB] bg-[#EFECE6] text-[#2B271F] hover:bg-[#E8E3DB] shadow-xs inline-flex items-center justify-center gap-1"
                         >
                           Vote Now &rarr;
                         </button>
