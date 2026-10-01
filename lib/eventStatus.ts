@@ -278,3 +278,59 @@ export function getCommunityEventPhase(event: EventDateOptions): EventPhase {
   const { startIso, endIso } = getEventDateTimes(event);
   return getEventPhase(startIso, endIso);
 }
+
+export interface RelativeDateInfo {
+  diffDays: number;
+  label: string;
+  isToday: boolean;
+  isTomorrow: boolean;
+  isPast: boolean;
+}
+
+/**
+ * Recomputes relative event badges using true midnight-to-midnight date diffing.
+ * - diffDays < -1: `${Math.abs(diffDays)} days ago`
+ * - diffDays === -1: "Yesterday"
+ * - diffDays === 0: "Today"
+ * - diffDays === 1: "Tomorrow"
+ * - diffDays > 1: `In ${diffDays} days`
+ */
+export function getRelativeDateInfo(eventDateStr?: string): RelativeDateInfo {
+  if (!eventDateStr) {
+    return { diffDays: 999, label: 'Upcoming', isToday: false, isTomorrow: false, isPast: false };
+  }
+  try {
+    const todayStr = getTodayDateString(); // e.g. "2026-09-30" locked to America/Chicago
+    const [tY, tM, tD] = todayStr.split('-').map(Number);
+    const todayMidnight = new Date(tY, tM - 1, tD).getTime();
+
+    let targetIso = eventDateStr.trim();
+    const match = targetIso.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      targetIso = match[0];
+    } else {
+      const parsed = new Date(targetIso);
+      if (!isNaN(parsed.getTime())) {
+        targetIso = parsed.toISOString().split('T')[0];
+      }
+    }
+
+    const [eY, eM, eD] = targetIso.split('-').map(Number);
+    const eventMidnight = new Date(eY, eM - 1, eD).getTime();
+
+    const diffDays = Math.round((eventMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < -1) return { diffDays, label: `${Math.abs(diffDays)} days ago`, isToday: false, isTomorrow: false, isPast: true };
+    if (diffDays === -1) return { diffDays, label: 'Yesterday', isToday: false, isTomorrow: false, isPast: true };
+    if (diffDays === 0) return { diffDays, label: 'Today', isToday: true, isTomorrow: false, isPast: false };
+    if (diffDays === 1) return { diffDays, label: 'Tomorrow', isToday: false, isTomorrow: true, isPast: false };
+    return { diffDays, label: `In ${diffDays} days`, isToday: false, isTomorrow: false, isPast: false };
+  } catch {
+    return { diffDays: 999, label: 'Upcoming', isToday: false, isTomorrow: false, isPast: false };
+  }
+}
+
+export function getRelativeEventDate(eventDateStr?: string): string {
+  return getRelativeDateInfo(eventDateStr).label;
+}
+

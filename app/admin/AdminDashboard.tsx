@@ -7,6 +7,7 @@ import { formatPhoneNumber } from '@/lib/formatPhone';
 import { db, BroadcastRecord } from '@/lib/firebase';
 import { CommunityEvent, getEventsForCity, fetchHydratedEvents, splitEventTitle } from '@/lib/eventsConfig';
 import { RegisteredUser, fetchAllUsers, calculateEventAttendance, isContactAttendingEvent } from '@/lib/userEvents';
+import { getRelativeDateInfo, getTodayDateString } from '@/lib/eventStatus';
 import { BrandName } from '@/components/brand/BrandName';
 import Footer from '@/components/Footer';
 import {
@@ -79,30 +80,45 @@ export const AVAILABLE_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as 
 export type MonthKey = (typeof AVAILABLE_MONTHS)[number];
 export const CURRENT_CYCLE_MONTH: MonthKey = "2026-10";
 
-export const MONTH_CONFIGS: Record<MonthKey, { key: MonthKey; name: string; shortName: string; badgeLabel: string }> = {
+export const MONTH_CONFIGS: Record<MonthKey, {
+  key: MonthKey;
+  name: string;
+  shortName: string;
+  badgeLabel: string;
+  daysInMonth: number;
+  startDayOfWeek: number;
+}> = {
   "2026-09": {
     key: "2026-09",
     name: "September 2026",
     shortName: "Sep 2026",
     badgeLabel: "SEPTEMBER 2026 RECAP",
+    daysInMonth: 30,
+    startDayOfWeek: 2, // Tuesday (Sep 1, 2026)
   },
   "2026-10": {
     key: "2026-10",
     name: "October 2026",
     shortName: "Oct 2026",
     badgeLabel: "OCTOBER 2026 ACTIVE CYCLE",
+    daysInMonth: 31,
+    startDayOfWeek: 4, // Thursday (Oct 1, 2026)
   },
   "2026-11": {
     key: "2026-11",
     name: "November 2026",
     shortName: "Nov 2026",
     badgeLabel: "NOVEMBER 2026 PREVIEW",
+    daysInMonth: 30,
+    startDayOfWeek: 0, // Sunday (Nov 1, 2026)
   },
   "2026-12": {
     key: "2026-12",
     name: "December 2026",
     shortName: "Dec 2026",
     badgeLabel: "DECEMBER 2026 LINEUP",
+    daysInMonth: 31,
+    startDayOfWeek: 2, // Tuesday (Dec 1, 2026)
   },
 };
 
@@ -675,6 +691,69 @@ export default function AdminDashboard() {
     }
   }, [selectedMonth, monthEvents, selectedEventId]);
 
+  const currentMonthConfig = MONTH_CONFIGS[selectedMonth];
+  const { daysInMonth, startDayOfWeek } = currentMonthConfig;
+  const trailingEmptySlots = (7 - ((startDayOfWeek + daysInMonth) % 7)) % 7;
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const todayStr = getTodayDateString();
+
+  const isDayToday = (dayNum: number) => {
+    const cellIso = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
+    return cellIso === todayStr;
+  };
+
+  const isDayPast = (dayNum: number) => {
+    const cellIso = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
+    return cellIso < todayStr;
+  };
+
+  // Map events by day number for the selected month
+  const eventsByDay = React.useMemo(() => {
+    const map: Record<number, CommunityEvent[]> = {};
+    monthEvents.forEach((ev) => {
+      if (ev.date && ev.date.startsWith(selectedMonth)) {
+        const parts = ev.date.split('-');
+        const day = parseInt(parts[2], 10);
+        if (!isNaN(day)) {
+          if (!map[day]) map[day] = [];
+          map[day].push(ev);
+        }
+      }
+      // Also map multi-day weekend events if applicable (e.g. Sat Oct 3 & Sun Oct 4)
+      if (ev.displayDate && ev.displayDate.includes('& Sun, Oct 4') && selectedMonth === '2026-10') {
+        if (!map[4]) map[4] = [];
+        if (!map[4].some((e) => e.id === ev.id)) {
+          map[4].push(ev);
+        }
+      }
+    });
+    return map;
+  }, [monthEvents, selectedMonth]);
+
+  // Map survey preferences count by day number for the selected month
+  const votesByDay = React.useMemo(() => {
+    const map: Record<number, number> = {};
+    const monthAbbr =
+      selectedMonth === '2026-09' ? 'Sep' :
+      selectedMonth === '2026-10' ? 'Oct' :
+      selectedMonth === '2026-11' ? 'Nov' : 'Dec';
+
+    responses.forEach((r) => {
+      const dates = Array.isArray(r.dates) ? r.dates : [];
+      dates.forEach((d) => {
+        if (typeof d === 'string' && d.includes(monthAbbr)) {
+          const match = d.match(new RegExp(`${monthAbbr}\\s+(\\d{1,2})`, 'i'));
+          if (match) {
+            const dayNum = parseInt(match[1], 10);
+            map[dayNum] = (map[dayNum] || 0) + 1;
+          }
+        }
+      });
+    });
+    return map;
+  }, [responses, selectedMonth]);
+
   const dateTally = computeTally('dates', monthDates);
   const timeTally = computeTally('times', TIMES);
   const gathTally = computeTally('gatherings', GATHERINGS);
@@ -744,16 +823,14 @@ export default function AdminDashboard() {
       categoryLabel: 'COMMUNITY MARKET & OUTDOOR',
       icon: '👨‍👩‍👧',
       venueName: 'Lincoln Square Ravenswood',
-      venueAddress: '4700 N Lincoln Ave, Chicago, IL',
-      description: 'Community autumn market and gathering.',
+      venueAddress: '4505 N Lincoln Ave, Chicago, IL 60625',
+      description: 'Autumn weekend in Lincoln Square with local apple growers, hot spiced cider, fresh baked goods, and live street music along Lincoln Ave. Free admission ($5 suggested donation).',
       status: 'confirmed',
       capacity: 50,
     };
 
-  const isTomorrowEvent =
-    selectedEvent.date === '2026-10-03' ||
-    selectedEvent.date === '2026-09-26' ||
-    selectedEvent.title.toLowerCase().includes('apple fest');
+  const relativeDateInfo = getRelativeDateInfo(selectedEvent.date);
+  const isImminentEvent = relativeDateInfo.isToday || relativeDateInfo.isTomorrow;
 
   const eventAttendance = calculateEventAttendance(selectedEvent, users, responses);
   const eventCapacity = selectedEvent.capacity;
@@ -770,7 +847,7 @@ export default function AdminDashboard() {
     {
       id: 'chicago',
       name: 'Chicago Chapter',
-      subtitle: `Event Tomorrow · ${eventAttendance.confirmedCount} RSVPs`,
+      subtitle: `${relativeDateInfo.label} · ${eventAttendance.confirmedCount} RSVPs`,
       status: 'live',
       badgeColor: 'bg-emerald-500',
     },
@@ -804,7 +881,7 @@ export default function AdminDashboard() {
     },
   ];
 
-  const confirmedForTomorrowCount = responses.filter((r) =>
+  const confirmedForSelectedEventCount = responses.filter((r) =>
     isContactAttendingEvent(r, selectedEvent, users)
   ).length;
   const withNotesCount = responses.filter((r) => Boolean((r.notes && r.notes.trim()) || (r.drink && r.drink.trim()))).length;
@@ -1462,7 +1539,7 @@ export default function AdminDashboard() {
                       </span>
                       <span className="text-[10px] text-stone-500 font-normal hidden lg:inline">
                         {selectedCity === 'chicago'
-                          ? `(Event Tomorrow)`
+                          ? `(${relativeDateInfo.label})`
                           : selectedCity === 'austin'
                           ? `(Polling Open)`
                           : selectedCity === 'all'
@@ -1591,7 +1668,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
                 <h2 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] truncate">
-                  {MONTH_CONFIGS[selectedMonth].name} Schedule &amp; Availability
+                  {`${MONTH_CONFIGS[selectedMonth].name} Schedule & Availability`}
                 </h2>
               </div>
             </div>
@@ -1649,30 +1726,206 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* SCOPED 7-COLUMN MONTH CALENDAR GRID */}
+          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 w-full min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-[#EBE3D5]">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-[#C8643F]" />
+                <h3 className="text-xs sm:text-sm font-bold font-serif-fraunces text-[#2B271F]">
+                  {`${MONTH_CONFIGS[selectedMonth].name} Gathering Grid`}
+                </h3>
+                <span className="text-[11px] font-mono text-stone-500">
+                  ({monthEvents.length} {monthEvents.length === 1 ? 'gathering' : 'gatherings'})
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-stone-500">
+                Tap any gathering to inspect roster &amp; door check-in
+              </span>
+            </div>
+
+            {/* Empty month banner if no events */}
+            {monthEvents.length === 0 && (
+              <div className="p-3 bg-white/70 border border-[#EADBCC] rounded-xl text-center text-xs text-stone-600">
+                {MONTH_CONFIGS[selectedMonth].name} lineup coming soon · Use the month navigation above to switch active cycles.
+              </div>
+            )}
+
+            {/* Day of Week Headers */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#8C8270]">
+              {dayNames.map((d, i) => (
+                <div key={d} className={`py-1 rounded-md ${i === 0 || i === 6 ? 'text-[#C8643F]' : ''}`}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Day Cells */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {/* Empty leading slots */}
+              {Array.from({ length: startDayOfWeek }).map((_, index) => (
+                <div
+                  key={`empty-leading-${index}`}
+                  className="min-h-[58px] sm:min-h-[82px] p-1.5 bg-[#F4EEE2]/30 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                />
+              ))}
+
+              {/* Days 1 through daysInMonth */}
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((dayNum) => {
+                const dayEvents = eventsByDay[dayNum] || [];
+                const hasEvents = dayEvents.length > 0;
+                const isToday = isDayToday(dayNum);
+                const isPast = isDayPast(dayNum);
+                const dayVotes = votesByDay[dayNum] || 0;
+                const isDaySelected = hasEvents && dayEvents.some((ev) => ev.id === selectedEvent.id);
+
+                return (
+                  <div
+                    key={`day-${dayNum}`}
+                    onClick={() => {
+                      if (hasEvents) {
+                        setSelectedEventId(dayEvents[0].id);
+                      }
+                    }}
+                    className={`min-h-[58px] sm:min-h-[82px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between ${
+                      hasEvents ? 'cursor-pointer hover:border-[#C8643F] hover:shadow-xs' : 'cursor-default'
+                    } ${
+                      isDaySelected
+                        ? 'bg-[#FAF0EB] border-[#C8643F] ring-2 ring-[#C8643F]/30 shadow-xs'
+                        : isToday
+                        ? 'bg-amber-50/70 border-amber-300'
+                        : hasEvents
+                        ? 'bg-white border-[#D8CEBC]'
+                        : isPast
+                        ? 'bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75'
+                        : 'bg-[#FCFAF7] border-[#EADBCC]'
+                    }`}
+                  >
+                    {/* Top row: day number + tags */}
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs font-mono font-bold ${
+                          isToday
+                            ? 'w-5 h-5 rounded-full bg-[#C8643F] text-white flex items-center justify-center text-[10px]'
+                            : isDaySelected
+                            ? 'text-[#C8643F]'
+                            : 'text-[#2B271F]'
+                        }`}
+                      >
+                        {dayNum}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {isToday && (
+                          <span className="text-[9px] font-mono uppercase font-bold text-[#C8643F] hidden sm:inline">
+                            Today
+                          </span>
+                        )}
+                        {dayVotes > 0 && (
+                          <span
+                            title={`${dayVotes} member preferences for this date`}
+                            className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#EDE4D3] text-stone-700 hidden sm:inline"
+                          >
+                            {dayVotes}v
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Event Pills */}
+                    <div className="space-y-1 mt-1">
+                      {dayEvents.map((ev) => {
+                        const isEvSelected = ev.id === selectedEvent.id;
+                        const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                        const attendance = calculateEventAttendance(ev, users, responses);
+                        return (
+                          <button
+                            key={ev.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEventId(ev.id);
+                            }}
+                            className={`w-full text-left p-1 sm:p-1.5 rounded-lg text-[10px] sm:text-[11px] leading-tight transition-all font-medium flex items-center justify-between gap-1 cursor-pointer truncate ${
+                              isEvSelected
+                                ? 'bg-[#2B271F] text-white shadow-xs font-semibold ring-1 ring-[#2B271F]'
+                                : 'bg-[#FAF0EB] text-[#C8643F] hover:bg-[#F3E3DA] border border-[#EED4C8]'
+                            }`}
+                          >
+                            <span className="truncate">
+                              <span className="hidden sm:inline">{ev.icon ? `${ev.icon} ` : ''}</span>
+                              {cleanTitle}
+                            </span>
+                            <span
+                              className={`text-[9px] font-mono shrink-0 px-1 rounded font-semibold ${
+                                isEvSelected ? 'bg-white/20 text-white' : 'bg-white text-[#C8643F]'
+                              }`}
+                            >
+                              {attendance.confirmedCount}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Trailing empty slots */}
+              {Array.from({ length: trailingEmptySlots }).map((_, index) => (
+                <div
+                  key={`empty-trailing-${index}`}
+                  className="min-h-[58px] sm:min-h-[82px] p-1.5 bg-[#F4EEE2]/30 rounded-xl border border-dashed border-[#D8CEBC]/40 opacity-40"
+                />
+              ))}
+            </div>
+          </div>
+
           {/* GATHERING OVERVIEW BANNER */}
           <div
             className={`rounded-2xl p-5 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
-              isTomorrowEvent
+              isImminentEvent
                 ? 'bg-[#2B271F] text-white shadow-md border border-[#3E3832]'
                 : 'bg-[#FAF7F2] border border-[#EADBCC] text-[#2B271F] shadow-sm'
             }`}
           >
             <div
               className={`flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b ${
-                isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
               }`}
             >
               <div className="flex items-center gap-2 flex-wrap">
-                {isTomorrowEvent ? (
+                {relativeDateInfo.isToday ? (
                   <>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#C8643F] text-white shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-white/90 inline-block mr-1.5" />
-                      EVENT DAY
+                      <span className="w-2 h-2 rounded-full bg-white/90 inline-block mr-1.5 animate-ping" />
+                      EVENT TODAY
                     </span>
                     <span className="text-white/30 hidden sm:inline">·</span>
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Event Tomorrow · {selectedEvent.timeWindow || '10:30 AM CDT'}
+                      Happening Today · {selectedEvent.timeWindow || '10:00 AM CDT'}
+                    </span>
+                  </>
+                ) : relativeDateInfo.isTomorrow ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-600 text-white shadow-xs">
+                      <Calendar className="w-3 h-3 text-white" />
+                      TOMORROW
+                    </span>
+                    <span className="text-white/30 hidden sm:inline">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30">
+                      <Clock className="w-3 h-3" />
+                      Event Tomorrow · {selectedEvent.timeWindow || '10:00 AM CDT'}
+                    </span>
+                  </>
+                ) : relativeDateInfo.isPast ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-stone-700 text-white shadow-xs">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                      CONCLUDED GATHERING
+                    </span>
+                    <span className="text-stone-300 hidden sm:inline">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200">
+                      {relativeDateInfo.label} · {selectedEvent.displayDate}
                     </span>
                   </>
                 ) : (
@@ -1683,16 +1936,16 @@ export default function AdminDashboard() {
                     </span>
                     <span className="text-stone-300 hidden sm:inline">·</span>
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]">
-                      <Calendar className="w-3 h-3 text-[#C8643F]" />
-                      Scheduled Event
+                      <Clock className="w-3 h-3 text-[#C8643F]" />
+                      {relativeDateInfo.label} · {selectedEvent.displayDate}
                     </span>
                   </>
                 )}
-                <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
+                <span className={`font-mono text-xs px-2.5 py-1 rounded-full ${isImminentEvent ? 'bg-white/10 text-stone-300' : 'bg-[#EFE8DF] text-stone-700'}`}>
                   Attendee Vibes: ⚡ {feedbackCounts.Energizing}  ·  ☕ {feedbackCounts.Relaxed}  ·  🌱 {feedbackCounts.DeepTalk}
                 </span>
               </div>
-              <div className={`text-xs font-mono ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+              <div className={`text-xs font-mono ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                 {selectedEvent.displayDate || 'Upcoming'} · {selectedEvent.timeWindow || 'Time TBD'}
               </div>
             </div>
@@ -1700,20 +1953,20 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
               {/* Event Callout (7 cols) */}
               <div className="lg:col-span-7 space-y-2 min-w-0">
-                <div className={`text-xs font-mono uppercase tracking-wider ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
-                  {isTomorrowEvent ? 'CURRENT EVENT' : 'UPCOMING GATHERING'}
+                <div className={`text-xs font-mono uppercase tracking-wider ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                  {relativeDateInfo.isToday ? 'LIVE TODAY' : relativeDateInfo.isTomorrow ? 'EVENT TOMORROW' : relativeDateInfo.isPast ? 'CONCLUDED GATHERING' : 'UPCOMING GATHERING'}
                 </div>
-                <h2 className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
+                <h2 className={`text-xl sm:text-2xl font-bold font-serif-fraunces tracking-tight leading-snug break-words ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                   {splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName}
                 </h2>
-                <div className={`flex items-center gap-2 text-xs sm:text-sm flex-wrap ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-600'}`}>
-                  <span className={`inline-flex items-center gap-1.5 font-semibold ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
+                <div className={`flex items-center gap-2 text-xs sm:text-sm flex-wrap ${isImminentEvent ? 'text-stone-300' : 'text-stone-600'}`}>
+                  <span className={`inline-flex items-center gap-1.5 font-semibold ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                     <Calendar className="w-3.5 h-3.5 text-[#C8643F]" />
                     {selectedEvent.displayDate || 'Date TBD'}, {selectedEvent.timeWindow || 'Time TBD'}
                   </span>
-                  <span className={isTomorrowEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
+                  <span className={isImminentEvent ? 'text-white/30' : 'text-stone-300'}>·</span>
                   <span className="inline-flex items-center gap-1.5">
-                    <MapPin className={`w-3.5 h-3.5 shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`} />
+                    <MapPin className={`w-3.5 h-3.5 shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`} />
                     <span>
                       {selectedEvent.venueName || 'Venue TBD'}
                       {selectedEvent.venueAddress ? ` (${selectedEvent.venueAddress})` : ''}
@@ -1725,23 +1978,23 @@ export default function AdminDashboard() {
               {/* Headcount Gauge (5 cols) */}
               <div
                 className={`lg:col-span-5 rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-[210px] ${
-                  isTomorrowEvent
+                  isImminentEvent
                     ? 'bg-white/5 border border-white/10'
                     : 'bg-white border border-[#EADBCC] shadow-2xs'
                 }`}
               >
                 {/* Header row */}
                 <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                  <span className={`text-xs font-mono uppercase tracking-wider shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                  <span className={`text-xs font-mono uppercase tracking-wider shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                     CONFIRMED GUESTS
                   </span>
-                  <span className={`text-2xl font-bold font-serif-fraunces shrink-0 ${isTomorrowEvent ? 'text-white' : 'text-[#2B271F]'}`}>
+                  <span className={`text-2xl font-bold font-serif-fraunces shrink-0 ${isImminentEvent ? 'text-white' : 'text-[#2B271F]'}`}>
                     {cockpitConfirmedGuests} / {cockpitCapacity}
                   </span>
                 </div>
 
                 {/* Progress bar */}
-                <div className={`w-full h-2 rounded-full overflow-hidden ${isTomorrowEvent ? 'bg-stone-700' : 'bg-stone-200'}`}>
+                <div className={`w-full h-2 rounded-full overflow-hidden ${isImminentEvent ? 'bg-stone-700' : 'bg-stone-200'}`}>
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
                     style={{
@@ -1752,17 +2005,17 @@ export default function AdminDashboard() {
 
                 {/* Footer subtext row */}
                 <div className="flex items-center justify-between text-xs gap-2 pt-0.5">
-                  <span className={`whitespace-nowrap shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                  <span className={`whitespace-nowrap shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                     {cockpitSpotsLeft} spots remaining
                   </span>
-                  <span className={`font-semibold whitespace-nowrap shrink-0 ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  <span className={`font-semibold whitespace-nowrap shrink-0 ${isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'}`}>
                     {cockpitPercent}% filled
                   </span>
                 </div>
 
                 {/* Live Vibe Aggregation Summary */}
-                <div className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'}`}>
-                  <span className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${isTomorrowEvent ? 'text-stone-400' : 'text-stone-500'}`}>
+                <div className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'}`}>
+                  <span className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${isImminentEvent ? 'text-stone-400' : 'text-stone-500'}`}>
                     Vibe Check
                   </span>
                   <span className="bg-[#EFE8DF] text-stone-700 font-mono text-xs px-2.5 py-1 rounded-full">
@@ -1775,7 +2028,7 @@ export default function AdminDashboard() {
             {/* One-Tap Quick Actions */}
             <div
               className={`pt-3 flex items-center gap-2 sm:gap-3 flex-wrap border-t ${
-                isTomorrowEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
               }`}
             >
               {/* Copy Venue Address */}
@@ -1783,7 +2036,7 @@ export default function AdminDashboard() {
                 type="button"
                 onClick={handleCopyVenue}
                 className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
-                  isTomorrowEvent
+                  isImminentEvent
                     ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
                     : 'bg-white hover:bg-[#F3EFEB] text-[#2B271F] border border-[#D8CEBC]'
                 }`}
@@ -1791,12 +2044,12 @@ export default function AdminDashboard() {
               >
                 {copiedVenue ? (
                   <>
-                    <Check className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                    <span className={`font-mono ${isTomorrowEvent ? 'text-emerald-300' : 'text-emerald-700'}`}>Address Copied!</span>
+                    <Check className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                    <span className={`font-mono ${isImminentEvent ? 'text-emerald-300' : 'text-emerald-700'}`}>Address Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-500'}`} />
+                    <Copy className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-stone-300' : 'text-stone-500'}`} />
                     <span>Copy Venue Address</span>
                   </>
                 )}
@@ -1808,13 +2061,13 @@ export default function AdminDashboard() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
-                  isTomorrowEvent
+                  isImminentEvent
                     ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
                     : 'bg-white hover:bg-[#F3EFEB] text-[#2B271F] border border-[#D8CEBC]'
                 }`}
                 title="Open public RSVP page in new tab"
               >
-                <ExternalLink className={`w-3.5 h-3.5 ${isTomorrowEvent ? 'text-stone-300' : 'text-stone-500'}`} />
+                <ExternalLink className={`w-3.5 h-3.5 ${isImminentEvent ? 'text-stone-300' : 'text-stone-500'}`} />
                 <span>View Public RSVP Page</span>
               </a>
 
@@ -2310,7 +2563,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Confirmed ({confirmedForTomorrowCount})</span>
+                  <span>Confirmed ({confirmedForSelectedEventCount})</span>
                 </button>
 
                 <button
