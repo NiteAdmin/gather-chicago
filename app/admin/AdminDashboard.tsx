@@ -41,6 +41,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const GATHERINGS = [
@@ -72,6 +74,68 @@ const TIMES = [
 
 const DAYPREF = ["Weekend", "Weekday", "Either works"];
 const DRINKS = ["Mimosa", "Mocktail", "Both please"];
+
+export const AVAILABLE_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as const;
+export type MonthKey = (typeof AVAILABLE_MONTHS)[number];
+export const CURRENT_CYCLE_MONTH: MonthKey = "2026-10";
+
+export const MONTH_CONFIGS: Record<MonthKey, { key: MonthKey; name: string; shortName: string; badgeLabel: string }> = {
+  "2026-09": {
+    key: "2026-09",
+    name: "September 2026",
+    shortName: "Sep 2026",
+    badgeLabel: "SEPTEMBER 2026 RECAP",
+  },
+  "2026-10": {
+    key: "2026-10",
+    name: "October 2026",
+    shortName: "Oct 2026",
+    badgeLabel: "OCTOBER 2026 ACTIVE CYCLE",
+  },
+  "2026-11": {
+    key: "2026-11",
+    name: "November 2026",
+    shortName: "Nov 2026",
+    badgeLabel: "NOVEMBER 2026 PREVIEW",
+  },
+  "2026-12": {
+    key: "2026-12",
+    name: "December 2026",
+    shortName: "Dec 2026",
+    badgeLabel: "DECEMBER 2026 LINEUP",
+  },
+};
+
+export const MONTH_DEFAULT_DATES: Record<MonthKey, string[]> = {
+  "2026-09": [
+    "Sat, Sep 26",
+    "Sun, Sep 27",
+    "Sat, Sep 5",
+    "Sun, Sep 6",
+    "Any date",
+  ],
+  "2026-10": [
+    "Sat, Oct 3: Apple Fest",
+    "Fri, Oct 9: Family Night — Pizza",
+    "Fri, Oct 16: Soul & Smoke BBQ",
+    "Sat, Oct 17: Morning Walk",
+    "Fri, Oct 23: Laugh Factory",
+    "Sun, Oct 25: BOO! at the Zoo",
+    "Any date",
+  ],
+  "2026-11": [
+    "Sat, Nov 7",
+    "Sat, Nov 14",
+    "Fri, Nov 20",
+    "Any date",
+  ],
+  "2026-12": [
+    "Sat, Dec 5",
+    "Sat, Dec 12",
+    "Fri, Dec 18",
+    "Any date",
+  ],
+};
 
 const DATES = [
   "Fri, Oct 9: Family Night — Pizza",
@@ -137,9 +201,10 @@ export default function AdminDashboard() {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
 
-  // Multi-Event Engine State
+  // Multi-Event Engine & Current-Month Cycle State
+  const [selectedMonth, setSelectedMonth] = useState<MonthKey>(CURRENT_CYCLE_MONTH);
   const [events, setEvents] = useState<CommunityEvent[]>(() => getEventsForCity('chicago'));
-  const [selectedEventId, setSelectedEventId] = useState<string>('chi-sep-26-gathering');
+  const [selectedEventId, setSelectedEventId] = useState<string>('chi-2026-10-03-apple-fest');
 
   // Live Vibe Feedback Aggregation State
   const [feedbackCounts, setFeedbackCounts] = useState<{
@@ -556,7 +621,61 @@ export default function AdminDashboard() {
     return optionsOrder.map((o) => [o, counts[o]] as [string, number]).sort((a, b) => b[1] - a[1]);
   };
 
-  const dateTally = computeTally('dates', DATES);
+  // Month-scoped navigation & date availability calculation
+  const currentMonthIndex = AVAILABLE_MONTHS.indexOf(selectedMonth);
+
+  const handlePrevMonth = () => {
+    if (currentMonthIndex > 0) {
+      setSelectedMonth(AVAILABLE_MONTHS[currentMonthIndex - 1]);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonthIndex < AVAILABLE_MONTHS.length - 1) {
+      setSelectedMonth(AVAILABLE_MONTHS[currentMonthIndex + 1]);
+    }
+  };
+
+  const handleResetToCurrentMonth = () => {
+    setSelectedMonth(CURRENT_CYCLE_MONTH);
+  };
+
+  const monthDates = React.useMemo(() => {
+    const defaultList = MONTH_DEFAULT_DATES[selectedMonth] || [];
+    const monthAbbr =
+      selectedMonth === '2026-09' ? 'Sep' :
+      selectedMonth === '2026-10' ? 'Oct' :
+      selectedMonth === '2026-11' ? 'Nov' : 'Dec';
+
+    const dynamicDates = new Set<string>(defaultList);
+    responses.forEach((r) => {
+      const list = Array.isArray(r.dates) ? r.dates : [];
+      list.forEach((d) => {
+        if (typeof d === 'string' && (d.includes(monthAbbr) || d.toLowerCase() === 'any date')) {
+          dynamicDates.add(d);
+        }
+      });
+    });
+
+    return Array.from(dynamicDates);
+  }, [selectedMonth, responses]);
+
+  const monthEvents = React.useMemo(() => {
+    return events.filter((ev) => {
+      if (selectedMonth === '2026-09') {
+        return ev.date.startsWith('2026-09') || ev.id === 'chi-legacy-polled-sep-26' || ev.id === 'chi-sep-26-gathering';
+      }
+      return ev.date.startsWith(selectedMonth);
+    });
+  }, [events, selectedMonth]);
+
+  useEffect(() => {
+    if (monthEvents.length > 0 && !monthEvents.some((e) => e.id === selectedEventId)) {
+      setSelectedEventId(monthEvents[0].id);
+    }
+  }, [selectedMonth, monthEvents, selectedEventId]);
+
+  const dateTally = computeTally('dates', monthDates);
   const timeTally = computeTally('times', TIMES);
   const gathTally = computeTally('gatherings', GATHERINGS);
   const dayTally = computeTally('dayPref', DAYPREF);
@@ -612,28 +731,29 @@ export default function AdminDashboard() {
 
   const selectedEvent: CommunityEvent =
     events.find((e) => e.id === selectedEventId) ||
+    monthEvents[0] ||
     events[0] || {
-      id: 'chi-sep-26-gathering',
+      id: 'chi-2026-10-03-apple-fest',
       city: 'chicago',
       brandPrefix: "Actually™",
-      title: 'Stretch & Sip — Moksha Yoga',
-      date: '2026-09-26',
-      displayDate: 'Sat, Sep 26',
-      timeWindow: '10:30 AM (10:00 AM – 12:00 PM CDT)',
-      category: 'wellness',
-      categoryLabel: 'WELLNESS & MOVEMENT',
-      icon: '🧘',
-      venueName: 'Moksha Yoga Center',
-      venueAddress: '2528 W Armitage Ave, Chicago, IL',
-      description: 'Join us for a morning yoga session at Moksha Yoga Center.',
+      title: 'Lincoln Square Ravenswood Apple Fest',
+      date: '2026-10-03',
+      displayDate: 'Sat, Oct 3 & Sun, Oct 4',
+      timeWindow: '10:00 AM – 1:00 PM CDT',
+      category: 'outdoor',
+      categoryLabel: 'COMMUNITY MARKET & OUTDOOR',
+      icon: '👨‍👩‍👧',
+      venueName: 'Lincoln Square Ravenswood',
+      venueAddress: '4700 N Lincoln Ave, Chicago, IL',
+      description: 'Community autumn market and gathering.',
       status: 'confirmed',
-      capacity: 30,
+      capacity: 50,
     };
 
   const isTomorrowEvent =
-    selectedEvent.id === 'chi-sep-26-gathering' ||
+    selectedEvent.date === '2026-10-03' ||
     selectedEvent.date === '2026-09-26' ||
-    selectedEvent.title.toLowerCase().includes('moksha');
+    selectedEvent.title.toLowerCase().includes('apple fest');
 
   const eventAttendance = calculateEventAttendance(selectedEvent, users, responses);
   const eventCapacity = selectedEvent.capacity;
@@ -793,7 +913,7 @@ export default function AdminDashboard() {
     return true;
   });
 
-  const selectedDateStr = winningDate || (topDateOption || DATES[0]);
+  const selectedDateStr = winningDate || (topDateOption || monthDates[0] || DATES[0]);
   const cleanSelectedDate = (selectedDateStr || '').trim().toLowerCase();
 
   // Group A (Available): Contacts who voted for the selected date or selected "Any date"
@@ -840,7 +960,7 @@ export default function AdminDashboard() {
 
   const handleOpenAdminModal = (targetEvent?: CommunityEvent | React.MouseEvent) => {
     const ev = targetEvent && 'id' in targetEvent ? targetEvent : selectedEvent;
-    const defaultDate = ev?.displayDate || topDateOption || DATES[0];
+    const defaultDate = ev?.displayDate || topDateOption || monthDates[0] || DATES[0];
     setWinningDate(defaultDate);
     setEventTimeWindow(ev?.timeWindow || '10:00 AM – 12:00 PM CDT');
     setVenueName(ev?.venueName || '');
@@ -1453,6 +1573,82 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* SLEEK EDITORIAL MONTH NAVIGATION CONTROLS */}
+          <div className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-white border border-[#EADBCC] flex items-center justify-center shrink-0 shadow-2xs">
+                <Calendar className="w-4 h-4 text-[#C8643F]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
+                    Calendar Cycle
+                  </span>
+                  {selectedMonth === CURRENT_CYCLE_MONTH && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] px-2 py-0.5 rounded-full">
+                      Active Cycle
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] truncate">
+                  {MONTH_CONFIGS[selectedMonth].name} Schedule &amp; Availability
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {/* Month Navigation Controls: [ < Previous Month ] [ Month Year ] [ Next Month > ] */}
+              <div className="inline-flex items-center p-0.5 bg-[#EDE4D3]/70 rounded-xl text-xs font-semibold text-[#6A6253]">
+                <button
+                  type="button"
+                  aria-label="Previous Month"
+                  disabled={currentMonthIndex <= 0}
+                  onClick={handlePrevMonth}
+                  className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                    currentMonthIndex <= 0
+                      ? 'opacity-30 cursor-not-allowed'
+                      : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
+                  }`}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-medium hidden sm:inline">Previous Month</span>
+                </button>
+
+                <span className="px-3 py-1 font-bold text-[#2B271F] text-xs whitespace-nowrap">
+                  {MONTH_CONFIGS[selectedMonth].name}
+                </span>
+
+                <button
+                  type="button"
+                  aria-label="Next Month"
+                  disabled={currentMonthIndex >= AVAILABLE_MONTHS.length - 1}
+                  onClick={handleNextMonth}
+                  className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                    currentMonthIndex >= AVAILABLE_MONTHS.length - 1
+                      ? 'opacity-30 cursor-not-allowed'
+                      : 'hover:text-[#2B271F] hover:bg-white/60 active:bg-white'
+                  }`}
+                >
+                  <span className="text-[11px] font-medium hidden sm:inline">Next Month</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Quick "Today / Current Month" reset toggle */}
+              <button
+                type="button"
+                onClick={handleResetToCurrentMonth}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs border ${
+                  selectedMonth === CURRENT_CYCLE_MONTH
+                    ? 'bg-[#2B271F] text-[#FDFBF7] border-[#2B271F]'
+                    : 'bg-white hover:bg-[#FAF7F2] text-[#6A6253] hover:text-[#2B271F] border-[#D8CEBC]'
+                }`}
+              >
+                Today / Current Month
+              </button>
+            </div>
+          </div>
+
           {/* GATHERING OVERVIEW BANNER */}
           <div
             className={`rounded-2xl p-5 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
@@ -1674,23 +1870,12 @@ export default function AdminDashboard() {
                     onChange={(e) => setSelectedEventId(e.target.value)}
                     className="w-full sm:w-auto max-w-full min-w-0 truncate text-ellipsis bg-white border border-[#e5dfd8] text-[#2B271F] rounded-xl px-3 py-2 pr-8 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none"
                   >
-                    <optgroup label="Upcoming Chapter Gatherings">
-                      {events
-                        .filter((ev) => ev.id !== 'chi-legacy-polled-sep-26')
-                        .map((ev) => (
-                          <option key={ev.id} value={ev.id}>
-                            {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label="Legacy / Polled Gathering">
-                      {events
-                        .filter((ev) => ev.id === 'chi-legacy-polled-sep-26')
-                        .map((ev) => (
-                          <option key={ev.id} value={ev.id}>
-                            {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
-                          </option>
-                        ))}
+                    <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Chapter Gatherings`}>
+                      {monthEvents.map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                        </option>
+                      ))}
                     </optgroup>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#8C827A]">
@@ -1700,31 +1885,35 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Quick Pill Switcher: Next 3 Upcoming Dates Tab Strip */}
+            {/* Quick Pill Switcher: Month Upcoming Dates Tab Strip */}
             <div className="flex items-center gap-2 w-full min-w-0 py-1 text-xs overflow-x-auto no-scrollbar">
               <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 shrink-0">
-                Upcoming:
+                {MONTH_CONFIGS[selectedMonth].shortName}:
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
-                {events.slice(0, 3).map((ev) => {
-                  const isSelected = ev.id === selectedEvent.id;
-                  const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
-                  return (
-                    <button
-                      key={ev.id}
-                      type="button"
-                      onClick={() => setSelectedEventId(ev.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                        isSelected
-                          ? 'bg-[#2B271F] text-[#FDFBF7] shadow-xs'
-                          : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
-                      }`}
-                    >
-                      {ev.icon ? `${ev.icon} ` : ''}
-                      {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
-                    </button>
-                  );
-                })}
+                {monthEvents.length > 0 ? (
+                  monthEvents.slice(0, 4).map((ev) => {
+                    const isSelected = ev.id === selectedEvent.id;
+                    const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                    return (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => setSelectedEventId(ev.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                          isSelected
+                            ? 'bg-[#2B271F] text-[#FDFBF7] shadow-xs'
+                            : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
+                        }`}
+                      >
+                        {ev.icon ? `${ev.icon} ` : ''}
+                        {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className="text-stone-400 text-xs italic">No gatherings scheduled yet</span>
+                )}
               </div>
             </div>
 
@@ -1863,7 +2052,7 @@ export default function AdminDashboard() {
               <div className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-stone-500 block truncate">
-                    Leading Day
+                    Leading Day ({MONTH_CONFIGS[selectedMonth].shortName})
                   </span>
                   <div className="text-2xl sm:text-3xl font-bold font-serif-fraunces text-[#2B271F] mt-1">
                     {topDateOption ? topDateOption.split(',')[0] : '—'}
@@ -1889,7 +2078,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-[#8C827A]" />
                     <h3 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
-                      Date Polling Results ({formatCityName(selectedCity)})
+                      Date Polling Results — {MONTH_CONFIGS[selectedMonth].name} ({formatCityName(selectedCity)})
                     </h3>
                   </div>
                   <button
@@ -1901,7 +2090,13 @@ export default function AdminDashboard() {
                     <span>Announce Winning Date</span>
                   </button>
                 </div>
-                {renderBars(dateTally)}
+                {dateTally.length > 0 ? (
+                  renderBars(dateTally)
+                ) : (
+                  <div className="py-6 text-center text-xs text-stone-500 italic bg-white/50 rounded-xl border border-[#EBE3D5]">
+                    No date preferences recorded for {MONTH_CONFIGS[selectedMonth].name} yet.
+                  </div>
+                )}
               </div>
 
               {/* Time Preferences */}
@@ -2254,7 +2449,7 @@ export default function AdminDashboard() {
                             className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-lg px-2.5 py-1.5 text-xs text-[#2B271F] focus:outline-none focus:border-[#C8643F] cursor-pointer"
                           >
                             <option value="all">All Dates</option>
-                            {DATES.map((d) => (
+                            {monthDates.map((d) => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </select>
@@ -2735,15 +2930,15 @@ export default function AdminDashboard() {
                     }}
                     className="w-full bg-white border border-[#D8CEBC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B271F] font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer"
                   >
-                    <optgroup label="Chapter Gatherings">
-                      {events.map((ev) => (
+                    <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Chapter Gatherings`}>
+                      {monthEvents.map((ev) => (
                         <option key={ev.id} value={ev.displayDate}>
                           {ev.displayDate} — {splitEventTitle(ev.title, ev.brandPrefix).eventName}
                         </option>
                       ))}
                     </optgroup>
-                    <optgroup label="Survey Poll Dates">
-                      {DATES.map((d) => (
+                    <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Poll Dates`}>
+                      {monthDates.map((d) => (
                         <option key={d} value={d}>
                           {d} {topDateOption === d ? '(Top Poll Winner)' : ''}
                         </option>

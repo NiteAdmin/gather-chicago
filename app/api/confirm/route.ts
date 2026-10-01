@@ -513,8 +513,8 @@ export async function POST(req: Request) {
 
     const emailText = `Actually™\nCommunity Series · ${targetCityName}\n---\n${targetCityName} · PREFERENCES RECEIVED\n\nThanks for your input, ${trimmedName}! 🌿\n\nWe received your availability and preferences for the upcoming Actually™ ${targetCityName} community series.\n\nGatherings you'd attend:\n${gatheringsText}\n\nDates that work for you:\n${datesText}${timesSectionText}${notesText}\n\nWhat happens next?\nWe've logged your preferences and will follow up with the locked activity, venue, and date once voting closes!\n\nA portion of every ticket supports local community building and sustainability efforts.`;
 
-    const primarySender = "Actually Let's <rsvp@actuallylets.com>";
-    const adminSender = "Actually Let's System <rsvp@actuallylets.com>";
+    const primarySender = process.env.RESEND_FROM_EMAIL || "Actually Let's <rsvp@actuallylets.com>";
+    const adminSender = process.env.RESEND_FROM_EMAIL || "Actually Let's System <rsvp@actuallylets.com>";
 
     const allGatheringsStr = [
       ...(Array.isArray(gatherings) ? gatherings : []),
@@ -611,7 +611,7 @@ Preferred Times: ${allTimesStr}${body.notes && typeof body.notes === "string" &&
             from: adminSender,
             to: hostEmails,
             replyTo: trimmedEmail,
-            subject: `New intake submission from ${trimmedName} (${targetCityName})`,
+            subject: `[New RSVP] ${trimmedName} - ${targetCityName}`,
             html: adminEmailHtml,
             text: adminEmailText,
           }),
