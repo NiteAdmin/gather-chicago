@@ -76,7 +76,7 @@ export interface CommunityEvent {
   audience?: EventAudience;
   audienceLabel?: string; // e.g., '👨‍👩‍👧 Family Friendly', '👥 Adults'
   icon: string; // fallback icon/emoji e.g. '🍕'
-  iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'Sparkles' | 'Activity' | 'Mic' | string;
+  iconName?: 'Compass' | 'Flame' | 'Pizza' | 'Footprints' | 'Coffee' | 'Trees' | 'HandsPraying' | 'Activity' | 'Mic' | string;
   venueName: string;
   venueAddress?: string;
   price?: string;
@@ -124,7 +124,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     audience: "adults",
     audienceLabel: "👥 Adults",
     icon: "🧘",
-    iconName: "Sparkles",
+    iconName: "HandsPraying",
     venueName: "Moksha Yoga Center",
     venueAddress: "2528 W Armitage Ave, Chicago, IL",
     description: "Join us for a morning yoga session at Moksha Yoga Center. Bring a mat, grab a sip, and connect with fellow Chicago members.",

@@ -52,9 +52,12 @@ import {
   Ghost, 
   Tractor, 
   Users as PhosphorUsers, 
-  Sparkle,
   ForkKnife,
   AppleLogo,
+  HandsPraying,
+  MicrophoneStage,
+  Martini,
+  CalendarCheck,
 } from "@phosphor-icons/react";
 
 const GATHERINGS = [
@@ -189,6 +192,15 @@ function getEventIcon(title: string, iconStr?: string, className: string = "w-3.
   if (lower.includes("pizza") || lower.includes("pinsa") || iconStr === "🍕") {
     return <Pizza className={className} />;
   }
+  if (lower.includes("comedy") || lower.includes("stand up") || lower.includes("stand-up") || lower.includes("laugh") || lower.includes("mic") || iconStr === "mic" || iconStr === "microphonestage") {
+    return <MicrophoneStage className={className} />;
+  }
+  if (lower.includes("stretch") || lower.includes("sip") || lower.includes("yoga") || lower.includes("wellness") || lower.includes("moksha") || iconStr === "🧘" || iconStr === "handspraying" || iconStr === "heartbeat" || iconStr === "activity") {
+    return <HandsPraying className={className} />;
+  }
+  if (lower.includes("martini") || lower.includes("cocktail") || lower.includes("lounge") || iconStr === "martini") {
+    return <Martini className={className} />;
+  }
   if (lower.includes("wine") || lower.includes("drink") || iconStr === "🍷" || iconStr === "🍸") {
     return <Wine className={className} />;
   }
@@ -207,7 +219,7 @@ function getEventIcon(title: string, iconStr?: string, className: string = "w-3.
   if (lower.includes("conservatory") || lower.includes("park") || lower.includes("tree") || iconStr === "trees" || iconStr === "footprints") {
     return <Tree className={className} />;
   }
-  return <Sparkle className={className} />;
+  return <CalendarCheck className={className} />;
 }
 
 function renderEventChipIcon(ev: CommunityEvent): React.ReactNode {
@@ -961,6 +973,7 @@ export default function AdminDashboard() {
   }, [responses, selectedMonth]);
 
   const handleSelectDate = (dateStr: string, explicitDayNum?: number) => {
+    if (selectedMonth < CURRENT_CYCLE_MONTH) return;
     const dayNum = explicitDayNum !== undefined ? explicitDayNum : parseInt(dateStr.split('-')[2], 10);
     const dayEvents = eventsByDay[dayNum] || [];
     if (dayEvents.length > 0) {
@@ -979,6 +992,7 @@ export default function AdminDashboard() {
   };
 
   const handleOpenAdminModalForDate = (dateStr: string, dayNum: number) => {
+    if (selectedMonth < CURRENT_CYCLE_MONTH) return;
     const [y, m] = dateStr.split('-').map(Number);
     const d = new Date(y, m - 1, dayNum);
     const formatted = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -1177,9 +1191,10 @@ export default function AdminDashboard() {
       const isPast = isDayPast(dayNum);
       const dayVotes = votesByDay[dayNum] || 0;
       const dateStr = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
+      const isPastCycle = selectedMonth < CURRENT_CYCLE_MONTH;
       const isDaySelected = hasEvents
         ? Boolean(selectedEvent && dayEvents.some((ev) => ev.id === selectedEvent.id))
-        : Boolean(selectedDate === dateStr || (selectedDayNum === dayNum && selectedEventId === null));
+        : (!isPastCycle && Boolean(selectedDate === dateStr || (selectedDayNum === dayNum && selectedEventId === null)));
       cells.push({
         type: 'day',
         dayNum,
@@ -1206,20 +1221,20 @@ export default function AdminDashboard() {
   }, [calendarCells]);
 
   const activeWeekIndex = React.useMemo(() => {
-    if (!selectedEvent && !selectedDayNum) return -1;
+    if (!selectedEvent && (!selectedDayNum || selectedMonth < CURRENT_CYCLE_MONTH)) return -1;
     let idx = -1;
-    if (selectedDayNum) {
-      idx = weeks.findIndex((week) =>
-        week.some((cell) => cell.type === 'day' && cell.dayNum === selectedDayNum)
-      );
-    }
-    if (idx === -1 && selectedEvent) {
+    if (selectedEvent) {
       idx = weeks.findIndex((week) =>
         week.some((cell) => cell.type === 'day' && cell.events.some((ev) => ev.id === selectedEvent.id))
       );
     }
+    if (idx === -1 && selectedDayNum && selectedMonth >= CURRENT_CYCLE_MONTH) {
+      idx = weeks.findIndex((week) =>
+        week.some((cell) => cell.type === 'day' && cell.dayNum === selectedDayNum)
+      );
+    }
     return idx;
-  }, [weeks, selectedEvent, selectedDayNum]);
+  }, [weeks, selectedEvent, selectedDayNum, selectedMonth]);
 
   const getInitials = (name?: string, email?: string): string => {
     if (name && name.trim()) {
@@ -2198,41 +2213,59 @@ export default function AdminDashboard() {
 
                         const { dayNum, events: dayEvents, hasEvents, isToday, isPast, dayVotes, isDaySelected } = cell;
                         const dateStr = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
+                        const isPastCycle = selectedMonth < CURRENT_CYCLE_MONTH;
+                        const isLockedEmptyDate = isPastCycle && !hasEvents;
 
                         return (
                           <div
                             key={`day-${dayNum}`}
-                            role="button"
-                            tabIndex={0}
+                            role={isLockedEmptyDate ? undefined : "button"}
+                            tabIndex={isLockedEmptyDate ? undefined : 0}
                             data-date={dateStr}
-                            aria-label={`${MONTH_CONFIGS[selectedMonth].name} ${dayNum}${hasEvents ? `, ${dayEvents.length} gathering${dayEvents.length > 1 ? 's' : ''}` : ', blank date'}`}
-                            onClick={() => {
-                              if (hasEvents) {
-                                handleSelectEvent(dayEvents[0].id, dayNum);
-                              } else {
-                                handleSelectDate(dateStr, dayNum);
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                if (hasEvents) {
-                                  handleSelectEvent(dayEvents[0].id, dayNum);
-                                } else {
-                                  handleSelectDate(dateStr, dayNum);
-                                }
-                              }
-                            }}
-                            className={`min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border transition-all flex flex-col justify-between cursor-pointer hover:bg-[#F5EFE6]/80 focus:outline-none focus:ring-1 focus:ring-[#C8643F] ${
-                              isDaySelected
-                                ? 'bg-[#FAF0EB] border-[#C8643F] ring-2 ring-[#C8643F]/30 shadow-xs'
-                                : isToday
-                                ? 'bg-amber-50/70 border-amber-300 hover:border-[#C8643F]/60'
-                                : hasEvents
-                                ? 'bg-white border-[#D8CEBC] hover:border-[#C8643F] hover:shadow-xs'
-                                : isPast
-                                ? 'bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75 hover:border-[#C8643F]/60'
-                                : 'bg-[#FCFAF7] border-[#EADBCC] hover:border-[#C8643F]/60'
+                            aria-label={
+                              isLockedEmptyDate
+                                ? `${MONTH_CONFIGS[selectedMonth].name} ${dayNum}, blank date`
+                                : `${MONTH_CONFIGS[selectedMonth].name} ${dayNum}${hasEvents ? `, ${dayEvents.length} gathering${dayEvents.length > 1 ? 's' : ''}` : ', blank date'}`
+                            }
+                            onClick={
+                              isLockedEmptyDate
+                                ? undefined
+                                : () => {
+                                    if (hasEvents) {
+                                      handleSelectEvent(dayEvents[0].id, dayNum);
+                                    } else {
+                                      handleSelectDate(dateStr, dayNum);
+                                    }
+                                  }
+                            }
+                            onKeyDown={
+                              isLockedEmptyDate
+                                ? undefined
+                                : (e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      if (hasEvents) {
+                                        handleSelectEvent(dayEvents[0].id, dayNum);
+                                      } else {
+                                        handleSelectDate(dateStr, dayNum);
+                                      }
+                                    }
+                                  }
+                            }
+                            className={`min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border transition-all flex flex-col justify-between ${
+                              isLockedEmptyDate
+                                ? 'cursor-default select-none pointer-events-none bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75'
+                                : `cursor-pointer hover:bg-[#F5EFE6]/80 focus:outline-none focus:ring-1 focus:ring-[#C8643F] ${
+                                    isDaySelected
+                                      ? 'bg-[#FAF0EB] border-[#C8643F] ring-2 ring-[#C8643F]/30 shadow-xs'
+                                      : isToday
+                                      ? 'bg-amber-50/70 border-amber-300 hover:border-[#C8643F]/60'
+                                      : hasEvents
+                                      ? 'bg-white border-[#D8CEBC] hover:border-[#C8643F] hover:shadow-xs'
+                                      : isPast
+                                      ? 'bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75 hover:border-[#C8643F]/60'
+                                      : 'bg-[#FCFAF7] border-[#EADBCC] hover:border-[#C8643F]/60'
+                                  }`
                             }`}
                           >
                             {/* Top row: day number + tags */}
@@ -2823,7 +2856,7 @@ export default function AdminDashboard() {
                     )}
 
                     {/* Inline Blank Date Inspector Below Active Week */}
-                    {weekIndex === activeWeekIndex && !selectedEvent && selectedDayNum && (
+                    {weekIndex === activeWeekIndex && !selectedEvent && selectedDayNum && selectedMonth >= CURRENT_CYCLE_MONTH && (
                       <div
                         id="blank-date-inspector"
                         className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 animate-fade-in w-full min-w-0 mt-2"
