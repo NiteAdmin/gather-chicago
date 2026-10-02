@@ -52,6 +52,8 @@ export async function POST(req: Request) {
       groupACount = 0,
       groupBCount = 0,
       totalDispatched = 0,
+      eventId,
+      eventTitle,
     } = body;
 
     const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSCODE;
@@ -93,6 +95,8 @@ export async function POST(req: Request) {
       groupACount: Number(groupACount) || 0,
       groupBCount: Number(groupBCount) || 0,
       totalDispatched: Number(totalDispatched) || 0,
+      eventId: eventId || undefined,
+      eventTitle: eventTitle || undefined,
     });
 
     return NextResponse.json({

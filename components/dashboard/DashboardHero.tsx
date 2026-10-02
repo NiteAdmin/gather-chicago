@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { ResolvedEvent, partitionUpcomingEvents } from "@/lib/userEvents";
-import { splitEventTitle } from "@/lib/eventsConfig";
+import { splitEventTitle, OCTOBER_2026_BASE_EVENTS, isConfirmedGathering } from "@/lib/eventsConfig";
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import AfterglowCard from "@/components/dashboard/AfterglowCard";
@@ -30,26 +30,37 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
   const isMounted = useIsMounted();
 
   // Dynamically partition and prioritize events:
-  // Priority 1: Earliest upcoming event confirmed for attending
-  // Fallback: Earliest upcoming open chapter gathering
+  // Priority 1: Earliest upcoming event confirmed for attending (date >= 2026-10-01)
+  // Priority 2: Next upcoming open community gathering in the chapter
   const { spotlightEvent } = partitionUpcomingEvents(events, "2026-10-01");
 
-  if (!spotlightEvent) return null;
+  // Non-breaking fallback if 0 upcoming RSVPs and no open events are found
+  const fallbackEvent: ResolvedEvent = useMemo(() => {
+    const baseOct =
+      OCTOBER_2026_BASE_EVENTS.find((e) => e.date >= "2026-10-01" && isConfirmedGathering(e)) ||
+      OCTOBER_2026_BASE_EVENTS[1];
+    return {
+      ...baseOct,
+      attendanceStatus: "open",
+    };
+  }, []);
 
-  const isAttending = spotlightEvent.attendanceStatus === "attending";
-  const spotlightPhase: EventPhase = isMounted ? getCommunityEventPhase(spotlightEvent) : 'upcoming';
+  const activeSpotlight = spotlightEvent || fallbackEvent;
+
+  const isAttending = activeSpotlight.attendanceStatus === "attending";
+  const spotlightPhase: EventPhase = isMounted ? getCommunityEventPhase(activeSpotlight) : 'upcoming';
   const isPast = spotlightPhase === 'afterglow' || spotlightPhase === 'archived';
   const isLive = spotlightPhase === 'live';
 
-  const mapsQuery = [spotlightEvent.venueName, spotlightEvent.venueAddress]
+  const mapsQuery = [activeSpotlight.venueName, activeSpotlight.venueAddress]
     .filter(Boolean)
     .join(" ")
     .replace(/[^\w\s]/g, "")
     .trim()
     .replace(/\s+/g, "+");
   const googleMapsUrl = `https://maps.google.com/?q=${mapsQuery || "Chicago+IL"}`;
-  const externalLinkUrl = spotlightEvent.externalUrl || spotlightEvent.partifulUrl;
-  const externalLinkLabel = spotlightEvent.externalUrlLabel || "Open Link";
+  const externalLinkUrl = activeSpotlight.externalUrl || activeSpotlight.partifulUrl;
+  const externalLinkLabel = activeSpotlight.externalUrlLabel || "Open Link";
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-[#2B271F] to-[#3D372E] text-[#F4EEE2] rounded-3xl p-5 sm:p-6 shadow-xl border border-[#4C4538]">
@@ -97,7 +108,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
           )}
 
           <span className="text-[10.5px] sm:text-[11px] font-mono tracking-widest text-[#D8CEBC]/70 uppercase">
-            {spotlightEvent.categoryLabel || (spotlightEvent.category === "wellness" ? "WELLNESS & MOVEMENT" : `${spotlightEvent.category.toUpperCase()} SERIES`)}
+            {activeSpotlight.categoryLabel || (activeSpotlight.category === "wellness" ? "WELLNESS & MOVEMENT" : `${activeSpotlight.category.toUpperCase()} SERIES`)}
           </span>
         </div>
 
@@ -106,10 +117,10 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#2B271F]/60 flex items-center justify-center border border-white/10 shrink-0 mt-0.5">
               <EventIcon
-                iconName={spotlightEvent.iconName}
-                eventId={spotlightEvent.id}
-                category={spotlightEvent.category}
-                fallbackIcon={spotlightEvent.icon}
+                iconName={activeSpotlight.iconName}
+                eventId={activeSpotlight.id}
+                category={activeSpotlight.category}
+                fallbackIcon={activeSpotlight.icon}
                 className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E07A5F]"
               />
             </div>
@@ -118,17 +129,17 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                 <BrandName tmClassName="text-[#F5B096] font-bold text-[0.85em]" />
               </div>
               <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold font-serif-fraunces text-white tracking-tight leading-tight">
-                {splitEventTitle(spotlightEvent.title, spotlightEvent.brandPrefix).eventName}
+                {splitEventTitle(activeSpotlight.title, activeSpotlight.brandPrefix).eventName}
               </h2>
               <p className="text-xs sm:text-[13px] text-[#D8CEBC]/80 mt-1 line-clamp-2 leading-relaxed">
-                {spotlightEvent.description}
+                {activeSpotlight.description}
               </p>
             </div>
           </div>
         </div>
 
         {/* Host Announcement Banner */}
-        {Boolean(spotlightEvent.hostAnnouncement && spotlightEvent.hostAnnouncement.trim()) && (
+        {Boolean(activeSpotlight.hostAnnouncement && activeSpotlight.hostAnnouncement.trim()) && (
           <div className="text-xs bg-white/10 border border-white/15 rounded-2xl p-2.5 sm:p-3 text-[#F4EEE2]/90 flex items-start gap-2.5">
             <div className="w-5 h-5 rounded-lg bg-[#2B271F]/50 border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
               <Megaphone className="w-3 h-3 text-[#E07A5F]" />
@@ -138,7 +149,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                 Chapter Host Announcement
               </span>
               <p className="mt-0.5 italic text-[#F4EEE2] text-xs">
-                &ldquo;{spotlightEvent.hostAnnouncement}&rdquo;
+                &ldquo;{activeSpotlight.hostAnnouncement}&rdquo;
               </p>
             </div>
           </div>
@@ -148,25 +159,25 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-2.5 border-y border-white/10 text-xs sm:text-[13px]">
           <div className="flex items-center gap-2 text-[#F4EEE2]/90">
             <CalendarIcon className="w-3.5 h-3.5 text-[#C8643F] shrink-0" />
-            <span className="font-semibold">{spotlightEvent.displayDate}</span>
+            <span className="font-semibold">{activeSpotlight.displayDate}</span>
           </div>
 
           <div className="flex items-center gap-2 text-[#F4EEE2]/90">
             <Clock className="w-3.5 h-3.5 text-[#C8643F] shrink-0" />
-            <span>{spotlightEvent.timeWindow}</span>
+            <span>{activeSpotlight.timeWindow}</span>
           </div>
 
           <div className="flex items-center gap-2 text-[#F4EEE2]/90 sm:col-span-2">
             <MapPin className="w-3.5 h-3.5 text-[#C8643F] shrink-0" />
             <span className="truncate">
-              <strong>{spotlightEvent.venueName}</strong> &bull; {spotlightEvent.venueAddress}
+              <strong>{activeSpotlight.venueName}</strong> &bull; {activeSpotlight.venueAddress}
             </span>
           </div>
         </div>
 
         {/* 24-Hour Afterglow Feedback Card */}
         {isAttending && spotlightPhase === 'afterglow' && (
-          <AfterglowCard eventId={spotlightEvent.id} variant="dark" />
+          <AfterglowCard eventId={activeSpotlight.id} variant="dark" />
         )}
 
         {/* Action Controls */}
@@ -201,7 +212,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                 {!isPast && (
                   <button
                     type="button"
-                    onClick={() => onToggleRSVP(spotlightEvent.id)}
+                    onClick={() => onToggleRSVP(activeSpotlight.id)}
                     className="inline-flex items-center gap-2 px-4.5 py-2 rounded-xl bg-[#C8643F] hover:bg-[#b05230] text-white text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all cursor-pointer"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-white" />
@@ -296,7 +307,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
                 type="button"
                 onClick={() => {
                   setShowCancelModal(false);
-                  onToggleRSVP(spotlightEvent.id);
+                  onToggleRSVP(activeSpotlight.id);
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-[#A63A24] bg-[#FDF2F0] hover:bg-[#FBE8E5] border border-[#F5C2BA] hover:border-[#E07A5F] transition-all cursor-pointer shadow-2xs"
               >

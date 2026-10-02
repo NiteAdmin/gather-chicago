@@ -1122,14 +1122,16 @@ export default function AdminDashboard() {
     const [y, m] = dateStr.split('-').map(Number);
     const d = new Date(y, m - 1, dayNum);
     const formatted = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    setWinningDate(formatted);
-    setEventTimeWindow('10:00 AM – 12:00 PM CDT');
-    setVenueName('');
-    setVenueAddress('');
-    setEventLink('');
-    setHostNote("Can't wait to gather and connect with everyone!");
-    setActiveModalEventId(null);
-    setActiveModalEventTitle(null);
+    const dayEvents = eventsByDay[dayNum] || [];
+    const matchedEv = dayEvents[0];
+    setWinningDate(matchedEv?.displayDate || formatted);
+    setEventTimeWindow(matchedEv?.timeWindow || '10:00 AM – 12:00 PM CDT');
+    setVenueName(matchedEv?.venueName || '');
+    setVenueAddress(matchedEv?.venueAddress || '');
+    setEventLink(matchedEv?.partifulUrl || matchedEv?.externalUrl || '');
+    setHostNote(matchedEv?.hostAnnouncement || matchedEv?.description || "Can't wait to gather and connect with everyone!");
+    setActiveModalEventId(matchedEv?.id || null);
+    setActiveModalEventTitle(matchedEv?.title || null);
     setModalStep('configure');
     setConfirmInput('');
     setToastMessage(null);
@@ -1559,8 +1561,20 @@ export default function AdminDashboard() {
           totalSurveysFound: responses.length,
           groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
           groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
-          eventId: activeModalEventId || selectedEvent?.id,
-          eventTitle: activeModalEventTitle || selectedEvent?.title,
+          eventId:
+            activeModalEventId ||
+            selectedEvent?.id ||
+            events.find((ev) => ev.displayDate === winningDate || ev.date === winningDate)?.id,
+          eventTitle:
+            activeModalEventTitle ||
+            selectedEvent?.title ||
+            events.find(
+              (ev) =>
+                ev.id ===
+                (activeModalEventId ||
+                  selectedEvent?.id ||
+                  events.find((e) => e.displayDate === winningDate || e.date === winningDate)?.id)
+            )?.title,
         }),
       });
 

@@ -469,45 +469,106 @@ export async function fetchHydratedEvents(city: string = "chicago"): Promise<Com
         return timeB - timeA;
       });
 
-      const latest = listToSort[0];
-      if (latest) {
+      // Helper to identify if a broadcast record belongs to a past cycle (< 2026-10-01)
+      const isPastCycleBroadcast = (b: any): boolean => {
+        const win = String(b.winningDate || "").toLowerCase();
+        if (win.includes("sep") || win.includes("2026-09") || win.includes("aug") || win.includes("2026-08")) {
+          return true;
+        }
+        if (b.eventId === "chi-sep-26-gathering") {
+          return true;
+        }
+
+        const timestamp = b.dispatchedAt?.toMillis
+          ? b.dispatchedAt.toMillis()
+          : b.dispatchedAt
+          ? new Date(b.dispatchedAt).getTime()
+          : b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : 0;
+
+        const oct1st2026Ms = new Date("2026-10-01T00:00:00Z").getTime();
+        const hasOctDate = win.includes("oct") || win.includes("2026-10") || win.includes("nov") || win.includes("dec");
+
+        if (timestamp > 0 && timestamp < oct1st2026Ms && !hasOctDate) {
+          return true;
+        }
+        return false;
+      };
+
+      // Match priority helper
+      const findMatchingBroadcast = (ev: CommunityEvent) => {
+        // Priority 1: Match by broadcast.eventId === event.id first
+        const directMatch = listToSort.find((b) => b.eventId && b.eventId === ev.id);
+        if (directMatch) return directMatch;
+
+        // Priority 2: Legacy fallback matching when eventId is undefined
+        return listToSort.find((b) => {
+          if (b.eventId) return false; // Already checked direct matches
+
+          const isPast = isPastCycleBroadcast(b);
+          const isActiveCycle = ev.date >= "2026-10-01";
+
+          // If broadcast is for a past cycle, do NOT allow it to overwrite active October gathering announcements
+          if (isPast && isActiveCycle) {
+            return false;
+          }
+
+          // Legacy match for Moksha Yoga / Sep 26
+          if (ev.id === "chi-sep-26-gathering" || (ev.date === "2026-09-26" && !ev.isPolledOption && !ev.isPolledCandidate)) {
+            return true;
+          }
+
+          // Match by winningDate string if present
+          if (b.winningDate && (ev.displayDate.includes(b.winningDate) || ev.date === b.winningDate)) {
+            return true;
+          }
+
+          return false;
+        });
+      };
+
+      baseEvents = baseEvents.map((ev) => {
+        const matchingBroadcast = findMatchingBroadcast(ev);
+        if (!matchingBroadcast) return ev;
+
         // Extract real announcement copy, checking all broadcast message fields
         const rawNote =
-          latest.customMessage ||
-          latest.message ||
-          latest.announcementText ||
-          latest.notes ||
-          (latest.customNote && latest.customNote !== "Community date confirmed." ? latest.customNote : "");
+          matchingBroadcast.customMessage ||
+          matchingBroadcast.message ||
+          matchingBroadcast.announcementText ||
+          matchingBroadcast.notes ||
+          (matchingBroadcast.customNote && matchingBroadcast.customNote !== "Community date confirmed." ? matchingBroadcast.customNote : "");
 
-        const verifiedExternalUrl = "https://partiful.com/e/QSVMteLK2LBBOc3cQHKh";
-        const incomingUrl = latest.externalUrl || latest.ticketUrl || latest.eventUrl || latest.partifulUrl;
+        const verifiedFallbackUrl = ev.id === "chi-sep-26-gathering"
+          ? "https://partiful.com/e/QSVMteLK2LBBOc3cQHKh"
+          : (ev.externalUrl || ev.partifulUrl || "");
+
+        const incomingUrl = matchingBroadcast.externalUrl || matchingBroadcast.ticketUrl || matchingBroadcast.eventUrl || matchingBroadcast.partifulUrl;
         const resolvedExternalUrl =
           incomingUrl && !incomingUrl.includes("test-preview")
             ? incomingUrl
-            : verifiedExternalUrl;
-        const resolvedExternalLabel = latest.externalUrlLabel || latest.ticketUrlLabel || latest.linkLabel;
+            : (ev.externalUrl || verifiedFallbackUrl);
 
-        baseEvents = baseEvents.map((ev) => {
-          if (ev.id === "chi-sep-26-gathering" || (ev.date === "2026-09-26" && !ev.isPolledOption && !ev.isPolledCandidate)) {
-            const hasCustomVenue =
-              latest.venueName &&
-              !latest.venueName.includes("The Joinery") &&
-              !latest.venueName.includes("Lincoln Park");
+        const resolvedExternalLabel = matchingBroadcast.externalUrlLabel || matchingBroadcast.ticketUrlLabel || matchingBroadcast.linkLabel;
 
-            return {
-              ...ev,
-              venueName: hasCustomVenue ? latest.venueName.trim() : ev.venueName,
-              venueAddress: hasCustomVenue && latest.venueAddress ? latest.venueAddress.trim() : ev.venueAddress,
-              timeWindow: hasCustomVenue && latest.timeWindow ? latest.timeWindow.trim() : ev.timeWindow,
-              externalUrl: resolvedExternalUrl,
-              externalUrlLabel: resolvedExternalLabel || ev.externalUrlLabel,
-              partifulUrl: resolvedExternalUrl,
-              hostAnnouncement: rawNote && String(rawNote).trim() ? String(rawNote).trim() : ev.hostAnnouncement,
-            };
-          }
-          return ev;
-        });
-      }
+        const hasCustomVenue =
+          matchingBroadcast.venueName &&
+          (matchingBroadcast.eventId
+            ? true
+            : !matchingBroadcast.venueName.includes("The Joinery") && !matchingBroadcast.venueName.includes("Lincoln Park"));
+
+        return {
+          ...ev,
+          venueName: hasCustomVenue && matchingBroadcast.venueName ? matchingBroadcast.venueName.trim() : ev.venueName,
+          venueAddress: hasCustomVenue && matchingBroadcast.venueAddress ? matchingBroadcast.venueAddress.trim() : ev.venueAddress,
+          timeWindow: hasCustomVenue && matchingBroadcast.timeWindow ? matchingBroadcast.timeWindow.trim() : ev.timeWindow,
+          externalUrl: resolvedExternalUrl || ev.externalUrl,
+          externalUrlLabel: resolvedExternalLabel || ev.externalUrlLabel,
+          partifulUrl: resolvedExternalUrl || ev.partifulUrl,
+          hostAnnouncement: rawNote && String(rawNote).trim() ? String(rawNote).trim() : ev.hostAnnouncement,
+        };
+      });
     }
   } catch (err) {
     console.warn("fetchHydratedEvents fallback to local config:", err);

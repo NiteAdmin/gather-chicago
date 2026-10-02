@@ -5,6 +5,7 @@ import {
   generateWinningDateEmailGroupA,
   generateWinningDateEmailGroupB,
 } from "@/lib/emailTemplates";
+import { OCTOBER_2026_EVENTS } from "@/lib/eventsConfig";
 
 // Enforce 60s execution ceiling for serverless environments (e.g. Vercel)
 export const maxDuration = 60;
@@ -484,6 +485,21 @@ ${samplePreview.text}
 
     // 7. Firestore Broadcast Audit Log
     let broadcastId = "audit-log-disabled";
+    let resolvedEventId = eventId;
+    let resolvedEventTitle = eventTitle;
+    if (!resolvedEventId && winningDate) {
+      const targetCity = (city || "chicago").toLowerCase();
+      const matchedEv = OCTOBER_2026_EVENTS.find(
+        (e) =>
+          e.city.toLowerCase() === targetCity &&
+          (e.displayDate === winningDate || e.date === winningDate || winningDate.includes(e.displayDate))
+      );
+      if (matchedEv) {
+        resolvedEventId = matchedEv.id;
+        if (!resolvedEventTitle) resolvedEventTitle = matchedEv.title;
+      }
+    }
+
     try {
       broadcastId = await logBroadcast({
         city: city || "chicago",
@@ -497,8 +513,8 @@ ${samplePreview.text}
         groupBCount: isTestMode ? (emailsToSend.length / 2) : validGroupB.length,
         totalDispatched: dispatchedCount ?? 0,
         forceResend: Boolean(forceResend),
-        eventId: eventId || undefined,
-        eventTitle: eventTitle || undefined,
+        eventId: resolvedEventId || undefined,
+        eventTitle: resolvedEventTitle || undefined,
       });
     } catch (dbErr) {
       console.error("[Firestore Broadcast Log Error]:", dbErr);
