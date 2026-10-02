@@ -330,23 +330,28 @@ export default function AdminDashboard() {
   const [selectedMonth, setSelectedMonth] = useState<MonthKey>(CURRENT_CYCLE_MONTH);
   const [selectedEventId, setSelectedEventId] = useState<string | null>('chi-2026-10-03-apple-fest');
   const [selectedDayNum, setSelectedDayNum] = useState<number | null>(3);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => `${CURRENT_CYCLE_MONTH}-03`);
 
   const handleSelectEvent = (eventId: string, dayNum?: number) => {
     if (selectedEventId === eventId && (dayNum === undefined || selectedDayNum === dayNum)) {
       setSelectedEventId(null);
       setSelectedDayNum(null);
+      setSelectedDate(null);
     } else {
       setSelectedEventId(eventId);
       if (dayNum !== undefined) {
         setSelectedDayNum(dayNum);
+        setSelectedDate(`${selectedMonth}-${String(dayNum).padStart(2, '0')}`);
       } else {
         const ev = events.find((e) => e.id === eventId);
         if (ev && ev.date) {
           const parts = ev.date.split('-');
           const d = parseInt(parts[2], 10);
           setSelectedDayNum(!isNaN(d) ? d : null);
+          setSelectedDate(ev.date);
         } else {
           setSelectedDayNum(null);
+          setSelectedDate(null);
         }
       }
     }
@@ -839,9 +844,11 @@ export default function AdminDashboard() {
         const parts = monthEvents[0].date?.split('-');
         const d = parts ? parseInt(parts[2], 10) : null;
         setSelectedDayNum(d && !isNaN(d) ? d : null);
+        setSelectedDate(monthEvents[0].date || null);
       } else {
         setSelectedEventId(null);
         setSelectedDayNum(null);
+        setSelectedDate(null);
       }
     } else {
       if (selectedEventId && !monthEvents.some((e) => e.id === selectedEventId)) {
@@ -850,9 +857,11 @@ export default function AdminDashboard() {
           const parts = monthEvents[0].date?.split('-');
           const d = parts ? parseInt(parts[2], 10) : null;
           setSelectedDayNum(d && !isNaN(d) ? d : null);
+          setSelectedDate(monthEvents[0].date || null);
         } else {
           setSelectedEventId(null);
           setSelectedDayNum(null);
+          setSelectedDate(null);
         }
       }
     }
@@ -920,6 +929,43 @@ export default function AdminDashboard() {
     });
     return map;
   }, [responses, selectedMonth]);
+
+  const handleSelectDate = (dateStr: string, explicitDayNum?: number) => {
+    const dayNum = explicitDayNum !== undefined ? explicitDayNum : parseInt(dateStr.split('-')[2], 10);
+    const dayEvents = eventsByDay[dayNum] || [];
+    if (dayEvents.length > 0) {
+      handleSelectEvent(dayEvents[0].id, dayNum);
+      return;
+    }
+    if (selectedDayNum === dayNum && selectedEventId === null) {
+      setSelectedDayNum(null);
+      setSelectedDate(null);
+      setSelectedEventId(null);
+    } else {
+      setSelectedDayNum(dayNum);
+      setSelectedDate(dateStr);
+      setSelectedEventId(null);
+    }
+  };
+
+  const handleOpenAdminModalForDate = (dateStr: string, dayNum: number) => {
+    const [y, m] = dateStr.split('-').map(Number);
+    const d = new Date(y, m - 1, dayNum);
+    const formatted = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    setWinningDate(formatted);
+    setEventTimeWindow('10:00 AM – 12:00 PM CDT');
+    setVenueName('');
+    setVenueAddress('');
+    setEventLink('');
+    setHostNote("Can't wait to gather and connect with everyone!");
+    setActiveModalEventId(null);
+    setActiveModalEventTitle(null);
+    setModalStep('configure');
+    setConfirmInput('');
+    setToastMessage(null);
+    setExpandedGroup(null);
+    setShowAdminModal(true);
+  };
 
   const dateTally = computeTally('dates', monthDates);
   const timeTally = computeTally('times', TIMES);
@@ -1074,7 +1120,10 @@ export default function AdminDashboard() {
       const isToday = isDayToday(dayNum);
       const isPast = isDayPast(dayNum);
       const dayVotes = votesByDay[dayNum] || 0;
-      const isDaySelected = Boolean(hasEvents && selectedEvent && dayEvents.some((ev) => ev.id === selectedEvent.id));
+      const dateStr = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
+      const isDaySelected = hasEvents
+        ? Boolean(selectedEvent && dayEvents.some((ev) => ev.id === selectedEvent.id))
+        : Boolean(selectedDate === dateStr || (selectedDayNum === dayNum && selectedEventId === null));
       cells.push({
         type: 'day',
         dayNum,
@@ -1090,7 +1139,7 @@ export default function AdminDashboard() {
       cells.push({ type: 'empty', key: `empty-trailing-${index}` });
     }
     return cells;
-  }, [startDayOfWeek, daysInMonth, trailingEmptySlots, eventsByDay, isDayToday, isDayPast, votesByDay, selectedEvent]);
+  }, [startDayOfWeek, daysInMonth, trailingEmptySlots, eventsByDay, isDayToday, isDayPast, votesByDay, selectedEvent, selectedDate, selectedDayNum, selectedEventId, selectedMonth]);
 
   const weeks: CalendarCell[][] = React.useMemo(() => {
     const result: CalendarCell[][] = [];
@@ -1101,14 +1150,14 @@ export default function AdminDashboard() {
   }, [calendarCells]);
 
   const activeWeekIndex = React.useMemo(() => {
-    if (!selectedEvent) return -1;
+    if (!selectedEvent && !selectedDayNum) return -1;
     let idx = -1;
     if (selectedDayNum) {
       idx = weeks.findIndex((week) =>
-        week.some((cell) => cell.type === 'day' && cell.dayNum === selectedDayNum && cell.events.some((ev) => ev.id === selectedEvent.id))
+        week.some((cell) => cell.type === 'day' && cell.dayNum === selectedDayNum)
       );
     }
-    if (idx === -1) {
+    if (idx === -1 && selectedEvent) {
       idx = weeks.findIndex((week) =>
         week.some((cell) => cell.type === 'day' && cell.events.some((ev) => ev.id === selectedEvent.id))
       );
@@ -2085,27 +2134,42 @@ export default function AdminDashboard() {
                         }
 
                         const { dayNum, events: dayEvents, hasEvents, isToday, isPast, dayVotes, isDaySelected } = cell;
+                        const dateStr = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
 
                         return (
                           <div
                             key={`day-${dayNum}`}
+                            role="button"
+                            tabIndex={0}
+                            data-date={dateStr}
+                            aria-label={`${MONTH_CONFIGS[selectedMonth].name} ${dayNum}${hasEvents ? `, ${dayEvents.length} gathering${dayEvents.length > 1 ? 's' : ''}` : ', blank date'}`}
                             onClick={() => {
                               if (hasEvents) {
                                 handleSelectEvent(dayEvents[0].id, dayNum);
+                              } else {
+                                handleSelectDate(dateStr, dayNum);
                               }
                             }}
-                            className={`min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border transition-all flex flex-col justify-between ${
-                              hasEvents ? 'cursor-pointer hover:border-[#C8643F] hover:shadow-xs' : 'cursor-default'
-                            } ${
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                if (hasEvents) {
+                                  handleSelectEvent(dayEvents[0].id, dayNum);
+                                } else {
+                                  handleSelectDate(dateStr, dayNum);
+                                }
+                              }
+                            }}
+                            className={`min-h-[44px] sm:min-h-[60px] lg:min-h-[70px] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border transition-all flex flex-col justify-between cursor-pointer hover:bg-[#F5EFE6]/80 focus:outline-none focus:ring-1 focus:ring-[#C8643F] ${
                               isDaySelected
                                 ? 'bg-[#FAF0EB] border-[#C8643F] ring-2 ring-[#C8643F]/30 shadow-xs'
                                 : isToday
-                                ? 'bg-amber-50/70 border-amber-300'
+                                ? 'bg-amber-50/70 border-amber-300 hover:border-[#C8643F]/60'
                                 : hasEvents
-                                ? 'bg-white border-[#D8CEBC]'
+                                ? 'bg-white border-[#D8CEBC] hover:border-[#C8643F] hover:shadow-xs'
                                 : isPast
-                                ? 'bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75'
-                                : 'bg-[#FCFAF7] border-[#EADBCC]'
+                                ? 'bg-[#F7F3EC]/50 border-[#E8E0D2] opacity-75 hover:border-[#C8643F]/60'
+                                : 'bg-[#FCFAF7] border-[#EADBCC] hover:border-[#C8643F]/60'
                             }`}
                           >
                             {/* Top row: day number + tags */}
@@ -2681,6 +2745,72 @@ export default function AdminDashboard() {
                             >
                               <Megaphone className="w-3.5 h-3.5" />
                               <span>Update Announcement</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inline Blank Date Inspector Below Active Week */}
+                    {weekIndex === activeWeekIndex && !selectedEvent && selectedDayNum && (
+                      <div
+                        id="blank-date-inspector"
+                        className="bg-[#FAF7F2] border border-[#D8C3A8] rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 animate-fade-in w-full min-w-0 mt-2"
+                      >
+                        {/* Drawer Header */}
+                        <div className="flex items-center justify-between pb-3 border-b border-[#EBE3D5]">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#8C827A]" />
+                            <h3 className="text-sm font-bold font-serif-fraunces text-[#2B271F] tracking-tight">
+                              Date Inspector · {(() => {
+                                const [y, m] = selectedMonth.split('-').map(Number);
+                                const d = new Date(y, m - 1, selectedDayNum);
+                                return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                              })()}
+                            </h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedEventId(null);
+                              setSelectedDayNum(null);
+                              setSelectedDate(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#C8643F] text-white hover:bg-[#B25332] text-xs font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C8643F] cursor-pointer"
+                            aria-label="Close"
+                          >
+                            ✕
+                            Close
+                          </button>
+                        </div>
+
+                        {/* Detail Card Empty State */}
+                        <div className="bg-white border border-[#EADBCC] rounded-2xl p-6 sm:p-8 text-center space-y-3">
+                          <div className="w-12 h-12 rounded-full bg-[#FAF0EB] text-[#C8643F] mx-auto flex items-center justify-center">
+                            <Calendar className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-base font-bold font-serif-fraunces text-[#2B271F]">
+                              No gatherings scheduled for this date
+                            </h4>
+                            <p className="text-xs text-stone-500 max-w-md mx-auto">
+                              {votesByDay[selectedDayNum]
+                                ? `${votesByDay[selectedDayNum]} member${votesByDay[selectedDayNum] > 1 ? 's' : ''} requested or indicated availability for this date.`
+                                : 'No events have been announced for this date yet. You can announce a new gathering or dispatch an invitation to members.'}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const dateStr = `${selectedMonth}-${String(selectedDayNum).padStart(2, '0')}`;
+                                handleOpenAdminModalForDate(dateStr, selectedDayNum);
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#C8643F] hover:bg-[#b05230] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                            >
+                              <Megaphone className="w-3.5 h-3.5" />
+                              <span>Announce Gathering on this Date</span>
                             </button>
                           </div>
                         </div>
