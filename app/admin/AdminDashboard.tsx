@@ -34,8 +34,6 @@ import {
   History,
   Send,
   ExternalLink,
-  Flame,
-  Utensils,
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
@@ -46,6 +44,18 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { 
+  Flame, 
+  Wine, 
+  Pizza, 
+  Tree, 
+  Ghost, 
+  Tractor, 
+  Users as PhosphorUsers, 
+  Sparkle,
+  ForkKnife,
+  AppleLogo,
+} from "@phosphor-icons/react";
 
 const GATHERINGS = [
   "Moms Morning",
@@ -170,43 +180,38 @@ function formatCityName(slug: string): string {
     .join(' ');
 }
 
-function getEventEmoji(ev: CommunityEvent): string {
-  const titleLower = (ev.title || '').toLowerCase();
-  const idLower = (ev.id || '').toLowerCase();
-  if (titleLower.includes('apple') || idLower.includes('apple')) return '🍎';
-  if (titleLower.includes('wine') || idLower.includes('wine')) return '🍷';
-  if (titleLower.includes('pizza') || titleLower.includes('pinsa') || idLower.includes('pizza') || idLower.includes('pinsa')) return '🍕';
-  if (titleLower.includes('spooky') || idLower.includes('spooky')) return '🎃';
-  if (titleLower.includes('boo!') || titleLower.includes('boo') || idLower.includes('boo')) return '🦁';
-  if (titleLower.includes('farm') || titleLower.includes('goebbert') || idLower.includes('goebbert')) return '🚜';
-  if (titleLower.includes('comedy') || titleLower.includes('laugh') || idLower.includes('laugh')) return '🎭';
-  if (titleLower.includes('yoga') || titleLower.includes('stretch')) return '🧘';
-  if (titleLower.includes('conservatory')) return '🏛️';
-  return (ev.icon && ev.icon !== 'flame' && ev.icon !== 'utensils') ? ev.icon : '📍';
+function getEventIcon(title: string, iconStr?: string, className: string = "w-3.5 h-3.5 shrink-0 inline-block align-middle"): React.ReactNode {
+  const lower = (title + " " + (iconStr || "")).toLowerCase();
+  
+  if (lower.includes("smoke") || lower.includes("bbq") || iconStr === "🔥" || iconStr === "flame" || iconStr === "utensils") {
+    return <Flame className={className} />;
+  }
+  if (lower.includes("pizza") || lower.includes("pinsa") || iconStr === "🍕") {
+    return <Pizza className={className} />;
+  }
+  if (lower.includes("wine") || lower.includes("drink") || iconStr === "🍷") {
+    return <Wine className={className} />;
+  }
+  if (lower.includes("zoo") || lower.includes("spooky") || iconStr === "🎃") {
+    return <Ghost className={className} />;
+  }
+  if (lower.includes("farm") || lower.includes("goebbert") || iconStr === "🚜") {
+    return <Tractor className={className} />;
+  }
+  if (lower.includes("apple") || iconStr === "🍎") {
+    return <AppleLogo className={className} />;
+  }
+  if (iconStr === "🧑🤝🧑" || lower.includes("gathering") || lower.includes("community")) {
+    return <PhosphorUsers className={className} />;
+  }
+  if (lower.includes("conservatory") || lower.includes("park") || lower.includes("tree")) {
+    return <Tree className={className} />;
+  }
+  return <Sparkle className={className} />;
 }
 
 function renderEventChipIcon(ev: CommunityEvent): React.ReactNode {
-  const iconKey = (ev.icon || '').toLowerCase();
-  const iconNameKey = (ev.iconName || '').toLowerCase();
-  const titleLower = (ev.title || '').toLowerCase();
-  const idLower = (ev.id || '').toLowerCase();
-
-  if (
-    iconKey === 'flame' ||
-    iconNameKey === 'flame' ||
-    titleLower.includes('smoke') ||
-    titleLower.includes('bbq') ||
-    idLower.includes('smoke')
-  ) {
-    return <Flame className="w-3.5 h-3.5 shrink-0 inline-block align-middle" />;
-  }
-
-  if (iconKey === 'utensils' || iconNameKey === 'utensils') {
-    return <Utensils className="w-3.5 h-3.5 shrink-0 inline-block align-middle" />;
-  }
-
-  const emoji = getEventEmoji(ev);
-  return <span className="shrink-0 leading-none">{emoji}</span>;
+  return getEventIcon(ev.title, (ev as any).emoji || ev.icon);
 }
 
 function formatRosterPhone(phone?: string | null): string | null {
@@ -2249,7 +2254,7 @@ export default function AdminDashboard() {
                                     {/* Mobile representation: clean icon + attendee count badge */}
                                     <div className="flex sm:hidden items-center justify-center gap-1 w-full text-center py-0.5">
                                       <span className="text-xs leading-none shrink-0 inline-flex items-center justify-center">
-                                        {renderEventChipIcon(ev)}
+                                        {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
                                       </span>
                                       <span
                                         className={`text-[9px] font-mono shrink-0 px-1 py-0.2 rounded font-semibold ${
@@ -2264,7 +2269,7 @@ export default function AdminDashboard() {
                                     <div className="hidden sm:flex items-center justify-between gap-1 w-full min-w-0">
                                       <span className="truncate flex items-center gap-1 min-w-0">
                                         <span className="shrink-0 inline-flex items-center justify-center">
-                                          {renderEventChipIcon(ev)}
+                                          {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
                                         </span>
                                         <span className="truncate">{cleanTitle}</span>
                                       </span>
@@ -2478,7 +2483,7 @@ export default function AdminDashboard() {
                                       }`}
                                     >
                                       <span className="inline-flex items-center gap-1.5">
-                                        {renderEventChipIcon(ev)}
+                                        {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
                                         <span>{ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}</span>
                                       </span>
                                     </button>
