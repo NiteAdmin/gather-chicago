@@ -366,6 +366,7 @@ export default function AdminDashboard() {
 
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
+  const [pollVotes, setPollVotes] = useState<any[]>([]);
 
   // Multi-Event Engine & Current-Month Cycle State
   const [events, setEvents] = useState<CommunityEvent[]>(() => getEventsForCity('chicago'));
@@ -621,6 +622,9 @@ export default function AdminDashboard() {
 
     setResponses(cleanResponses);
     setLastSyncedTime(formatSyncTime());
+    if (Array.isArray(data.pollVotes)) {
+      setPollVotes(data.pollVotes);
+    }
     if (Array.isArray(data.users)) {
       const cleanUsers = data.users.filter((u: RegisteredUser) => !isDeletedOrArchivedEntry(u));
       setUsers(cleanUsers);
@@ -824,6 +828,18 @@ export default function AdminDashboard() {
         }
       });
 
+      // 3. Community poll votes: incorporate date choices if not already covered
+      pollVotes.forEach((pv) => {
+        const voterKey = (pv.email || pv.id || pv.voterKey || '').trim().toLowerCase();
+        if (!voterKey) return;
+        const vDate = pv.preferredDate || pv.dateWindow;
+        if (!vDate) return;
+        const existing = userDatesMap.get(voterKey) || [];
+        if (!existing.includes(vDate)) {
+          userDatesMap.set(voterKey, [...existing, vDate]);
+        }
+      });
+
       // Helper function to match a raw date string to one of the options in optionsOrder
       const matchesOption = (option: string, userDateStr: string): boolean => {
         if (!option || !userDateStr) return false;
@@ -941,8 +957,15 @@ export default function AdminDashboard() {
       });
     });
 
+    pollVotes.forEach((pv) => {
+      const d = pv.preferredDate || pv.dateWindow;
+      if (typeof d === 'string' && (d.includes(monthAbbr) || d.toLowerCase() === 'any date')) {
+        dynamicDates.add(d);
+      }
+    });
+
     return Array.from(dynamicDates);
-  }, [selectedMonth, responses, users]);
+  }, [selectedMonth, responses, users, pollVotes]);
 
   const monthEvents = React.useMemo(() => {
     return events.filter((ev) => {
@@ -1047,6 +1070,16 @@ export default function AdminDashboard() {
         userDatesMap.set(emailKey, u.preferredDates);
       }
     });
+    pollVotes.forEach((pv) => {
+      const voterKey = (pv.email || pv.id || pv.voterKey || '').trim().toLowerCase();
+      if (!voterKey) return;
+      const vDate = pv.preferredDate || pv.dateWindow;
+      if (!vDate) return;
+      const existing = userDatesMap.get(voterKey) || [];
+      if (!existing.includes(vDate)) {
+        userDatesMap.set(voterKey, [...existing, vDate]);
+      }
+    });
 
     userDatesMap.forEach((dates) => {
       const userMatchedDays = new Set<number>();
@@ -1063,7 +1096,7 @@ export default function AdminDashboard() {
       });
     });
     return map;
-  }, [responses, users, selectedMonth]);
+  }, [responses, users, pollVotes, selectedMonth]);
 
   const handleSelectDate = (dateStr: string, explicitDayNum?: number) => {
     if (selectedMonth < CURRENT_CYCLE_MONTH) return;

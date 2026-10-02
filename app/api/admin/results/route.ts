@@ -112,8 +112,92 @@ export async function POST(request: Request) {
       console.warn('Could not fetch users in admin results route:', usersErr);
     }
 
+    // Fetch community polls votes to aggregate into date polling consensus
+    let pollVotes: any[] = [];
+    try {
+      if (adminDb) {
+        // 1. Fetch flat communityPolls documents
+        const pollsSnap = await adminDb.collection('communityPolls').get();
+        pollsSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          if (data && (data.preferredDate || data.selectedOptionId || data.selectedStudio)) {
+            pollVotes.push({ id: doc.id, ...data });
+          }
+        });
+
+        // 2. Fetch nested votes across all polls via collectionGroup
+        try {
+          const groupSnap = await adminDb.collectionGroup('votes').get();
+          groupSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            if (data && (data.preferredDate || data.selectedOptionId || data.selectedStudio)) {
+              const docKey = data.voterKey || doc.id;
+              if (
+                !pollVotes.some(
+                  (pv) =>
+                    pv.id === doc.id ||
+                    (pv.voterKey && pv.voterKey === docKey && pv.pollId === data.pollId)
+                )
+              ) {
+                pollVotes.push({ id: doc.id, ...data });
+              }
+            }
+          });
+        } catch (cgErr) {
+          console.warn('Could not query collectionGroup votes:', cgErr);
+        }
+      } else {
+        const pollsSnap = await getDocs(collection(db, 'communityPolls'));
+        pollsSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          if (data && (data.preferredDate || data.selectedOptionId || data.selectedStudio)) {
+            pollVotes.push({ id: doc.id, ...data });
+          }
+        });
+      }
+
+      // Filter out synthetic test entries
+      pollVotes = pollVotes.filter((pv) => !isSyntheticTestEntry(pv));
+
+      // Merge communityPolls votes into responses so Date Polling Results bar chart reflects them
+      pollVotes.forEach((vote) => {
+        const voteDate = vote.preferredDate || vote.dateWindow;
+        const voteEmail = (vote.email || '').trim().toLowerCase();
+        if (!voteDate) return;
+
+        if (voteEmail) {
+          const existingResp = responses.find(
+            (r) => (r.email || '').trim().toLowerCase() === voteEmail
+          );
+          if (existingResp) {
+            const currentDates = Array.isArray(existingResp.dates) ? existingResp.dates : [];
+            if (!currentDates.includes(voteDate)) {
+              existingResp.dates = [...currentDates, voteDate];
+            }
+            return;
+          }
+        }
+
+        // If voter does not exist in responses, append synthetic entry
+        responses.push({
+          id: `poll-vote-${vote.id || vote.voterKey || Math.random().toString(36).slice(2)}`,
+          name: vote.name || (voteEmail ? voteEmail.split('@')[0] : 'Community Voter'),
+          email: voteEmail,
+          phoneNumber: vote.phoneNumber || '',
+          dates: [voteDate],
+          customDate: voteDate,
+          gatherings: [vote.selectedStudio || vote.selectedOptionId].filter(Boolean),
+          city: vote.city || 'chicago',
+          source: 'community-poll',
+          createdAt: vote.createdAt || new Date().toISOString(),
+        });
+      });
+    } catch (pollErr) {
+      console.warn('Could not fetch communityPolls in admin results route:', pollErr);
+    }
+
     return NextResponse.json(
-      { responses, users },
+      { responses, users, pollVotes },
       {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
