@@ -1717,12 +1717,11 @@ export default function AdminDashboard() {
     }
 
     const memberName = name || 'Anonymous Community Member';
-    const cityName = (city ? formatCityName(city) : (selectedCity ? formatCityName(selectedCity) : 'Chicago')).toUpperCase();
 
     if (intakeDateStr) {
-      return `— ${memberName} · Intake ${intakeDateStr} · ${cityName}`;
+      return `— ${memberName} · ${intakeDateStr}`;
     }
-    return `— ${memberName} · ${cityName}`;
+    return `— ${memberName}`;
   };
 
   const renderBars = (pairs: [string, number][]) => {
@@ -2988,7 +2987,7 @@ export default function AdminDashboard() {
                                 {formatIntakeTag(item.createdAt, item.name, item.city)}
                               </span>
                               <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                {item.city ? formatCityName(item.city) : 'Intake Response'}
+                                INTAKE
                               </span>
                             </div>
                           </div>
@@ -3025,7 +3024,7 @@ export default function AdminDashboard() {
                                   {formatIntakeTag(item.createdAt, item.name, item.city)}
                                 </span>
                                 <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                  Intake Response
+                                  INTAKE
                                 </span>
                               </div>
                             </div>
@@ -3033,7 +3032,7 @@ export default function AdminDashboard() {
                         })}
                       </div>
                     ) : (
-                      <div className="bg-[#FAF8F5] border border-dashed border-[#DDD7CB] rounded-xl p-4 text-center">
+                      <div className="bg-[#FAF8F5] border border-dashed border-[#EADBCC] rounded-xl py-2.5 px-3 text-center">
                         <p className="text-xs text-[#7A7265] italic">
                           {selectedMonth === '2026-10'
                             ? 'No custom dates requested for October 2026 yet. New submissions will appear here automatically.'
@@ -3070,7 +3069,7 @@ export default function AdminDashboard() {
                                   {formatIntakeTag(item.createdAt, item.name, item.city)}
                                 </span>
                                 <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                  Intake Response
+                                  INTAKE
                                 </span>
                               </div>
                             </div>
@@ -3120,7 +3119,7 @@ export default function AdminDashboard() {
                                   {formatIntakeTag(item.createdAt, item.name, item.city)}
                                 </span>
                                 <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                                  Intake Response
+                                  INTAKE
                                 </span>
                               </div>
                             </div>
