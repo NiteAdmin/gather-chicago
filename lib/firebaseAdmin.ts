@@ -58,6 +58,8 @@ try {
   app = null;
 }
 
+export const adminApp = app;
+
 export const adminDb: Firestore | null = (() => {
   try {
     return app ? getFirestore(app) : null;

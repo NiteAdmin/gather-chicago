@@ -172,9 +172,21 @@ export default function PotteryPollModal({
 
     try {
       const current = auth.currentUser;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (current) {
+        try {
+          const idToken = await current.getIdToken();
+          if (idToken) {
+            headers['Authorization'] = `Bearer ${idToken}`;
+          }
+        } catch (tokenErr) {
+          console.warn('Could not get current user idToken for poll vote:', tokenErr);
+        }
+      }
+
       const res = await fetch('/api/poll/vote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           pollId: 'pottery-studio-faceoff',
           userId: current?.uid || null,
