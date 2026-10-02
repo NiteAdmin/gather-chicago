@@ -2494,7 +2494,7 @@ export default function AdminDashboard() {
                               </div>
                             </div>
 
-                            {/* Right Column: Confirmed Guests Headcount Gauge + Vibe Check (col-span-5) */}
+                            {/* Right Column: Confirmed Guests Headcount Gauge + Attendee Preferences (col-span-5) */}
                             <div className="lg:col-span-5 space-y-3 min-w-0">
                               <div
                                 className={`rounded-2xl p-4 sm:p-5 space-y-2.5 w-full min-w-0 ${
@@ -2553,7 +2553,7 @@ export default function AdminDashboard() {
                                   </span>
                                 </div>
 
-                                {/* Live Vibe Aggregation Summary */}
+                                {/* Live Preferences Aggregation Summary */}
                                 <div
                                   className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${
                                     isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
@@ -2564,14 +2564,14 @@ export default function AdminDashboard() {
                                       isImminentEvent ? 'text-stone-400' : 'text-stone-500'
                                     }`}
                                   >
-                                    Vibe Check
+                                    ATTENDEE PREFERENCES
                                   </span>
                                   <span
                                     className={`font-mono text-xs px-2.5 py-1 rounded-full ${
                                       isImminentEvent ? 'bg-white/10 text-stone-200' : 'bg-[#EFE8DF] text-stone-700'
                                     }`}
                                   >
-                                    Attendee Vibes: ⚡ {feedbackCounts.Energizing} · ☕ {feedbackCounts.Relaxed} · 🌱 {feedbackCounts.DeepTalk}
+                                    Preferences: ⚡ {feedbackCounts.Energizing} · ☕ {feedbackCounts.Relaxed} · 🌱 {feedbackCounts.DeepTalk}
                                   </span>
                                 </div>
                               </div>
