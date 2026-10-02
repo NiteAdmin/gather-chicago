@@ -107,14 +107,22 @@ export function isPreferenceDatePast(dateStr: string): boolean {
     if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
       targetIso = clean;
     } else {
-      const match = clean.match(/\b([A-Za-z]+)\s+(\d{1,2})(?:,?\s*(\d{4}))?\b/i);
-      if (match) {
-        const mKey = match[1].toLowerCase();
-        const m = monthNames[mKey];
-        if (m) {
-          const d = String(parseInt(match[2], 10)).padStart(2, '0');
-          const y = match[3] || '2026';
-          targetIso = `${y}-${m}-${d}`;
+      const slashMatch = clean.match(/^0?(\d{1,2})\/0?(\d{1,2})(?:\/(\d{2,4}))?$/);
+      if (slashMatch) {
+        const m = slashMatch[1].padStart(2, '0');
+        const d = slashMatch[2].padStart(2, '0');
+        const y = slashMatch[3] ? (slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3]) : '2026';
+        targetIso = `${y}-${m}-${d}`;
+      } else {
+        const match = clean.match(/\b([A-Za-z]+)\s+(\d{1,2})(?:,?\s*(\d{4}))?\b/i);
+        if (match) {
+          const mKey = match[1].toLowerCase();
+          const m = monthNames[mKey];
+          if (m) {
+            const d = String(parseInt(match[2], 10)).padStart(2, '0');
+            const y = match[3] || '2026';
+            targetIso = `${y}-${m}-${d}`;
+          }
         }
       }
     }

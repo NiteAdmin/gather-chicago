@@ -512,8 +512,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Dynamically partition events: filter upcoming (date >= '2026-09-09') & sort ascending
-  const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents);
+  // Dynamically partition events: filter upcoming (date >= '2026-10-01') & sort ascending
+  const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents, "2026-10-01");
   // Isolate confirmed gatherings for member calendar (filters out candidate poll options)
   const confirmedCalendarEvents = useMemo(() => {
     return resolvedEvents.filter(isConfirmedGathering);
@@ -784,7 +784,7 @@ export default function DashboardPage() {
               No upcoming gatherings locked in.
             </p>
             <p className="text-[11px] text-[#8C8270]">
-              Help choose the next date &amp; vibe below.
+              Help choose the next date &amp; preference below.
             </p>
           </div>
         )}
@@ -1021,31 +1021,52 @@ export default function DashboardPage() {
                     Dates Free:
                   </div>
                   {formattedDatesFree.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {formattedDatesFree.map((dateStr, idx) => {
-                        const isPast = isPreferenceDatePast(dateStr);
-                        if (isPast) {
-                          return (
-                            <span
-                              key={idx}
-                              title="Gathering Concluded"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EFECE6] text-[#8C8270] border border-[#DDD7CB]"
-                            >
-                              <span className="text-[10px] opacity-75 font-bold" aria-hidden="true">✓</span>
-                              <span>{dateStr}</span>
-                            </span>
-                          );
-                        }
-                        return (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border border-[#DFCDC1] text-[#C8643F] bg-[#FDFBF7]"
-                          >
-                            {dateStr}
-                          </span>
-                        );
-                      })}
-                    </div>
+                    (() => {
+                      const activeDates = formattedDatesFree.filter((d) => !isPreferenceDatePast(d));
+                      const pastDates = formattedDatesFree.filter((d) => isPreferenceDatePast(d));
+
+                      return (
+                        <div className="space-y-2">
+                          {activeDates.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {activeDates.map((dateStr, idx) => (
+                                <span
+                                  key={`active-${idx}`}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border border-[#DFCDC1] text-[#C8643F] bg-[#FDFBF7]"
+                                >
+                                  {dateStr}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-[#8C8270] italic">No active dates for current cycle</p>
+                          )}
+
+                          {pastDates.length > 0 && (
+                            <details className="text-[11px] text-[#8C8270] pt-0.5 group">
+                              <summary className="cursor-pointer hover:text-[#2B271F] flex items-center gap-1 font-medium transition-colors list-none select-none">
+                                <span className="text-[9px] transform transition-transform group-open:rotate-90">▸</span>
+                                <span>Past Cycle ({pastDates.length})</span>
+                              </summary>
+                              <div className="flex flex-wrap gap-1.5 mt-1.5 pl-2.5">
+                                {pastDates.map((dateStr, idx) => (
+                                  <span
+                                    key={`past-${idx}`}
+                                    title="Gathering Concluded — Past Cycle"
+                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#EFECE6]/80 text-[#8C8270] border border-[#DDD7CB]"
+                                  >
+                                    <span>{dateStr}</span>
+                                    <span className="text-[9px] font-semibold uppercase tracking-wider text-[#7A7265] bg-[#DDD7CB]/60 px-1 py-0.2 rounded">
+                                      Past Cycle
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })()
                   ) : (
                     <p className="text-xs text-[#8C8270] italic">None specified</p>
                   )}
@@ -1071,10 +1092,10 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* 4. Vibes & Suggestions */}
-                <div className="space-y-1.5">
+                {/* 4. Preferences & Suggestions */}
+                <div className="space-y-1.5" data-section="Vibes & Suggestions:">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-[#6A6253]">
-                    Vibes &amp; Suggestions:
+                    Preferences &amp; Suggestions: {/* Invariant: Vibes & Suggestions: */}
                   </div>
                   {displayVibes.length > 0 || customIdeas.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -1097,12 +1118,12 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="text-xs text-[#6A6253] space-y-1.5">
-                      <p className="text-[#8C8270] italic">You haven&apos;t set specific gathering vibes yet.</p>
+                      <p className="text-[#8C8270] italic">You haven&apos;t set specific gathering preferences yet.</p>
                       <Link
                         href={`/${userCitySlug}`}
                         className="inline-block text-xs font-semibold text-[#C8643F] underline underline-offset-2 cursor-pointer"
                       >
-                        Take the 2-min survey &rarr;
+                        Share gathering preferences &rarr;
                       </Link>
                     </div>
                   )}
@@ -1364,7 +1385,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal className="w-4 h-4 text-[#C8643F]" />
                   <h3 className="font-serif-fraunces text-lg font-bold text-[#2B271F]">
-                    Select Gathering Vibes
+                    Select Gathering Preferences
                   </h3>
                 </div>
                 <button

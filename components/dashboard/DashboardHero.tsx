@@ -32,7 +32,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
   // Dynamically partition and prioritize events:
   // Priority 1: Earliest upcoming event confirmed for attending
   // Fallback: Earliest upcoming open chapter gathering
-  const { spotlightEvent } = partitionUpcomingEvents(events);
+  const { spotlightEvent } = partitionUpcomingEvents(events, "2026-10-01");
 
   if (!spotlightEvent) return null;
 
@@ -47,7 +47,7 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
     .replace(/[^\w\s]/g, "")
     .trim()
     .replace(/\s+/g, "+");
-  const googleMapsUrl = `https://maps.google.com/?q=${mapsQuery || "Moksha+Yoga+Center+2528+W+Armitage+Ave+Chicago+IL"}`;
+  const googleMapsUrl = `https://maps.google.com/?q=${mapsQuery || "Chicago+IL"}`;
   const externalLinkUrl = spotlightEvent.externalUrl || spotlightEvent.partifulUrl;
   const externalLinkLabel = spotlightEvent.externalUrlLabel || "Open Link";
 

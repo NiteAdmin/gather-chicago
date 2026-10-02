@@ -457,7 +457,7 @@ export function resolveUserAttendance(
  */
 export function partitionUpcomingEvents(
   events: ResolvedEvent[],
-  currentDateThreshold: string = "2026-09-09"
+  currentDateThreshold: string = "2026-10-01"
 ): {
   upcoming: ResolvedEvent[];
   upcomingAttending: ResolvedEvent[];
@@ -493,8 +493,15 @@ export function partitionUpcomingEvents(
   const upcomingOpen = upcoming.filter((e) => e.attendanceStatus === "open");
 
   // Priority 1: Earliest upcoming event user is confirmed for (attending)
-  // Fallback: Earliest flagship upcoming open chapter gathering
-  const spotlightEvent = upcomingAttending[0] || upcomingOpen[0] || upcoming[0] || null;
+  // Fallback: Earliest flagship upcoming open chapter gathering or community poll
+  let spotlightEvent = upcomingAttending[0] || upcomingOpen[0] || upcoming[0] || null;
+
+  if (!spotlightEvent) {
+    const candidateFallback = events.find((e) => e.date >= currentDateThreshold);
+    if (candidateFallback) {
+      spotlightEvent = candidateFallback;
+    }
+  }
 
   return {
     upcoming,
