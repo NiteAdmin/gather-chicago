@@ -35,6 +35,7 @@ import {
   Send,
   ExternalLink,
   Flame,
+  Utensils,
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
@@ -175,14 +176,37 @@ function getEventEmoji(ev: CommunityEvent): string {
   if (titleLower.includes('apple') || idLower.includes('apple')) return '🍎';
   if (titleLower.includes('wine') || idLower.includes('wine')) return '🍷';
   if (titleLower.includes('pizza') || titleLower.includes('pinsa') || idLower.includes('pizza') || idLower.includes('pinsa')) return '🍕';
-  if (titleLower.includes('smoke') || titleLower.includes('bbq') || idLower.includes('smoke')) return '🔥';
   if (titleLower.includes('spooky') || idLower.includes('spooky')) return '🎃';
   if (titleLower.includes('boo!') || titleLower.includes('boo') || idLower.includes('boo')) return '🦁';
   if (titleLower.includes('farm') || titleLower.includes('goebbert') || idLower.includes('goebbert')) return '🚜';
   if (titleLower.includes('comedy') || titleLower.includes('laugh') || idLower.includes('laugh')) return '🎭';
   if (titleLower.includes('yoga') || titleLower.includes('stretch')) return '🧘';
   if (titleLower.includes('conservatory')) return '🏛️';
-  return ev.icon || '📍';
+  return (ev.icon && ev.icon !== 'flame' && ev.icon !== 'utensils') ? ev.icon : '📍';
+}
+
+function renderEventChipIcon(ev: CommunityEvent): React.ReactNode {
+  const iconKey = (ev.icon || '').toLowerCase();
+  const iconNameKey = (ev.iconName || '').toLowerCase();
+  const titleLower = (ev.title || '').toLowerCase();
+  const idLower = (ev.id || '').toLowerCase();
+
+  if (
+    iconKey === 'flame' ||
+    iconNameKey === 'flame' ||
+    titleLower.includes('smoke') ||
+    titleLower.includes('bbq') ||
+    idLower.includes('smoke')
+  ) {
+    return <Flame className="w-3.5 h-3.5 shrink-0 inline-block align-middle" />;
+  }
+
+  if (iconKey === 'utensils' || iconNameKey === 'utensils') {
+    return <Utensils className="w-3.5 h-3.5 shrink-0 inline-block align-middle" />;
+  }
+
+  const emoji = getEventEmoji(ev);
+  return <span className="shrink-0 leading-none">{emoji}</span>;
 }
 
 function formatRosterPhone(phone?: string | null): string | null {
@@ -2207,7 +2231,6 @@ export default function AdminDashboard() {
                                 const isEvSelected = Boolean(selectedEvent && ev.id === selectedEvent.id);
                                 const cleanTitle = splitEventTitle(ev.title, ev.brandPrefix).eventName;
                                 const attendance = calculateEventAttendance(ev, users, responses);
-                                const eventEmoji = getEventEmoji(ev);
                                 return (
                                   <button
                                     key={ev.id}
@@ -2223,9 +2246,11 @@ export default function AdminDashboard() {
                                         : 'bg-[#FAF0EB] text-[#C8643F] hover:bg-[#F3E3DA] border border-[#EED4C8]'
                                     }`}
                                   >
-                                    {/* Mobile representation: clean emoji + attendee count badge */}
+                                    {/* Mobile representation: clean icon + attendee count badge */}
                                     <div className="flex sm:hidden items-center justify-center gap-1 w-full text-center py-0.5">
-                                      <span className="text-xs leading-none shrink-0">{eventEmoji}</span>
+                                      <span className="text-xs leading-none shrink-0 inline-flex items-center justify-center">
+                                        {renderEventChipIcon(ev)}
+                                      </span>
                                       <span
                                         className={`text-[9px] font-mono shrink-0 px-1 py-0.2 rounded font-semibold ${
                                           isEvSelected ? 'bg-white/20 text-white' : 'bg-white text-[#C8643F]'
@@ -2235,10 +2260,12 @@ export default function AdminDashboard() {
                                       </span>
                                     </div>
 
-                                    {/* Desktop representation: emoji + clean event title + count badge */}
+                                    {/* Desktop representation: icon + clean event title + count badge */}
                                     <div className="hidden sm:flex items-center justify-between gap-1 w-full min-w-0">
                                       <span className="truncate flex items-center gap-1 min-w-0">
-                                        <span className="shrink-0">{eventEmoji}</span>
+                                        <span className="shrink-0 inline-flex items-center justify-center">
+                                          {renderEventChipIcon(ev)}
+                                        </span>
                                         <span className="truncate">{cleanTitle}</span>
                                       </span>
                                       <span
@@ -2450,8 +2477,10 @@ export default function AdminDashboard() {
                                           : 'bg-white border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] hover:bg-[#FAF7F2]'
                                       }`}
                                     >
-                                      {ev.icon ? `${ev.icon} ` : ''}
-                                      {ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {renderEventChipIcon(ev)}
+                                        <span>{ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}</span>
+                                      </span>
                                     </button>
                                   );
                                 })

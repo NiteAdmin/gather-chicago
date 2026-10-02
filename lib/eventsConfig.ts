@@ -249,7 +249,7 @@ export const OCTOBER_2026_BASE_EVENTS: CommunityEvent[] = [
     categoryLabel: "FOOD & COMMUNITY DINNER",
     audience: "family",
     audienceLabel: "👨‍👩‍👧 Family Friendly",
-    icon: "👨‍👩‍👧",
+    icon: "flame",
     iconName: "Flame",
     venueName: "Soul & Smoke",
     venueAddress: "3057 N Rockwell St, Chicago, IL 60618",
