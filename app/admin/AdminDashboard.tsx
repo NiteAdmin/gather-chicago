@@ -795,10 +795,77 @@ export default function AdminDashboard() {
     };
   }, [authenticated, adminPasscode, passcode, selectedCity]);
 
-  // Tally helper for analytics
+  // Tally helper for analytics with unified date consensus
   const computeTally = (field: keyof SurveyResponse, optionsOrder: string[]) => {
     const counts: Record<string, number> = {};
     optionsOrder.forEach((o) => (counts[o] = 0));
+
+    if (field === 'dates') {
+      // Map of unique user identifiers to their active set of dates
+      const userDatesMap = new Map<string, string[]>();
+
+      // 1. Initial intake survey responses
+      responses.forEach((r) => {
+        const emailKey = (r.email || r.id || '').trim().toLowerCase();
+        if (!emailKey) return;
+        const rDates = [
+          ...(Array.isArray(r.dates) ? r.dates : typeof r.dates === 'string' ? [r.dates] : []),
+          ...(r.customDate ? [r.customDate] : []),
+        ];
+        userDatesMap.set(emailKey, rDates);
+      });
+
+      // 2. Registered users: latest profile picks take strict precedence
+      users.forEach((u) => {
+        const emailKey = (u.email || u.id || '').trim().toLowerCase();
+        if (!emailKey) return;
+        if (Array.isArray(u.preferredDates) && u.preferredDates.length > 0) {
+          userDatesMap.set(emailKey, u.preferredDates);
+        }
+      });
+
+      // Helper function to match a raw date string to one of the options in optionsOrder
+      const matchesOption = (option: string, userDateStr: string): boolean => {
+        if (!option || !userDateStr) return false;
+        const optLower = option.trim().toLowerCase();
+        const userLower = userDateStr.trim().toLowerCase();
+        if (optLower === userLower) return true;
+        if (userLower === 'any date' && optLower === 'any date') return true;
+
+        // Check month and day match (e.g., "Oct 9" or "Oct 09" or "2026-10-09")
+        const optMatch = optLower.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})/);
+        const userMatch = userLower.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})/);
+        if (optMatch && userMatch) {
+          return optMatch[1] === userMatch[1] && parseInt(optMatch[2], 10) === parseInt(userMatch[2], 10);
+        }
+
+        // Also check ISO format YYYY-MM-DD against month + day
+        const isoMatch = userLower.match(/\d{4}-(\d{2})-(\d{2})/);
+        if (optMatch && isoMatch) {
+          const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+          const isoMonth = monthNames[parseInt(isoMatch[1], 10) - 1];
+          const isoDay = parseInt(isoMatch[2], 10);
+          return optMatch[1] === isoMonth && parseInt(optMatch[2], 10) === isoDay;
+        }
+
+        return optLower.includes(userLower) || userLower.includes(optLower);
+      };
+
+      // 3. Tally deduplicated per user
+      userDatesMap.forEach((userDates) => {
+        const matchedOptionsForUser = new Set<string>();
+        optionsOrder.forEach((o) => {
+          if (userDates.some((d) => matchesOption(o, d))) {
+            matchedOptionsForUser.add(o);
+          }
+        });
+        matchedOptionsForUser.forEach((o) => {
+          if (o in counts) counts[o]++;
+        });
+      });
+
+      return optionsOrder.map((o) => [o, counts[o]] as [string, number]).sort((a, b) => b[1] - a[1]);
+    }
 
     responses.forEach((r) => {
       const val = r[field];
@@ -865,8 +932,17 @@ export default function AdminDashboard() {
       });
     });
 
+    users.forEach((u) => {
+      const list = Array.isArray(u.preferredDates) ? u.preferredDates : [];
+      list.forEach((d) => {
+        if (typeof d === 'string' && (d.includes(monthAbbr) || d.toLowerCase() === 'any date')) {
+          dynamicDates.add(d);
+        }
+      });
+    });
+
     return Array.from(dynamicDates);
-  }, [selectedMonth, responses]);
+  }, [selectedMonth, responses, users]);
 
   const monthEvents = React.useMemo(() => {
     return events.filter((ev) => {
@@ -949,7 +1025,7 @@ export default function AdminDashboard() {
     return map;
   }, [monthEvents, selectedMonth]);
 
-  // Map survey preferences count by day number for the selected month
+  // Map survey preferences count by day number for the selected month with unified deduplication
   const votesByDay = React.useMemo(() => {
     const map: Record<number, number> = {};
     const monthAbbr =
@@ -957,20 +1033,37 @@ export default function AdminDashboard() {
       selectedMonth === '2026-10' ? 'Oct' :
       selectedMonth === '2026-11' ? 'Nov' : 'Dec';
 
+    const userDatesMap = new Map<string, string[]>();
     responses.forEach((r) => {
-      const dates = Array.isArray(r.dates) ? r.dates : [];
+      const emailKey = (r.email || r.id || '').trim().toLowerCase();
+      if (!emailKey) return;
+      const rDates = Array.isArray(r.dates) ? r.dates : [];
+      userDatesMap.set(emailKey, rDates);
+    });
+    users.forEach((u) => {
+      const emailKey = (u.email || u.id || '').trim().toLowerCase();
+      if (!emailKey) return;
+      if (Array.isArray(u.preferredDates) && u.preferredDates.length > 0) {
+        userDatesMap.set(emailKey, u.preferredDates);
+      }
+    });
+
+    userDatesMap.forEach((dates) => {
+      const userMatchedDays = new Set<number>();
       dates.forEach((d) => {
         if (typeof d === 'string' && d.includes(monthAbbr)) {
           const match = d.match(new RegExp(`${monthAbbr}\\s+(\\d{1,2})`, 'i'));
           if (match) {
-            const dayNum = parseInt(match[1], 10);
-            map[dayNum] = (map[dayNum] || 0) + 1;
+            userMatchedDays.add(parseInt(match[1], 10));
           }
         }
       });
+      userMatchedDays.forEach((dayNum) => {
+        map[dayNum] = (map[dayNum] || 0) + 1;
+      });
     });
     return map;
-  }, [responses, selectedMonth]);
+  }, [responses, users, selectedMonth]);
 
   const handleSelectDate = (dateStr: string, explicitDayNum?: number) => {
     if (selectedMonth < CURRENT_CYCLE_MONTH) return;

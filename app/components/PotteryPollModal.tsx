@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db, auth } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import { BrandName } from '@/components/brand/BrandName';
 import {
   X,
@@ -172,27 +171,25 @@ export default function PotteryPollModal({
     setIsSubmitting(true);
 
     try {
-      const sanitizedEmail = voteEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const docId = `${sanitizedEmail}_pottery-studio-faceoff`;
-
-      const payload = {
-        pollId: 'pottery-studio-faceoff',
-        selectedStudio,
-        preferredDate,
-        dateWindow: preferredDate,
-        communityVote: {
+      const current = auth.currentUser;
+      const res = await fetch('/api/poll/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           pollId: 'pottery-studio-faceoff',
-          selectedStudio,
+          userId: current?.uid || null,
+          email: voteEmail,
+          selectedOptionId: selectedStudio,
           preferredDate,
-          dateWindow: preferredDate,
-        },
-        email: voteEmail,
-        updatedAt: serverTimestamp(),
-      };
+        }),
+      });
 
-      await setDoc(doc(db, 'communityPolls', docId), payload, { merge: true });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to submit vote');
+      }
 
-      // Save to localStorage
+      // Save to localStorage as optimistic client-side flag
       try {
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
         sessionStorage.setItem('hasVoted_anonymous_session', 'true');
