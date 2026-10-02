@@ -1159,6 +1159,7 @@ export default function DashboardPage() {
                   userEmail={user?.email}
                   preferredDates={preferredDates}
                   onTogglePreferredDate={handleTogglePreferredDate}
+                  activeAttendingCount={upcomingPlans.length}
                 />
               )}
             </section>
@@ -1372,6 +1373,7 @@ export default function DashboardPage() {
                   setAuthError("Please sign in or claim your account to RSVP for gatherings.");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
+                activeAttendingCount={upcomingPlans.length}
               />
             </div>
           </div>

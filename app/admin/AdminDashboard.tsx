@@ -189,10 +189,10 @@ function getEventIcon(title: string, iconStr?: string, className: string = "w-3.
   if (lower.includes("pizza") || lower.includes("pinsa") || iconStr === "🍕") {
     return <Pizza className={className} />;
   }
-  if (lower.includes("wine") || lower.includes("drink") || iconStr === "🍷") {
+  if (lower.includes("wine") || lower.includes("drink") || iconStr === "🍷" || iconStr === "🍸") {
     return <Wine className={className} />;
   }
-  if (lower.includes("zoo") || lower.includes("spooky") || iconStr === "🎃") {
+  if (lower.includes("zoo") || lower.includes("spooky") || lower.includes("boo") || iconStr === "🎃" || iconStr === "🦁") {
     return <Ghost className={className} />;
   }
   if (lower.includes("farm") || lower.includes("goebbert") || iconStr === "🚜") {
@@ -204,14 +204,14 @@ function getEventIcon(title: string, iconStr?: string, className: string = "w-3.
   if (iconStr === "🧑🤝🧑" || lower.includes("gathering") || lower.includes("community")) {
     return <PhosphorUsers className={className} />;
   }
-  if (lower.includes("conservatory") || lower.includes("park") || lower.includes("tree")) {
+  if (lower.includes("conservatory") || lower.includes("park") || lower.includes("tree") || iconStr === "trees" || iconStr === "footprints") {
     return <Tree className={className} />;
   }
   return <Sparkle className={className} />;
 }
 
 function renderEventChipIcon(ev: CommunityEvent): React.ReactNode {
-  return getEventIcon(ev.title, (ev as any).emoji || ev.icon);
+  return getEventIcon(ev.title, (ev as any).iconName || (ev as any).emoji || ev.icon);
 }
 
 function formatRosterPhone(phone?: string | null): string | null {
@@ -2289,7 +2289,7 @@ export default function AdminDashboard() {
                                     {/* Mobile representation: clean icon + attendee count badge */}
                                     <div className="flex sm:hidden items-center justify-center gap-1 w-full text-center py-0.5">
                                       <span className="text-xs leading-none shrink-0 inline-flex items-center justify-center">
-                                        {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
+                                        {getEventIcon(ev.title, (ev as any).iconName || (ev as any).emoji || ev.icon)}
                                       </span>
                                       <span
                                         className={`text-[9px] font-mono shrink-0 px-1 py-0.2 rounded font-semibold ${
@@ -2304,7 +2304,7 @@ export default function AdminDashboard() {
                                     <div className="hidden sm:flex items-center justify-between gap-1 w-full min-w-0">
                                       <span className="truncate flex items-center gap-1 min-w-0">
                                         <span className="shrink-0 inline-flex items-center justify-center">
-                                          {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
+                                          {getEventIcon(ev.title, (ev as any).iconName || (ev as any).emoji || ev.icon)}
                                         </span>
                                         <span className="truncate">{cleanTitle}</span>
                                       </span>
@@ -2503,7 +2503,10 @@ export default function AdminDashboard() {
                               {monthEvents.length > 0 ? (
                                 monthEvents.slice(0, 6).map((ev) => {
                                   const isSelected = ev.id === selectedEvent.id;
-                                  const cleanName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                                  const rawName = splitEventTitle(ev.title, ev.brandPrefix).eventName;
+                                  const cleanName = rawName
+                                    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+                                    .trim();
                                   return (
                                     <button
                                       key={ev.id}
@@ -2518,7 +2521,7 @@ export default function AdminDashboard() {
                                       }`}
                                     >
                                       <span className="inline-flex items-center gap-1.5">
-                                        {getEventIcon(ev.title, (ev as any).emoji || ev.icon)}
+                                        {getEventIcon(ev.title, (ev as any).iconName || (ev as any).emoji || ev.icon)}
                                         <span>{ev.displayDate}: {cleanName.length > 20 ? `${cleanName.slice(0, 20)}…` : cleanName}</span>
                                       </span>
                                     </button>
@@ -2785,7 +2788,7 @@ export default function AdminDashboard() {
                                 }`}
                               >
                                 <Ticket className="w-3.5 h-3.5 text-[#C8643F]" />
-                                <span>{selectedEvent.externalUrlLabel || 'RSVP Page'}</span>
+                                <span>Venue Details</span>
                                 <ExternalLink className="w-3 h-3 text-[#8C827A]" />
                               </a>
                             )}

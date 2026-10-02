@@ -43,6 +43,7 @@ interface MemberCalendarProps {
   userEmail?: string | null;
   preferredDates?: string[];
   onTogglePreferredDate?: (dateKey: string) => void;
+  activeAttendingCount?: number;
 }
 
 function getMonthShortName(monthKey: string): string {
@@ -114,6 +115,7 @@ export default function MemberCalendar({
   userEmail,
   preferredDates: propsPreferredDates,
   onTogglePreferredDate,
+  activeAttendingCount,
 }: MemberCalendarProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const AVAILABLE_MONTHS = ["2026-09", "2026-10", "2026-11", "2026-12"] as const;
@@ -302,10 +304,24 @@ export default function MemberCalendar({
   const trailingEmptySlots = (7 - ((startDayOfWeek + daysInMonth) % 7)) % 7;
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const isPast = (ev: ResolvedEvent) => {
+    if (isMounted) {
+      const phase = getCommunityEventPhase(ev);
+      return phase === 'afterglow' || phase === 'archived' || isEventConcluded(ev);
+    }
+    return ev.date < '2026-10-01' || isDateInPast(ev.date);
+  };
+
   // Filter events by status and category
   const filteredEvents = confirmedEvents.filter((e) => {
-    if (filterStatus === "attending" && e.attendanceStatus !== "attending") return false;
-    if (filterStatus === "open" && e.attendanceStatus !== "open") return false;
+    if (filterStatus === "attending") {
+      if (e.attendanceStatus !== "attending") return false;
+      if (isPast(e)) return false;
+    }
+    if (filterStatus === "open") {
+      if (e.attendanceStatus !== "open") return false;
+      if (isPast(e)) return false;
+    }
     if (filterCategory !== "all" && e.category !== filterCategory) return false;
     return true;
   });
@@ -429,8 +445,10 @@ export default function MemberCalendar({
     }
   };
 
-  const attendingCount = confirmedEvents.filter((e) => e.attendanceStatus === "attending").length;
-  const openCount = confirmedEvents.filter((e) => e.attendanceStatus === "open").length;
+  const attendingCount = activeAttendingCount !== undefined
+    ? activeAttendingCount
+    : confirmedEvents.filter((e) => e.attendanceStatus === "attending" && !isPast(e)).length;
+  const openCount = confirmedEvents.filter((e) => e.attendanceStatus === "open" && !isPast(e)).length;
 
   return (
     <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-3 sm:p-6 shadow-sm overflow-hidden ${className}`}>
