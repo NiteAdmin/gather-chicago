@@ -212,21 +212,42 @@ export async function GET(request: NextRequest) {
     let docs: any[] = [];
 
     if (adminDb) {
-      let ref: any = adminDb.collection("event_feedback");
-      if (eventId) {
-        ref = ref.where("eventId", "==", eventId);
+      try {
+        let ref: any = adminDb.collection("event_feedback");
+        if (eventId) {
+          ref = ref.where("eventId", "==", eventId);
+        }
+        const snap = await ref.get();
+        docs = snap.docs.map((doc: any) => doc.data());
+      } catch (err) {
+        console.warn("adminDb feedback fetch failed, attempting client db fallback:", err);
+        try {
+          const colRef = collection(db, "event_feedback");
+          if (eventId) {
+            const q = query(colRef, where("eventId", "==", eventId));
+            const snap = await getDocs(q);
+            docs = snap.docs.map((doc) => doc.data());
+          } else {
+            const snap = await getDocs(colRef);
+            docs = snap.docs.map((doc) => doc.data());
+          }
+        } catch (clientErr) {
+          console.warn("Client db feedback fetch failed:", clientErr);
+        }
       }
-      const snap = await ref.get();
-      docs = snap.docs.map((doc: any) => doc.data());
     } else {
-      const colRef = collection(db, "event_feedback");
-      if (eventId) {
-        const q = query(colRef, where("eventId", "==", eventId));
-        const snap = await getDocs(q);
-        docs = snap.docs.map((doc) => doc.data());
-      } else {
-        const snap = await getDocs(colRef);
-        docs = snap.docs.map((doc) => doc.data());
+      try {
+        const colRef = collection(db, "event_feedback");
+        if (eventId) {
+          const q = query(colRef, where("eventId", "==", eventId));
+          const snap = await getDocs(q);
+          docs = snap.docs.map((doc) => doc.data());
+        } else {
+          const snap = await getDocs(colRef);
+          docs = snap.docs.map((doc) => doc.data());
+        }
+      } catch (clientErr) {
+        console.warn("Client db feedback fetch failed:", clientErr);
       }
     }
 

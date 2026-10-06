@@ -5,15 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BrandName } from '@/components/brand/BrandName';
 import { Vote, Eye, EyeOff, Calendar } from 'lucide-react';
-import { auth, db } from '@/lib/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import PotteryPollModal from '@/app/components/PotteryPollModal';
 import { ALL_COMMUNITY_EVENTS, CommunityEvent, splitEventTitle } from '@/lib/eventsConfig';
 import { buildGoogleCalendarUrl } from '@/lib/calendar';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   onAuthStateChanged,
   fetchSignInMethodsForEmail,
   User as FirebaseUser,
@@ -58,17 +56,89 @@ const DECEMBER_WEEKENDS = [
   "Dec 19, 2026", "Dec 20, 2026", "Dec 26, 2026", "Dec 27, 2026"
 ];
 
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const MONTH_MAP: Record<string, string> = {
+  jan: 'Jan', january: 'Jan',
+  feb: 'Feb', february: 'Feb',
+  mar: 'Mar', march: 'Mar',
+  apr: 'Apr', april: 'Apr',
+  may: 'May',
+  jun: 'Jun', june: 'Jun',
+  jul: 'Jul', july: 'Jul',
+  aug: 'Aug', august: 'Aug',
+  sep: 'Sep', sept: 'Sep', september: 'Sep',
+  oct: 'Oct', october: 'Oct',
+  nov: 'Nov', november: 'Nov',
+  dec: 'Dec', december: 'Dec',
+};
+
+export function normalizeDateString(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+
+  // Strip leading day-of-week e.g. "Sat, Oct 31" or "Saturday, Oct 31"
+  str = str.replace(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+/i, '');
+
+  // Canonical phrase preservation
+  if (/^all\s+october\s+weekends$/i.test(str)) return 'All October Weekends';
+  if (/^all\s+november\s+weekends$/i.test(str)) return 'All November Weekends';
+  if (/^all\s+december\s+weekends$/i.test(str)) return 'All December Weekends';
+  if (/^down\s+for\s+whatever$/i.test(str)) return 'Down for Whatever';
+
+  // 1. ISO format: YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    const monthNum = parseInt(isoMatch[2], 10);
+    const dayNum = parseInt(isoMatch[3], 10);
+    if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+      return `${MONTH_NAMES[monthNum - 1]} ${dayNum}`;
+    }
+  }
+
+  // 2. US date format: MM/DD or MM/DD/YYYY or MM-DD or MM-DD-YYYY
+  const usMatch = str.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/](\d{2,4}))?$/);
+  if (usMatch) {
+    const monthNum = parseInt(usMatch[1], 10);
+    const dayNum = parseInt(usMatch[2], 10);
+    if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+      return `${MONTH_NAMES[monthNum - 1]} ${dayNum}`;
+    }
+  }
+
+  // 3. Named month format: "Oct 31", "October 31", "Oct 31, 2026", "October 31st 2026"
+  const namedMatch = str.match(/^([a-zA-Z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?(?:\s+\d{4})?$/i);
+  if (namedMatch) {
+    const monthKey = namedMatch[1].toLowerCase();
+    const dayNum = parseInt(namedMatch[2], 10);
+    if (MONTH_MAP[monthKey] && dayNum >= 1 && dayNum <= 31) {
+      return `${MONTH_MAP[monthKey]} ${dayNum}`;
+    }
+  }
+
+  // 4. Reverse named format: "31 Oct", "31st October", "31 October 2026"
+  const reverseNamedMatch = str.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-zA-Z]+),?(?:\s+\d{4})?$/i);
+  if (reverseNamedMatch) {
+    const dayNum = parseInt(reverseNamedMatch[1], 10);
+    const monthKey = reverseNamedMatch[2].toLowerCase();
+    if (MONTH_MAP[monthKey] && dayNum >= 1 && dayNum <= 31) {
+      return `${MONTH_MAP[monthKey]} ${dayNum}`;
+    }
+  }
+
+  // Fallback cleanup: strip year and remove leading 0 from day
+  str = str.replace(/,?\s*202\d\b/g, '').trim();
+  str = str.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+0(\d)\b/i, '$1 $2');
+
+  return str;
+}
+
 function formatSurveyDateChip(d: string): string {
   if (!d) return '';
-  let clean = d.trim();
-  if (/all\s+october\s+weekends/i.test(clean)) return 'All October Weekends';
-  if (/all\s+november\s+weekends/i.test(clean)) return 'All November Weekends';
-  if (/all\s+december\s+weekends/i.test(clean)) return 'All December Weekends';
-  if (/down\s+for\s+whatever/i.test(clean)) return 'Down for Whatever';
-  clean = clean.replace(/,?\s*2026\b/g, '').trim();
-  clean = clean.replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+/i, '');
-  clean = clean.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+0(\d)\b/i, '$1 $2');
-  return clean;
+  return normalizeDateString(d);
 }
 
 export function formatAvailabilityDatesList(dates: string[]): string[] {
@@ -159,7 +229,10 @@ export default function ConfirmationCard({
 
   const loadVote = () => {
     try {
-      const raw = localStorage.getItem('votedData_pottery-studio-faceoff');
+      const emailKey = email ? `votedData_${email.trim().toLowerCase()}` : null;
+      const raw =
+        (emailKey && localStorage.getItem(emailKey)) ||
+        localStorage.getItem('votedData_pottery-studio-faceoff');
       if (raw) {
         const parsed = JSON.parse(raw);
         const studioName =
@@ -172,7 +245,10 @@ export default function ConfirmationCard({
           parsed.preferredDate ||
           (parsed.selectedStudio === 'lincoln-square' ? 'Sun, Oct 4' : 'Sat, Nov 14');
         setPollVote({ studioName, dateText });
-      } else if (localStorage.getItem('hasVoted_pottery-studio-faceoff') === 'true') {
+      } else if (
+        localStorage.getItem('hasVoted_pottery-studio-faceoff') === 'true' ||
+        (email && localStorage.getItem(`hasVoted_${email.trim().toLowerCase()}`) === 'true')
+      ) {
         setPollVote({ studioName: 'Lincoln Square Pottery Studio', dateText: 'Sun, Oct 4' });
       } else {
         setPollVote(null);
@@ -190,12 +266,35 @@ export default function ConfirmationCard({
     window.addEventListener('pollVoteUpdated', loadVote);
     window.addEventListener('storage', loadVote);
     window.addEventListener('actuallylets_signout', handleSignOutEvent);
+
+    // If email is provided, query server for persistent vote
+    if (email && email.trim()) {
+      const cleanEmail = email.trim().toLowerCase();
+      fetch(`/api/poll/vote?pollId=pottery-studio-faceoff&email=${encodeURIComponent(cleanEmail)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.hasVoted && data.vote) {
+            const studioName =
+              data.vote.selectedStudio === 'lincoln-square'
+                ? 'Lincoln Square Pottery Studio'
+                : data.vote.selectedStudio === 'gnarware'
+                ? 'GnarWare Workshop (Pilsen)'
+                : data.vote.selectedStudio || 'Pottery Studio';
+            const dateText =
+              data.vote.preferredDate ||
+              (data.vote.selectedStudio === 'lincoln-square' ? 'Sun, Oct 4' : 'Sat, Nov 14');
+            setPollVote({ studioName, dateText });
+          }
+        })
+        .catch(() => {});
+    }
+
     return () => {
       window.removeEventListener('pollVoteUpdated', loadVote);
       window.removeEventListener('storage', loadVote);
       window.removeEventListener('actuallylets_signout', handleSignOutEvent);
     };
-  }, []);
+  }, [email]);
 
 interface AttendingGatheringItem {
   id: string;
@@ -296,7 +395,14 @@ function getAttendingEventTime(ev: CommunityEvent): string {
   // Sync editableOpenDates and editableVibes whenever openDates or currentVibes change, or editor opens
   useEffect(() => {
     if (!isEditingPreferences) {
-      setEditableOpenDates(openDates);
+      const uniqueNormalized: string[] = [];
+      openDates.forEach((od) => {
+        const norm = normalizeDateString(od);
+        if (norm && !uniqueNormalized.some((u) => u.toLowerCase() === norm.toLowerCase())) {
+          uniqueNormalized.push(norm);
+        }
+      });
+      setEditableOpenDates(uniqueNormalized);
       setEditableVibes(currentVibes);
     }
   }, [currentDates, currentVibes, isEditingPreferences]);
@@ -309,8 +415,18 @@ function getAttendingEventTime(ev: CommunityEvent): string {
 
   const handleAddOpenDate = () => {
     const trimmed = newOpenDateInput.trim();
-    if (trimmed && !editableOpenDates.includes(trimmed)) {
-      setEditableOpenDates((prev) => [...prev, trimmed]);
+    if (!trimmed) return;
+    const normalized = normalizeDateString(trimmed);
+    if (!normalized) return;
+
+    const exists = editableOpenDates.some(
+      (d) => normalizeDateString(d).toLowerCase() === normalized.toLowerCase()
+    );
+
+    if (!exists) {
+      setEditableOpenDates((prev) => [...prev, normalized]);
+      setNewOpenDateInput('');
+    } else {
       setNewOpenDateInput('');
     }
   };
@@ -323,16 +439,42 @@ function getAttendingEventTime(ev: CommunityEvent): string {
       setCurrentDates(updatedDates);
       setCurrentVibes(editableVibes);
 
-      if (responseId) {
-        await updateDoc(doc(db, 'responses', responseId), {
+      // Server-backed mutation via adminDb API route
+      const res = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          responseId,
+          email,
+          city: cityName?.toLowerCase(),
           dates: updatedDates,
           gatherings: editableVibes,
-          updatedAt: serverTimestamp(),
-        });
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Unable to save changes. Please try again.');
       }
+
+      // Sync local survey cache in localStorage
+      try {
+        const cacheKey = `actuallylets_survey_cache_${cityName?.toLowerCase() || 'chicago'}`;
+        const rawCache = localStorage.getItem(cacheKey) || localStorage.getItem('actuallylets_survey_cache');
+        if (rawCache) {
+          const parsed = JSON.parse(rawCache);
+          parsed.dates = updatedDates;
+          parsed.gatherings = editableVibes;
+          localStorage.setItem(cacheKey, JSON.stringify(parsed));
+          localStorage.setItem('actuallylets_survey_cache', JSON.stringify(parsed));
+        }
+      } catch {
+        // ignore cache write error
+      }
+
       setIsEditingPreferences(false);
     } catch (err) {
-      console.error('Failed to update preferences in Firestore:', err);
+      console.error('Failed to update preferences:', err);
       setPreferencesSaveError('Unable to save changes. Please try again.');
     } finally {
       setSavingPreferences(false);
@@ -553,7 +695,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                 padding: 0,
               }}
             >
-              {pollVote ? 'Edit' : 'Vote Now →'}
+              {pollVote ? `Voted: ${pollVote.studioName} →` : 'Vote Now →'}
             </button>
           </div>
           {pollVote ? (
@@ -665,11 +807,11 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '6px',
                         backgroundColor: '#F5EBE6',
                         color: '#C8643F',
                         border: '1px solid #F0D5C7',
-                        padding: '2px 8px',
+                        padding: '3px 8px 3px 10px',
                         borderRadius: '9999px',
                         fontSize: '0.78rem',
                         fontWeight: 600,
@@ -678,8 +820,23 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                       <span>{formatSurveyDateChip(od)}</span>
                       <button
                         type="button"
-                        onClick={() => setEditableOpenDates((prev) => prev.filter((item) => item !== od))}
-                        style={{ background: 'none', border: 'none', color: '#C8643F', cursor: 'pointer', padding: 0, fontSize: '0.75rem', lineHeight: 1 }}
+                        onClick={() =>
+                          setEditableOpenDates((prev) =>
+                            prev.filter(
+                              (item) =>
+                                normalizeDateString(item).toLowerCase() !==
+                                normalizeDateString(od).toLowerCase()
+                            )
+                          )
+                        }
+                        className="hover:bg-[#C8643F]/20 text-[#C8643F] rounded-full p-1 -mr-1 transition-colors flex items-center justify-center min-w-[24px] min-h-[24px]"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          lineHeight: 1,
+                        }}
                         aria-label={`Remove ${od}`}
                       >
                         ✕
@@ -696,12 +853,13 @@ function getAttendingEventTime(ev: CommunityEvent): string {
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input
                     type="text"
-                    placeholder="e.g. Oct 2, Oct 27, Nov 14..."
+                    placeholder="e.g. Oct 13, Oct 24, Oct 31"
                     value={newOpenDateInput}
                     onChange={(e) => setNewOpenDateInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
+                        e.stopPropagation();
                         handleAddOpenDate();
                       }
                     }}
@@ -1035,6 +1193,7 @@ function getAttendingEventTime(ev: CommunityEvent): string {
         isOpen={isPollModalOpen}
         onClose={() => setIsPollModalOpen(false)}
         initialEmail={email}
+        initialName={name}
         currentMonth={
           pollVote?.dateText?.toLowerCase().includes('nov') ||
           currentDates.some((d) => d.toLowerCase().includes('nov'))

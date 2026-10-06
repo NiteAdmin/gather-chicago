@@ -154,18 +154,19 @@ export function isPreferenceDatePast(dateStr: string): boolean {
 }
 
 /**
- * Checks if an event is concluded (either its start time is in the past, or phase is 'afterglow' / 'archived').
+ * Checks if an event is concluded (either its end time has elapsed, or phase is 'afterglow' / 'archived').
  */
 export function isEventConcluded(event: EventDateOptions): boolean {
   try {
-    const { startIso } = getEventDateTimes(event);
-    const startMs = !isNaN(new Date(startIso).getTime())
-      ? new Date(startIso).getTime()
-      : event.startDate && !isNaN(new Date(event.startDate).getTime())
-      ? new Date(event.startDate).getTime()
+    if (event.status === 'completed' || event.status === 'past') {
+      return true;
+    }
+    const { endIso } = getEventDateTimes(event);
+    const endMs = !isNaN(new Date(endIso).getTime())
+      ? new Date(endIso).getTime()
       : NaN;
 
-    if (!isNaN(startMs) && startMs < Date.now()) {
+    if (!isNaN(endMs) && endMs <= Date.now()) {
       return true;
     }
     const phase = getCommunityEventPhase(event);
@@ -183,6 +184,7 @@ export interface EventDateOptions {
   startTime?: string;
   endTime?: string;
   status?: string;
+  displayDate?: string;
 }
 
 /**
@@ -212,6 +214,26 @@ export function getEventDateTimes(event: EventDateOptions): { startIso: string; 
       year = parts[0];
       month = parts[1];
       day = parts[2];
+    }
+
+    let endYear = year;
+    let endMonth = month;
+    let endDay = day;
+
+    // Check for explicit endDate or multi-day range in displayDate (e.g. "Sat, Oct 3 & Sun, Oct 4")
+    if (event.endDate && /^\d{4}-\d{2}-\d{2}$/.test(event.endDate)) {
+      const endParts = event.endDate.split('-').map(Number);
+      endYear = endParts[0];
+      endMonth = endParts[1];
+      endDay = endParts[2];
+    } else if (event.displayDate) {
+      const multiDayMatch = event.displayDate.match(/(?:&|–|-)\s*(?:[A-Za-z]+,?\s+)?(?:([A-Za-z]+)\s+)?(\d{1,2})\b/);
+      if (multiDayMatch) {
+        const lastDay = parseInt(multiDayMatch[2], 10);
+        if (lastDay > 0 && lastDay <= 31) {
+          endDay = lastDay;
+        }
+      }
     }
 
     let startHour = 10;
@@ -255,7 +277,7 @@ export function getEventDateTimes(event: EventDateOptions): { startIso: string; 
 
     let endIso: string;
     if (hasExplicitEnd) {
-      endIso = `${year}-${pad(month)}-${pad(day)}T${pad(endHour)}:${pad(endMinute)}:00${tzOffset}`;
+      endIso = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHour)}:${pad(endMinute)}:00${tzOffset}`;
     } else {
       const startMs = new Date(startIso).getTime();
       endIso = new Date(startMs + 2.5 * 60 * 60 * 1000).toISOString();

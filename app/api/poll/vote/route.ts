@@ -282,3 +282,67 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const pollId = searchParams.get("pollId")?.trim() || "pottery-studio-faceoff";
+    const email = searchParams.get("email")?.trim().toLowerCase() || "";
+    const userId = searchParams.get("userId")?.trim() || "";
+
+    if (!email && !userId) {
+      return NextResponse.json({ hasVoted: false });
+    }
+
+    if (adminDb) {
+      const voterId = userId || email.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const voteDoc = await adminDb
+        .collection("communityPolls")
+        .doc(pollId)
+        .collection("votes")
+        .doc(voterId)
+        .get();
+
+      if (voteDoc.exists) {
+        const data = voteDoc.data() || {};
+        return NextResponse.json({
+          hasVoted: true,
+          vote: {
+            selectedStudio: data.selectedOptionId || data.selectedOption || data.selectedStudio,
+            preferredDate: data.preferredDate || data.dateWindow,
+          },
+        });
+      }
+
+      // Fallback check on flat document
+      const flatDoc = await adminDb
+        .collection("communityPolls")
+        .doc(`${voterId}_${pollId}`)
+        .get();
+
+      if (flatDoc.exists) {
+        const data = flatDoc.data() || {};
+        return NextResponse.json({
+          hasVoted: true,
+          vote: {
+            selectedStudio:
+              data.selectedOptionId ||
+              data.selectedOption ||
+              data.selectedStudio ||
+              data.communityVote?.selectedStudio,
+            preferredDate:
+              data.preferredDate ||
+              data.dateWindow ||
+              data.communityVote?.preferredDate,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ hasVoted: false });
+  } catch (err: any) {
+    console.error("[POLL_VOTE_GET_ERROR]:", err);
+    return NextResponse.json({ hasVoted: false });
+  }
+}
+

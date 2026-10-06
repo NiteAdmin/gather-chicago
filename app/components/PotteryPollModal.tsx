@@ -21,6 +21,7 @@ interface PotteryPollModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialEmail?: string;
+  initialName?: string;
   currentMonth?: string;
 }
 
@@ -51,6 +52,7 @@ export default function PotteryPollModal({
   isOpen,
   onClose,
   initialEmail = '',
+  initialName = '',
   currentMonth,
 }: PotteryPollModalProps) {
   const activeDateOptions = getDateOptionsForMonth(currentMonth);
@@ -205,21 +207,24 @@ export default function PotteryPollModal({
       try {
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
         sessionStorage.setItem('hasVoted_anonymous_session', 'true');
-        localStorage.setItem(
-          'votedData_pottery-studio-faceoff',
-          JSON.stringify({
+        const votePayload = {
+          selectedStudio,
+          preferredDate,
+          dateWindow: preferredDate,
+          communityVote: {
+            pollId: 'pottery-studio-faceoff',
             selectedStudio,
             preferredDate,
             dateWindow: preferredDate,
-            communityVote: {
-              pollId: 'pottery-studio-faceoff',
-              selectedStudio,
-              preferredDate,
-              dateWindow: preferredDate,
-            },
-            email: voteEmail,
-          })
-        );
+          },
+          email: voteEmail,
+        };
+        const serialized = JSON.stringify(votePayload);
+        localStorage.setItem('votedData_pottery-studio-faceoff', serialized);
+        if (voteEmail) {
+          localStorage.setItem(`votedData_${voteEmail}`, serialized);
+          localStorage.setItem(`hasVoted_${voteEmail}`, 'true');
+        }
       } catch {
         // Ignore localStorage quota errors
       }
@@ -235,21 +240,24 @@ export default function PotteryPollModal({
       try {
         localStorage.setItem('hasVoted_pottery-studio-faceoff', 'true');
         sessionStorage.setItem('hasVoted_anonymous_session', 'true');
-        localStorage.setItem(
-          'votedData_pottery-studio-faceoff',
-          JSON.stringify({
+        const votePayload = {
+          selectedStudio,
+          preferredDate,
+          dateWindow: preferredDate,
+          communityVote: {
+            pollId: 'pottery-studio-faceoff',
             selectedStudio,
             preferredDate,
             dateWindow: preferredDate,
-            communityVote: {
-              pollId: 'pottery-studio-faceoff',
-              selectedStudio,
-              preferredDate,
-              dateWindow: preferredDate,
-            },
-            email: voteEmail,
-          })
-        );
+          },
+          email: voteEmail,
+        };
+        const serialized = JSON.stringify(votePayload);
+        localStorage.setItem('votedData_pottery-studio-faceoff', serialized);
+        if (voteEmail) {
+          localStorage.setItem(`votedData_${voteEmail}`, serialized);
+          localStorage.setItem(`hasVoted_${voteEmail}`, 'true');
+        }
         setHasVoted(true);
         setIsSuccess(true);
         if (typeof window !== 'undefined') {

@@ -6,7 +6,7 @@ import { splitEventTitle, OCTOBER_2026_BASE_EVENTS, isConfirmedGathering } from 
 import EventIcon from "@/components/dashboard/EventIcon";
 import { BrandName } from "@/components/brand/BrandName";
 import AfterglowCard from "@/components/dashboard/AfterglowCard";
-import { getCommunityEventPhase, EventPhase } from "@/lib/eventStatus";
+import { getCommunityEventPhase, EventPhase, isEventConcluded } from "@/lib/eventStatus";
 import { useIsMounted } from "@/lib/useEventStatus";
 import {
   Calendar as CalendarIcon,
@@ -30,13 +30,14 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
   const isMounted = useIsMounted();
 
   // Dynamically partition and prioritize events:
-  // Priority 1: Earliest upcoming event confirmed for attending (date >= 2026-10-01)
-  // Priority 2: Next upcoming open community gathering in the chapter
+  // Priority 1: Earliest upcoming event confirmed for attending (date >= 2026-10-01) that has not concluded
+  // Priority 2: Next upcoming open community gathering in the chapter (auto-promote)
   const { spotlightEvent } = partitionUpcomingEvents(events, "2026-10-01");
 
   // Non-breaking fallback if 0 upcoming RSVPs and no open events are found
   const fallbackEvent: ResolvedEvent = useMemo(() => {
     const baseOct =
+      OCTOBER_2026_BASE_EVENTS.find((e) => !isEventConcluded(e) && isConfirmedGathering(e)) ||
       OCTOBER_2026_BASE_EVENTS.find((e) => e.date >= "2026-10-01" && isConfirmedGathering(e)) ||
       OCTOBER_2026_BASE_EVENTS[1];
     return {
@@ -45,7 +46,16 @@ export default function DashboardHero({ events, onToggleRSVP }: DashboardHeroPro
     };
   }, []);
 
-  const activeSpotlight = spotlightEvent || fallbackEvent;
+  // Ensure hero card always spotlights an active/future gathering rather than a concluded past event
+  const effectiveSpotlight = useMemo(() => {
+    if (spotlightEvent && !isEventConcluded(spotlightEvent)) {
+      return spotlightEvent;
+    }
+    const nextFuture = events.find((e) => !isEventConcluded(e) && isConfirmedGathering(e));
+    return nextFuture || fallbackEvent;
+  }, [spotlightEvent, events, fallbackEvent]);
+
+  const activeSpotlight = effectiveSpotlight;
 
   const isAttending = activeSpotlight.attendanceStatus === "attending";
   const spotlightPhase: EventPhase = isMounted ? getCommunityEventPhase(activeSpotlight) : 'upcoming';

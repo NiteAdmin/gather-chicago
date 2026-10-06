@@ -37,7 +37,7 @@ import UserNavButton from "@/components/nav/UserNavButton";
 import MemberCalendar from "@/components/dashboard/MemberCalendar";
 import DashboardHero from "@/components/dashboard/DashboardHero";
 import PastEventCard from "@/components/dashboard/PastEventCard";
-import { getCommunityEventPhase, EventPhase, getEventDateTimes, isPreferenceDatePast } from "@/lib/eventStatus";
+import { getCommunityEventPhase, EventPhase, getEventDateTimes, isPreferenceDatePast, isEventConcluded } from "@/lib/eventStatus";
 import { useIsMounted } from "@/lib/useEventStatus";
 import { OCTOBER_2026_EVENTS, CommunityEvent, fetchHydratedEvents, splitEventTitle, isConfirmedGathering } from "@/lib/eventsConfig";
 import {
@@ -55,7 +55,7 @@ import {
   checkEventDateMatch,
 } from "@/lib/userEvents";
 import { SurveyResponse } from "@/types/survey";
-import { formatAvailabilityDatesList } from "@/app/components/ConfirmationCard";
+import { formatAvailabilityDatesList, normalizeDateString } from "@/app/components/ConfirmationCard";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -68,6 +68,11 @@ export default function DashboardPage() {
   const [declinedEventIds, setDeclinedEventIds] = useState<string[]>([]);
   const [userVibes, setUserVibes] = useState<string[]>([]);
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
+  const [surveyData, setSurveyData] = useState<{ dates: string[]; gatherings: string[] }>({
+    dates: [],
+    gatherings: [],
+  });
+  const userPreferredDates = preferredDates;
   const [isEditingVibes, setIsEditingVibes] = useState(false);
   const [selectedEditorVibes, setSelectedEditorVibes] = useState<string[]>([]);
   const [savingVibes, setSavingVibes] = useState(false);
@@ -103,18 +108,48 @@ export default function DashboardPage() {
       setDeclinedEventIds(declinedIds || []);
       setUserVibes(vibes);
 
-      let localDates: string[] = [];
+      // Check deleted dates tombstones to ensure deleted dates never resurrect
+      let deletedDates: string[] = [];
+      try {
+        const storedDel = localStorage.getItem("actuallylets_deleted_dates");
+        if (storedDel) {
+          const parsed = JSON.parse(storedDel);
+          if (Array.isArray(parsed)) deletedDates = parsed;
+        }
+      } catch {}
+
+      let localDates: string[] | null = null;
       try {
         const stored = localStorage.getItem("actuallylets_preferred_dates");
-        if (stored) {
+        if (stored !== null) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) localDates = parsed;
         }
       } catch {}
 
-      const surveyDates = responses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]);
-      const mergedDates = Array.from(new Set([...surveyDates, ...(loadedDates || []), ...localDates]));
-      setPreferredDates(mergedDates);
+      const filterDeleted = (dates: string[]) =>
+        dates.filter((d) => !deletedDates.some((del) => isDateMatch(d, del)));
+
+      const surveyDates = filterDeleted(
+        responses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[])
+      );
+      const cleanLoadedDates = filterDeleted(loadedDates || []);
+
+      let finalDates: string[];
+      if (localDates !== null) {
+        // If localStorage has an explicit array (even an empty one []), respect it and do NOT overwrite or resurrect deleted dates!
+        finalDates = filterDeleted(localDates);
+      } else if (cleanLoadedDates.length > 0) {
+        finalDates = cleanLoadedDates;
+      } else {
+        finalDates = surveyDates;
+      }
+
+      setPreferredDates(finalDates);
+      setSurveyData({
+        dates: finalDates,
+        gatherings: vibes.length > 0 ? vibes : responses.flatMap((r) => Array.isArray(r.gatherings) ? r.gatherings : []),
+      });
 
       const resolved = resolveUserAttendance(
         hydrated,
@@ -153,13 +188,36 @@ export default function DashboardPage() {
         setSavedRsvpIds([]);
         setDeclinedEventIds([]);
         setUserVibes([]);
+
+        let deletedDates: string[] = [];
         try {
+          const storedDel = localStorage.getItem("actuallylets_deleted_dates");
+          if (storedDel) {
+            const parsed = JSON.parse(storedDel);
+            if (Array.isArray(parsed)) deletedDates = parsed;
+          }
           const stored = localStorage.getItem("actuallylets_preferred_dates");
-          if (stored) {
+          if (stored !== null) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) setPreferredDates(parsed);
+            if (Array.isArray(parsed)) {
+              const cleaned = parsed.filter((d: string) => !deletedDates.some((del) => isDateMatch(d, del)));
+              setPreferredDates(cleaned);
+              setSurveyData((prev) => ({ ...prev, dates: cleaned }));
+            }
+          }
+          const rawCache = localStorage.getItem("actuallylets_survey_cache_chicago") || localStorage.getItem("actuallylets_survey_cache");
+          if (rawCache) {
+            const parsedCache = JSON.parse(rawCache);
+            if (parsedCache && Array.isArray(parsedCache.dates)) {
+              const cleaned = parsedCache.dates.filter((d: string) => !deletedDates.some((del) => isDateMatch(d, del)));
+              setSurveyData({
+                dates: cleaned,
+                gatherings: Array.isArray(parsedCache.gatherings) ? parsedCache.gatherings : [],
+              });
+            }
           }
         } catch {}
+
         fetchHydratedEvents("chicago")
           .then((hydrated) => {
             if (!isMounted) return;
@@ -514,6 +572,16 @@ export default function DashboardPage() {
 
   // Dynamically partition events: filter upcoming (date >= '2026-10-01') & sort ascending
   const { upcomingAttending, spotlightEvent } = partitionUpcomingEvents(resolvedEvents, "2026-10-01");
+
+  // Safeguard: Ensure effectiveSpotlight is always an active/future gathering rather than a concluded past event
+  const effectiveSpotlight = useMemo(() => {
+    if (spotlightEvent && !isEventConcluded(spotlightEvent)) {
+      return spotlightEvent;
+    }
+    const nextFuture = resolvedEvents.find((e) => !isEventConcluded(e) && isConfirmedGathering(e));
+    return nextFuture || spotlightEvent;
+  }, [spotlightEvent, resolvedEvents]);
+
   // Isolate confirmed gatherings for member calendar (filters out candidate poll options)
   const confirmedCalendarEvents = useMemo(() => {
     return resolvedEvents.filter(isConfirmedGathering);
@@ -663,7 +731,7 @@ export default function DashboardPage() {
     return `${eventName.trim()} Host`;
   };
 
-  const hostSubtitle = getHostSubtitle(spotlightEvent, host.city);
+  const hostSubtitle = getHostSubtitle(effectiveSpotlight, host.city);
 
   // Active member vibes: priority to users/{uid}, fallback to survey responses
   const displayVibes =
@@ -678,12 +746,8 @@ export default function DashboardPage() {
         );
 
   // User's submitted survey parameters for comprehensive receipt card
-  const rawSurveyDates = Array.from(
-    new Set([
-      ...userResponses.flatMap((r) => [...(r.dates || []), r.customDate].filter(Boolean) as string[]),
-      ...preferredDates,
-    ])
-  );
+  // Prioritize preferredDates so deletions are immediately reflected and never resurrected
+  const rawSurveyDates = preferredDates;
   const formattedDatesFree = formatAvailabilityDatesList(rawSurveyDates);
 
   const rawSurveyTimes = Array.from(
@@ -706,6 +770,128 @@ export default function DashboardPage() {
     userResponses.find((r) => r.cityName || r.city)?.cityName?.toLowerCase() ||
     userResponses.find((r) => r.cityName || r.city)?.city?.toLowerCase() ||
     'chicago';
+
+  const isDateMatch = (candidate: string, targetToRemove: string) => {
+    if (!candidate) return false;
+    const cleanTarget = targetToRemove.trim().toLowerCase();
+    const cleanCand = candidate.trim().toLowerCase();
+    if (cleanCand === cleanTarget) return true;
+
+    if (cleanTarget === "all october weekends") {
+      return (
+        cleanCand.includes("all october") ||
+        (cleanCand.includes("oct") && /oct\s*(?:3|4|10|11|17|18|24|25|31)\b/i.test(cleanCand))
+      );
+    }
+    if (cleanTarget === "all november weekends") {
+      return (
+        cleanCand.includes("all november") ||
+        (cleanCand.includes("nov") && /nov\s*(?:1|7|8|14|15|21|22|28|29)\b/i.test(cleanCand))
+      );
+    }
+    if (cleanTarget === "all december weekends") {
+      return cleanCand.includes("all december");
+    }
+
+    const normCand = normalizeDateString(candidate).toLowerCase();
+    const normTarget = normalizeDateString(targetToRemove).toLowerCase();
+    return normCand === normTarget;
+  };
+
+  const handleDeleteDate = async (e: React.MouseEvent, dateToRemove: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const prevPreferred = [...preferredDates];
+    const prevResponses = [...userResponses];
+    const prevSurveyData = { ...surveyData };
+
+    const nextPreferred = preferredDates.filter((d) => !isDateMatch(d, dateToRemove));
+    const nextResponses = userResponses.map((r) => ({
+      ...r,
+      dates: Array.isArray(r.dates) ? r.dates.filter((d) => !isDateMatch(d, dateToRemove)) : [],
+      customDate: r.customDate && isDateMatch(r.customDate, dateToRemove) ? undefined : r.customDate,
+    }));
+    const nextSurveyDates = (surveyData.dates || []).filter((d) => !isDateMatch(d, dateToRemove));
+
+    // 1. Immediately update component state
+    setPreferredDates(nextPreferred);
+    setUserResponses(nextResponses);
+    setSurveyData({
+      dates: nextSurveyDates,
+      gatherings: surveyData.gatherings,
+    });
+
+    // 2. Track in tombstone / deleted dates list to prevent resurrection on reload
+    try {
+      let deletedDatesList: string[] = [];
+      const storedDel = localStorage.getItem("actuallylets_deleted_dates");
+      if (storedDel) {
+        const parsed = JSON.parse(storedDel);
+        if (Array.isArray(parsed)) deletedDatesList = parsed;
+      }
+      if (!deletedDatesList.some((d) => isDateMatch(d, dateToRemove))) {
+        deletedDatesList.push(dateToRemove);
+        localStorage.setItem("actuallylets_deleted_dates", JSON.stringify(deletedDatesList));
+      }
+    } catch {}
+
+    // 3. Write filtered array to localStorage (actuallylets_survey_cache and actuallylets_preferred_dates)
+    try {
+      localStorage.setItem("actuallylets_preferred_dates", JSON.stringify(nextPreferred));
+      const citySlug = (userResponses[0]?.city || "chicago").toLowerCase();
+      const cacheKeys = [
+        `actuallylets_survey_cache_${citySlug}`,
+        "actuallylets_survey_cache",
+        "actuallylets_survey_cache_chicago",
+      ];
+      for (const k of cacheKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object") {
+              parsed.dates = nextPreferred;
+              localStorage.setItem(k, JSON.stringify(parsed));
+            }
+          } catch {}
+        }
+      }
+    } catch (storageErr) {
+      console.warn("Error updating localStorage after deleting date:", storageErr);
+    }
+
+    // 4. Persist to Firestore via POST /api/preferences
+    try {
+      const res = await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          responseId: userResponses[0]?.id,
+          userId: user?.uid,
+          email: user?.email || userResponses[0]?.email,
+          city: (userResponses[0]?.city || "chicago").toLowerCase(),
+          dates: nextPreferred,
+          gatherings: displayVibes,
+          deletedDate: dateToRemove,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete preference");
+      }
+      setRsvpToast(`Removed ${dateToRemove} from availability.`);
+      setTimeout(() => setRsvpToast(null), 3000);
+    } catch (err) {
+      console.error("Failed to delete date preference:", err);
+      // Rollback
+      setPreferredDates(prevPreferred);
+      setUserResponses(prevResponses);
+      setSurveyData(prevSurveyData);
+      setRsvpToast(`Unable to remove ${dateToRemove}. Please try again.`);
+      setTimeout(() => setRsvpToast(null), 4000);
+    }
+  };
 
   const renderPlans = () => (
     <div className="space-y-5">
@@ -881,7 +1067,7 @@ export default function DashboardPage() {
             {/* ========================================================== */}
             {/* LEFT COLUMN (Desktop col 3 / Mobile step 4): Profile, Host Card & Vibe Tags */}
             {/* ========================================================== */}
-            <aside className="order-2 lg:order-1 lg:col-span-3 space-y-5 static lg:sticky lg:top-8 self-start">
+            <aside className="order-2 lg:order-1 lg:col-span-3 space-y-5 static lg:sticky lg:top-20 self-start">
               {/* Profile Card (Desktop only, moved to UserNavButton dropdown on mobile) */}
               <div className="hidden lg:block bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-3.5 mb-4">
@@ -1032,9 +1218,17 @@ export default function DashboardPage() {
                               {activeDates.map((dateStr, idx) => (
                                 <span
                                   key={`active-${idx}`}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border border-[#DFCDC1] text-[#C8643F] bg-[#FDFBF7]"
+                                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-full text-xs font-semibold border border-[#DFCDC1] text-[#C8643F] bg-[#FDFBF7]"
                                 >
-                                  {dateStr}
+                                  <span>{dateStr}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteDate(e, dateStr)}
+                                    aria-label={`Remove date ${dateStr}`}
+                                    className="min-w-[20px] min-h-[20px] flex items-center justify-center rounded-full hover:bg-stone-200 text-stone-500 hover:text-red-600 transition-colors cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </span>
                               ))}
                             </div>
@@ -1053,12 +1247,20 @@ export default function DashboardPage() {
                                   <span
                                     key={`past-${idx}`}
                                     title="Gathering Concluded — Past Cycle"
-                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#EFECE6]/80 text-[#8C8270] border border-[#DDD7CB]"
+                                    className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-[#EFECE6]/80 text-[#8C8270] border border-[#DDD7CB]"
                                   >
                                     <span>{dateStr}</span>
                                     <span className="text-[9px] font-semibold uppercase tracking-wider text-[#7A7265] bg-[#DDD7CB]/60 px-1 py-0.2 rounded">
                                       Past Cycle
                                     </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleDeleteDate(e, dateStr)}
+                                      aria-label={`Remove date ${dateStr}`}
+                                      className="min-w-[20px] min-h-[20px] flex items-center justify-center rounded-full hover:bg-stone-200 text-stone-500 hover:text-red-600 transition-colors cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
                                   </span>
                                 ))}
                               </div>
@@ -1167,7 +1369,7 @@ export default function DashboardPage() {
             {/* ========================================================== */}
             {/* RIGHT COLUMN (Desktop col 3 / Mobile step 5): Plans, Sync & Invite */}
             {/* ========================================================== */}
-            <aside className="order-3 lg:order-3 lg:col-span-3 space-y-5 static lg:sticky lg:top-8 self-start">
+            <aside className="order-3 lg:order-3 lg:col-span-3 space-y-5 static lg:sticky lg:top-20 self-start">
               {/* Gathering Plans (Desktop only: top of right sidebar) */}
               <div className="hidden lg:block">
                 {renderPlans()}

@@ -326,6 +326,17 @@ export default function MemberCalendar({
     return true;
   });
 
+  // Deduplicated real events for the selected month to ensure accurate header count
+  const eventsForMonth = React.useMemo(() => {
+    return Array.from(
+      new Map(
+        confirmedEvents
+          .filter((e) => e.date.startsWith(selectedMonth))
+          .map((e) => [e.id, e])
+      ).values()
+    );
+  }, [confirmedEvents, selectedMonth]);
+
   // Map events by day number for the selected month
   const eventsByDay: Record<number, ResolvedEvent[]> = {};
   filteredEvents.forEach((ev) => {
@@ -451,7 +462,7 @@ export default function MemberCalendar({
   const openCount = confirmedEvents.filter((e) => e.attendanceStatus === "open" && !isPast(e)).length;
 
   return (
-    <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-3 sm:p-6 shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-[#FBF7EE] border border-[#D8CEBC] rounded-3xl p-3 sm:p-6 shadow-sm scroll-mt-20 ${className}`}>
       {/* CALENDAR HEADER CONTROLS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3.5 border-b border-[#D8CEBC]/60">
         <div>
@@ -683,11 +694,11 @@ export default function MemberCalendar({
       {viewMode === "grid" ? (
         <div className="mt-3 sm:mt-4">
           {/* Active Month Banner */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#D8CEBC]/50">
+          <div className="sticky top-16 sm:top-20 z-10 bg-[#FBF7EE] flex items-center justify-between pt-3 pb-2 mb-2 border-b border-[#D8CEBC]/50">
             <h3 className="text-base sm:text-lg font-bold font-serif-fraunces text-[#2B271F] flex items-center gap-2">
               <span>{currentMonthConfig.name}</span>
               <span className="text-xs font-normal font-sans-hanken text-[#8C8270]">
-                ({Object.values(eventsByDay).flat().length} {Object.values(eventsByDay).flat().length === 1 ? 'gathering' : 'gatherings'})
+                ({eventsForMonth.length} {eventsForMonth.length === 1 ? 'gathering' : 'gatherings'})
               </span>
             </h3>
             <span className="text-[11px] font-semibold text-[#8C8270] hidden sm:inline">
@@ -732,14 +743,9 @@ export default function MemberCalendar({
               const hasEvents = dayEvents.length > 0;
               const isWeekend = (startDayOfWeek + dayNum - 1) % 7 === 0 || (startDayOfWeek + dayNum - 1) % 7 === 6;
               const isPreferred = isDayPreferred(selectedMonth, dayNum, activePreferredDates, isWeekend);
-              const isPollDay =
-                (selectedMonth === "2026-10" && dayNum === 4) ||
-                (selectedMonth === "2026-11" && dayNum === 14);
-              const pollTitle = isPollDay
-                ? selectedMonth === "2026-10"
-                  ? "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Oct 4 option)"
-                  : "Vote on Next Gathering: Lincoln Square Pottery Studio vs. GnarWare Workshop (Nov 14 option)"
-                : undefined;
+              // Decoupled: Community poll is an open community vote module below the grid, NOT pinned to individual calendar date cells
+              const isPollDay = false;
+              const pollTitle = undefined;
 
               const cellDateStr = `${selectedMonth}-${String(dayNum).padStart(2, "0")}`;
               const todayStr = isMounted ? getTodayDateString() : "2026-09-26";
@@ -1064,7 +1070,7 @@ export default function MemberCalendar({
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                      {selectedMonth === "2026-10" ? "Sun, Oct 4 (Lincoln Square)" : "Sat, Nov 14 (GnarWare Pilsen)"}
+                      Open Community Vote
                     </span>
                     {hasVoted ? (
                       <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -1193,7 +1199,7 @@ export default function MemberCalendar({
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-bold text-[#C8643F] bg-[#FBE8DF] px-2.5 py-0.5 rounded-full">
-                            {agendaMonthFilter === "2026-11" ? "Sat, Nov 14 (GnarWare Pilsen)" : agendaMonthFilter === "2026-10" ? "Sun, Oct 4 (Lincoln Square)" : "Sun, Oct 4 & Sat, Nov 14"}
+                            Open Community Vote
                           </span>
                           {hasVoted ? (
                             <span className="text-[11px] font-bold bg-[#2D6A4F]/10 text-[#2D6A4F] px-2.5 py-0.5 rounded-full uppercase tracking-wider">

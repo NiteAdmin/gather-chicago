@@ -2,6 +2,7 @@ import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp
 import { db } from "@/lib/firebase";
 import { SurveyResponse } from "@/types/survey";
 import { CommunityEvent, OCTOBER_2026_EVENTS, isConfirmedGathering } from "@/lib/eventsConfig";
+import { isEventConcluded } from "@/lib/eventStatus";
 
 export interface ResolvedEvent extends CommunityEvent {
   attendanceStatus: 'attending' | 'open';
@@ -492,12 +493,29 @@ export function partitionUpcomingEvents(
   });
   const upcomingOpen = upcoming.filter((e) => e.attendanceStatus === "open");
 
-  // Priority 1: Earliest upcoming event user is confirmed for (attending)
-  // Fallback: Earliest flagship upcoming open chapter gathering or community poll
-  let spotlightEvent = upcomingAttending[0] || upcomingOpen[0] || upcoming[0] || null;
+  // Dynamic Expiration Evaluation:
+  // Check whether the gathering has concluded relative to Date.now() (event end timestamp has elapsed).
+  // Active/future gatherings take precedence over concluded events.
+  const futureAttending = upcomingAttending.filter((e) => !isEventConcluded(e));
+  const futureOpen = upcomingOpen.filter((e) => !isEventConcluded(e));
+  const futureUpcoming = upcoming.filter((e) => !isEventConcluded(e));
+
+  // Priority 1: Earliest upcoming event user is confirmed for (attending) that has NOT concluded
+  // Priority 2: Next upcoming open community gathering in the chapter (auto-promote so members see actionable RSVPs)
+  // Priority 3: Any future upcoming gathering
+  let spotlightEvent =
+    futureAttending[0] ||
+    futureOpen[0] ||
+    futureUpcoming[0] ||
+    upcomingAttending[0] ||
+    upcomingOpen[0] ||
+    upcoming[0] ||
+    null;
 
   if (!spotlightEvent) {
-    const candidateFallback = events.find((e) => e.date >= currentDateThreshold);
+    const candidateFallback =
+      events.find((e) => !isEventConcluded(e) && isConfirmedGathering(e)) ||
+      events.find((e) => e.date >= currentDateThreshold);
     if (candidateFallback) {
       spotlightEvent = candidateFallback;
     }

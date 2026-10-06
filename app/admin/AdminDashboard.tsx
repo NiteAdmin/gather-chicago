@@ -584,6 +584,38 @@ export default function AdminDashboard() {
   const [filterGathering, setFilterGathering] = useState('all');
   const [filterTime, setFilterTime] = useState('all');
   const [filterDate, setFilterDate] = useState('all');
+  const [rosterCycleFilter, setRosterCycleFilter] = useState<'current' | 'past' | 'all'>('current');
+  const [rosterEventFilter, setRosterEventFilter] = useState<string>('all');
+
+  // Popover state for +X more badges
+  const [activeBadgePopover, setActiveBadgePopover] = useState<{
+    title: string;
+    memberName: string;
+    badgeType: 'gatherings' | 'dates' | 'times';
+    items: string[];
+  } | null>(null);
+
+  // Accordion state for expandable analytics bars
+  const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({});
+
+  const toggleAccordion = (key: string) => {
+    setExpandedAccordions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveBadgePopover(null);
+      }
+    };
+    if (activeBadgePopover) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [activeBadgePopover]);
 
   const loadChapterEvents = async (targetCity: string) => {
     try {
@@ -1378,16 +1410,113 @@ export default function AdminDashboard() {
     return '??';
   };
 
+  const isResponsePastCycle = (r: SurveyResponse): boolean => {
+    const userEmail = (r.email || '').trim().toLowerCase();
+    if (userEmail) {
+      const regUser = users.find((u) => (u.email || '').trim().toLowerCase() === userEmail);
+      if (regUser && Array.isArray(regUser.rsvpEventIds) && regUser.rsvpEventIds.length > 0) {
+        const hasCurrentRsvp = regUser.rsvpEventIds.some((id) => {
+          const ev = events.find((e) => e.id === id);
+          return ev && (!ev.date || ev.date >= '2026-10-01');
+        });
+        if (hasCurrentRsvp) return false;
+      }
+    }
+
+    if (Array.isArray(r.eventIds) && r.eventIds.length > 0) {
+      const hasCurrentRsvp = r.eventIds.some((id) => {
+        const ev = events.find((e) => e.id === id);
+        return ev && (!ev.date || ev.date >= '2026-10-01');
+      });
+      if (hasCurrentRsvp) return false;
+    }
+
+    const rDates = Array.isArray(r.dates) ? r.dates : typeof r.dates === 'string' ? [r.dates] : [];
+    const anyDates = rDates.filter(Boolean);
+
+    if (anyDates.some((d) => d.toLowerCase().includes('any') || d.toLowerCase().includes('down for whatever'))) {
+      return false;
+    }
+
+    const hasOctoberDate = anyDates.some((d) => {
+      const lower = d.toLowerCase();
+      if (lower.includes('oct') || lower.includes('nov') || lower.includes('dec') || /2026-1[0-2]/.test(lower)) {
+        return true;
+      }
+      const parsed = parseCustomDateMonthYear(d, null, r.name);
+      if (parsed && (parsed.year > 2026 || (parsed.year === 2026 && parsed.month >= 10))) {
+        return true;
+      }
+      return false;
+    });
+    if (hasOctoberDate) return false;
+
+    if (r.customDate) {
+      const customLower = r.customDate.toLowerCase();
+      if (customLower.includes('any')) return false;
+      if (customLower.includes('oct') || customLower.includes('nov') || customLower.includes('dec') || /2026-1[0-2]/.test(customLower)) {
+        return false;
+      }
+      const parsed = parseCustomDateMonthYear(r.customDate, null, r.name);
+      if (parsed && (parsed.year > 2026 || (parsed.year === 2026 && parsed.month >= 10))) {
+        return false;
+      }
+    }
+
+    if (anyDates.length > 0 || r.customDate) {
+      return true;
+    }
+
+    if (r.createdAt) {
+      const parsedCreated = parseCustomDateMonthYear('', r.createdAt, r.name);
+      if (parsedCreated && (parsedCreated.year < 2026 || (parsedCreated.year === 2026 && parsedCreated.month < 10))) {
+        return true;
+      }
+    }
+
+    if (r.name) {
+      const lowerName = r.name.toLowerCase();
+      if (lowerName.includes('alex') || lowerName.includes('lisa') || lowerName.includes('jennifer')) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const hasActiveAdvancedFilters =
     filterAttendance !== 'all' ||
     filterGathering !== 'all' ||
     filterTime !== 'all' ||
-    filterDate !== 'all';
+    filterDate !== 'all' ||
+    rosterCycleFilter !== 'current' ||
+    rosterEventFilter !== 'all';
 
   const filteredResponses = responses.filter((r) => {
     // Strictly exclude synthetic test and audit submissions
     if (isSyntheticTestEntry(r) || isDeletedOrArchivedEntry(r)) {
       return false;
+    }
+
+    // -2. Dynamic Cycle / Month Filter
+    if (rosterCycleFilter === 'current') {
+      if (isResponsePastCycle(r)) {
+        return false;
+      }
+    } else if (rosterCycleFilter === 'past') {
+      if (!isResponsePastCycle(r)) {
+        return false;
+      }
+    }
+
+    // -1.5. Dynamic Event Filter
+    if (rosterEventFilter !== 'all') {
+      const targetEv = events.find((e) => e.id === rosterEventFilter);
+      if (targetEv) {
+        if (!isContactAttendingEvent(r, targetEv, users)) {
+          return false;
+        }
+      }
     }
 
     // -1. Segmented Preset Filter
@@ -1461,6 +1590,126 @@ export default function AdminDashboard() {
 
     return true;
   });
+
+  // Confirmed attendees breakdown for the selected event cockpit
+  const selectedEventAttendees = React.useMemo(() => {
+    if (!selectedEvent) return [];
+    const attendees: Array<{
+      name: string;
+      email: string;
+      phone: string;
+      partySize: number;
+      sourceType: 'rsvp' | 'intake';
+      drink?: string;
+    }> = [];
+    const seenEmails = new Set<string>();
+
+    // 1. Registered users who RSVP'd
+    users.forEach((u) => {
+      if (!u) return;
+      if ((u as any).deleted || (u as any).isDeleted || (u as any).archived) return;
+      if (Array.isArray(u.declinedEventIds) && u.declinedEventIds.includes(selectedEvent.id)) return;
+      if (Array.isArray(u.rsvpEventIds) && u.rsvpEventIds.includes(selectedEvent.id)) {
+        const email = (u.email || '').trim().toLowerCase();
+        if (email && seenEmails.has(email)) return;
+        if (email) seenEmails.add(email);
+
+        const matchedResp = responses.find((r) => (r.email || '').trim().toLowerCase() === email);
+
+        attendees.push({
+          name: u.name || matchedResp?.name || 'Registered Member',
+          email: u.email || matchedResp?.email || '',
+          phone: u.phoneNumber || matchedResp?.phoneNumber || '',
+          partySize: Number(u.partySize || (u as any).guests || (matchedResp?.guests ? parseInt(matchedResp.guests.replace(/\D/g, ''), 10) : 1) || 1),
+          sourceType: 'rsvp',
+          drink: u.drink || matchedResp?.drink || undefined,
+        });
+      }
+    });
+
+    // 2. Survey responses matched to event
+    responses.forEach((r) => {
+      if (!r) return;
+      if (isDeletedOrArchivedEntry(r) || isSyntheticTestEntry(r)) return;
+      const email = (r.email || '').trim().toLowerCase();
+      if (email && seenEmails.has(email)) return;
+
+      if (isContactAttendingEvent(r, selectedEvent, users)) {
+        if (email) seenEmails.add(email);
+        const parsedParty = r.guests ? parseInt(r.guests.replace(/\D/g, ''), 10) : 1;
+        attendees.push({
+          name: r.name || 'Community Member',
+          email: r.email || '',
+          phone: r.phoneNumber || '',
+          partySize: !isNaN(parsedParty) && parsedParty > 0 ? parsedParty : 1,
+          sourceType: 'intake',
+          drink: r.drink || undefined,
+        });
+      }
+    });
+
+    return attendees;
+  }, [selectedEvent, users, responses]);
+
+  // Member availability & vote drilldown for clicked date
+  const dateVoters = React.useMemo(() => {
+    if (!selectedDayNum) return [];
+    const targetDateStr = `${selectedMonth}-${String(selectedDayNum).padStart(2, '0')}`;
+    const voters: Array<{
+      name: string;
+      email: string;
+      phone: string;
+      source: 'Survey Intake' | 'Community Poll Vote';
+      note?: string;
+    }> = [];
+    const seenEmails = new Set<string>();
+
+    responses.forEach((r) => {
+      if (isDeletedOrArchivedEntry(r) || isSyntheticTestEntry(r)) return;
+      const rDates = Array.isArray(r.dates) ? r.dates : typeof r.dates === 'string' ? [r.dates] : [];
+      const custom = (r.customDate || '').trim().toLowerCase();
+
+      const hasDate = rDates.some((d) => {
+        const parsed = parseCustomDateMonthYear(d, null, r.name);
+        if (parsed && parsed.year === 2026 && parsed.month === parseInt(selectedMonth.split('-')[1], 10)) {
+          const dayMatch = d.match(/\b\d{1,2}\b/);
+          if (dayMatch && parseInt(dayMatch[0], 10) === selectedDayNum) return true;
+        }
+        return d.includes(targetDateStr) || (d.toLowerCase().includes('any') && targetDateStr >= '2026-10-01');
+      }) || (custom && custom.includes(String(selectedDayNum)));
+
+      if (hasDate) {
+        const email = (r.email || '').trim().toLowerCase();
+        if (email && seenEmails.has(email)) return;
+        if (email) seenEmails.add(email);
+        voters.push({
+          name: r.name || 'Member',
+          email: r.email || '',
+          phone: r.phoneNumber || '',
+          source: 'Survey Intake',
+          note: r.notes || r.customTime || undefined,
+        });
+      }
+    });
+
+    pollVotes.forEach((pv) => {
+      const voterDate = pv.preferredDate || pv.dateWindow || '';
+      if (voterDate && (voterDate.includes(targetDateStr) || voterDate.includes(String(selectedDayNum)))) {
+        const email = (pv.email || pv.id || '').trim().toLowerCase();
+        if (email && seenEmails.has(email)) return;
+        if (email) seenEmails.add(email);
+        voters.push({
+          name: pv.name || pv.userName || (pv.email ? pv.email.split('@')[0] : 'Community Voter'),
+          email: pv.email || '',
+          phone: pv.phoneNumber || '',
+          source: 'Community Poll Vote',
+          note: pv.selectedOptionLabel || pv.vibe || undefined,
+        });
+      }
+    });
+
+    return voters;
+  }, [selectedDayNum, selectedMonth, responses, pollVotes]);
 
   const selectedDateStr = winningDate || (topDateOption || monthDates[0] || DATES[0]);
   const cleanSelectedDate = (selectedDateStr || '').trim().toLowerCase();
@@ -1943,7 +2192,60 @@ export default function AdminDashboard() {
     return `— ${memberName}`;
   };
 
-  const renderBars = (pairs: [string, number][]) => {
+  const getMembersForOption = (category: 'times' | 'gatherings' | 'days' | 'drinks', label: string) => {
+    const cleanLabel = label.trim().toLowerCase();
+    const members: Array<{
+      name: string;
+      email: string;
+      phone: string;
+      isConfirmed: boolean;
+    }> = [];
+    const seenEmails = new Set<string>();
+
+    responses.forEach((r) => {
+      if (isDeletedOrArchivedEntry(r) || isSyntheticTestEntry(r)) return;
+
+      let isMatch = false;
+      if (category === 'times') {
+        const times = Array.isArray(r.times) ? r.times : typeof r.times === 'string' ? [r.times] : [];
+        const custom = (r.customTime || '').toLowerCase();
+        isMatch = times.some((t) => t.toLowerCase() === cleanLabel || t.toLowerCase().includes(cleanLabel) || cleanLabel.includes(t.toLowerCase())) ||
+                  Boolean(custom && custom.includes(cleanLabel));
+      } else if (category === 'gatherings') {
+        const gaths = Array.isArray(r.gatherings) ? r.gatherings : typeof r.gatherings === 'string' ? [r.gatherings] : [];
+        const custom = (r.customGathering || '').toLowerCase();
+        isMatch = gaths.some((g) => g.toLowerCase() === cleanLabel || g.toLowerCase().includes(cleanLabel) || cleanLabel.includes(g.toLowerCase())) ||
+                  Boolean(custom && custom.includes(cleanLabel));
+      } else if (category === 'days') {
+        const day = typeof r.dayPref === 'string' ? r.dayPref.toLowerCase() : typeof (r as any).dayPreference === 'string' ? (r as any).dayPreference.toLowerCase() : '';
+        isMatch = day === cleanLabel || day.includes(cleanLabel);
+      } else if (category === 'drinks') {
+        const drink = typeof r.drink === 'string' ? r.drink.toLowerCase() : '';
+        isMatch = drink === cleanLabel || drink.includes(cleanLabel);
+      }
+
+      if (isMatch) {
+        const email = (r.email || '').trim().toLowerCase();
+        if (email && seenEmails.has(email)) return;
+        if (email) seenEmails.add(email);
+
+        const isConfirmed =
+          users.some((u) => (u.email || '').trim().toLowerCase() === email && Array.isArray(u.rsvpEventIds) && u.rsvpEventIds.length > 0) ||
+          (Array.isArray(r.eventIds) && r.eventIds.length > 0);
+
+        members.push({
+          name: r.name || 'Community Member',
+          email: r.email || '',
+          phone: r.phoneNumber || '',
+          isConfirmed,
+        });
+      }
+    });
+
+    return members;
+  };
+
+  const renderBars = (pairs: [string, number][], category?: 'times' | 'gatherings' | 'days' | 'drinks') => {
     const max = Math.max(1, ...pairs.map((p) => p[1]));
     const percentages = getCleanPercentages(pairs.map((p) => ({ votes: p[1] })));
 
@@ -1953,10 +2255,19 @@ export default function AdminDashboard() {
           const pctOfMax = (count / max) * 100;
           const pctOfTotal = percentages[idx];
           const isLead = idx === 0 && count > 0;
+          const accordionKey = category ? `${category}-${label}` : null;
+          const isExpanded = accordionKey ? Boolean(expandedAccordions[accordionKey]) : false;
+          const members = (category && isExpanded) ? getMembersForOption(category, label) : [];
 
           return (
             <div key={label} className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
+              <div
+                onClick={() => accordionKey && count > 0 && toggleAccordion(accordionKey)}
+                className={`flex items-center justify-between text-xs sm:text-sm gap-2 select-none ${
+                  accordionKey && count > 0 ? 'cursor-pointer group/bar hover:opacity-90' : ''
+                }`}
+                title={accordionKey && count > 0 ? (isExpanded ? 'Click to collapse member list' : 'Click to view members who chose this option') : undefined}
+              >
                 <div className="flex items-center gap-2 truncate">
                   {isLead ? (
                     <span className="inline-flex items-center text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-[#F4ECE6] text-[#A84A28] border border-[#E6D5CB] shrink-0">
@@ -1967,9 +2278,16 @@ export default function AdminDashboard() {
                       #{idx + 1}
                     </span>
                   )}
-                  <span className={`truncate ${isLead ? 'font-bold text-[#2B271F]' : 'font-medium text-stone-700'}`}>
+                  <span className={`truncate ${isLead ? 'font-bold text-[#2B271F]' : 'font-medium text-stone-700'} ${accordionKey && count > 0 ? 'group-hover/bar:text-[#C8643F] transition-colors' : ''}`}>
                     {label}
                   </span>
+                  {accordionKey && count > 0 && (
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-200 shrink-0 ${
+                        isExpanded ? 'rotate-180 text-[#C8643F]' : ''
+                      }`}
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-xs font-mono font-bold text-[#2B271F]">
@@ -1980,7 +2298,12 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               </div>
-              <div className="w-full bg-[#EBE3D5]/70 rounded-full h-2.5 overflow-hidden p-0.5">
+              <div
+                onClick={() => accordionKey && count > 0 && toggleAccordion(accordionKey)}
+                className={`w-full bg-[#EBE3D5]/70 rounded-full h-2.5 overflow-hidden p-0.5 ${
+                  accordionKey && count > 0 ? 'cursor-pointer' : ''
+                }`}
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     isLead
@@ -1992,6 +2315,47 @@ export default function AdminDashboard() {
                   style={{ width: `${Math.max(count > 0 ? 4 : 0, pctOfMax)}%` }}
                 />
               </div>
+
+              {/* Connected Expandable Member Accordion Drawer */}
+              {category && isExpanded && (
+                <div className="mt-2 pl-3 pr-2 py-2.5 bg-white/90 border border-[#EADBCC] rounded-xl shadow-2xs space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-stone-500 pb-1 border-b border-[#F0EAE1]">
+                    <span className="font-semibold text-stone-700 uppercase tracking-wider">
+                      Members ({members.length})
+                    </span>
+                    <span>Tap to collapse</span>
+                  </div>
+                  {members.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {members.map((m, mIdx) => (
+                        <div
+                          key={mIdx}
+                          className="bg-[#FAF7F2] border border-[#EADBCC] rounded-lg p-2 text-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-[#2B271F] truncate">{m.name}</span>
+                            <span
+                              className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                m.isConfirmed
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-[#EFE8DF] text-stone-700 border border-[#DDD5C7]'
+                              }`}
+                            >
+                              {m.isConfirmed ? 'Confirmed RSVP' : 'Survey Intake'}
+                            </span>
+                          </div>
+                          {m.email && <p className="text-[11px] text-stone-500 truncate">✉ {m.email}</p>}
+                          {m.phone && <p className="text-[11px] text-stone-500">☎ {formatPhoneNumber(m.phone)}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-stone-400 italic py-1">
+                      No contact records matched this option.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -2530,14 +2894,14 @@ export default function AdminDashboard() {
                         <div
                           className={`rounded-2xl p-4 sm:p-6 transition-all duration-300 w-full min-w-0 space-y-4 ${
                             isImminentEvent
-                              ? 'bg-[#2B271F] text-white shadow-md border border-[#3E3832]'
-                              : 'bg-white border border-[#EADBCC] text-[#2B271F] shadow-sm'
+                              ? 'bg-emerald-950 text-emerald-50 shadow-md border border-emerald-900/80'
+                              : 'bg-[#FCFAF7] border border-[#D5DFD4] text-[#2B271F] shadow-sm'
                           }`}
                         >
                           {/* Header Bar: Status Badge, Relative Date & Active Gathering Switcher */}
                           <div
                             className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b ${
-                              isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                              isImminentEvent ? 'border-emerald-800/40' : 'border-[#DCE6DA]'
                             }`}
                           >
                             {/* Badges / Status */}
@@ -2584,9 +2948,9 @@ export default function AdminDashboard() {
                                       selectedEvent.status === 'confirmed'
                                         ? isImminentEvent
                                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                          : 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]'
+                                          : 'bg-emerald-50 border border-emerald-300 text-emerald-900'
                                         : isImminentEvent
-                                        ? 'bg-white/10 text-white border border-white/20'
+                                        ? 'bg-emerald-900/40 text-emerald-200 border border-emerald-700/40'
                                         : 'bg-[#FAF0EB] border border-[#EED4C8] text-[#C8643F]'
                                     }`}
                                   >
@@ -2603,8 +2967,8 @@ export default function AdminDashboard() {
                                   <span
                                     className={`inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full ${
                                       isImminentEvent
-                                        ? 'bg-white/10 text-stone-300 border border-white/15'
-                                        : 'bg-[#FAF0EB] text-[#C8643F] border border-[#EED4C8]'
+                                        ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-800/40'
+                                        : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                                     }`}
                                   >
                                     <Clock className="w-3 h-3" />
@@ -2615,7 +2979,7 @@ export default function AdminDashboard() {
                               {selectedEvent.categoryLabel && (
                                 <span
                                   className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
-                                    isImminentEvent ? 'bg-white/10 text-stone-300' : 'text-[#8C827A] bg-[#EDE4D3]/50'
+                                    isImminentEvent ? 'bg-emerald-900/40 text-emerald-200' : 'text-emerald-900 bg-emerald-100/60'
                                   }`}
                                 >
                                   {selectedEvent.categoryLabel}
@@ -2640,8 +3004,8 @@ export default function AdminDashboard() {
                                   onChange={(e) => handleSelectEvent(e.target.value)}
                                   className={`w-full sm:w-auto max-w-full min-w-0 truncate text-ellipsis rounded-xl px-3 py-2 pr-8 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-xs appearance-none ${
                                     isImminentEvent
-                                      ? 'bg-white/10 border border-white/20 text-white'
-                                      : 'bg-white border border-[#e5dfd8] text-[#2B271F]'
+                                      ? 'bg-emerald-900/40 border border-emerald-700/50 text-emerald-100'
+                                      : 'bg-white border border-[#D5DFD4] text-[#2B271F]'
                                   }`}
                                 >
                                   <optgroup label={`${MONTH_CONFIGS[selectedMonth].name} Chapter Gatherings`} className="text-[#2B271F] bg-white">
@@ -2864,19 +3228,19 @@ export default function AdminDashboard() {
                                 {/* Live Preferences Aggregation Summary */}
                                 <div
                                   className={`pt-2 border-t flex items-center justify-between gap-2 flex-wrap ${
-                                    isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                                    isImminentEvent ? 'border-emerald-800/40' : 'border-[#EBE3D5]'
                                   }`}
                                 >
                                   <span
                                     className={`text-[10px] font-mono uppercase tracking-wider shrink-0 ${
-                                      isImminentEvent ? 'text-stone-400' : 'text-stone-500'
+                                      isImminentEvent ? 'text-emerald-300/80' : 'text-stone-500'
                                     }`}
                                   >
                                     ATTENDEE PREFERENCES
                                   </span>
                                   <span
                                     className={`font-mono text-xs px-2.5 py-1 rounded-full ${
-                                      isImminentEvent ? 'bg-white/10 text-stone-200' : 'bg-[#EFE8DF] text-stone-700'
+                                      isImminentEvent ? 'bg-emerald-900/30 text-emerald-200' : 'bg-[#EFE8DF] text-stone-700'
                                     }`}
                                   >
                                     Preferences: ⚡ {feedbackCounts.Energizing} · ☕ {feedbackCounts.Relaxed} · 🌱 {feedbackCounts.DeepTalk}
@@ -2886,10 +3250,88 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
+                          {/* Interactive Attendee & Preference Breakdown Section */}
+                          <div
+                            className={`pt-4 border-t space-y-3 ${
+                              isImminentEvent ? 'border-emerald-800/40' : 'border-[#DCE6DA]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <UserCheck className={`w-4 h-4 ${isImminentEvent ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                                <h4 className={`text-xs font-mono uppercase tracking-wider font-bold ${
+                                  isImminentEvent ? 'text-emerald-200' : 'text-emerald-950'
+                                }`}>
+                                  Attendee &amp; Preference Breakdown ({selectedEventAttendees.length})
+                                </h4>
+                              </div>
+                              <span className={`text-[11px] font-mono ${isImminentEvent ? 'text-emerald-300/80' : 'text-stone-500'}`}>
+                                {cockpitConfirmedGuests} confirmed · {cockpitSpotsLeft} spots open
+                              </span>
+                            </div>
+
+                            {selectedEventAttendees.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                                {selectedEventAttendees.map((att, attIdx) => (
+                                  <div
+                                    key={attIdx}
+                                    className={`rounded-xl p-3 border transition-all ${
+                                      isImminentEvent
+                                        ? 'bg-emerald-900/30 border-emerald-800/50 text-emerald-100 hover:bg-emerald-900/50'
+                                        : 'bg-white border-[#E0E7DE] text-[#2B271F] shadow-2xs hover:border-emerald-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                      <span className="font-semibold text-xs truncate max-w-[140px]">
+                                        {att.name}
+                                      </span>
+                                      <span
+                                        className={`text-[9px] font-mono uppercase font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                          att.sourceType === 'rsvp'
+                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                            : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                        }`}
+                                      >
+                                        {att.sourceType === 'rsvp' ? 'Confirmed RSVP' : 'Survey Intake Match'}
+                                      </span>
+                                    </div>
+
+                                    <div className="space-y-0.5 text-[11px] opacity-80 font-mono">
+                                      {att.email && (
+                                        <p className="truncate" title={att.email}>
+                                          ✉ {att.email}
+                                        </p>
+                                      )}
+                                      {att.phone && (
+                                        <p>
+                                          ☎ {formatPhoneNumber(att.phone)}
+                                        </p>
+                                      )}
+                                      <div className="pt-1 flex items-center justify-between text-[10px] opacity-90 border-t border-current/10 mt-1">
+                                        <span>Party: {att.partySize} guest{att.partySize > 1 ? 's' : ''}</span>
+                                        {att.drink && <span className="truncate max-w-[90px]">🥂 {att.drink}</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div
+                                className={`rounded-xl p-4 text-center text-xs italic ${
+                                  isImminentEvent
+                                    ? 'bg-emerald-900/20 border border-emerald-800/30 text-emerald-300/70'
+                                    : 'bg-emerald-50/50 border border-dashed border-emerald-200 text-stone-500'
+                                }`}
+                              >
+                                No confirmed attendees yet for this gathering. Send a broadcast announcement or invite members!
+                              </div>
+                            )}
+                          </div>
+
                           {/* Consolidated Actions Bar */}
                           <div
                             className={`pt-3.5 flex flex-wrap items-center gap-2 sm:gap-3 border-t ${
-                              isImminentEvent ? 'border-white/10' : 'border-[#EBE3D5]'
+                              isImminentEvent ? 'border-emerald-800/40' : 'border-[#EBE3D5]'
                             }`}
                           >
                             {/* Copy Venue Address */}
@@ -3043,6 +3485,39 @@ export default function AdminDashboard() {
                                 : 'No events have been announced for this date yet. You can announce a new gathering or dispatch an invitation to members.'}
                             </p>
                           </div>
+
+                          {/* Interactive Member Availability Drilldown */}
+                          {dateVoters.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-[#EADBCC] text-left space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-mono uppercase tracking-wider font-bold text-[#6A6253]">
+                                  Members Available on this Date ({dateVoters.length})
+                                </span>
+                                <span className="text-[11px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                                  {dateVoters.length} request{dateVoters.length > 1 ? 's' : ''} / votes
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                                {dateVoters.map((voter, vIdx) => (
+                                  <div key={vIdx} className="bg-[#FAF7F2] border border-[#EADBCC] rounded-xl p-2.5 text-xs space-y-1">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="font-bold text-[#2B271F] truncate">{voter.name}</span>
+                                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                                        voter.source === 'Community Poll Vote'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-[#EFE8DF] text-stone-700'
+                                      }`}>
+                                        {voter.source}
+                                      </span>
+                                    </div>
+                                    {voter.email && <p className="text-[11px] text-stone-500 truncate">✉ {voter.email}</p>}
+                                    {voter.phone && <p className="text-[11px] text-stone-500">☎ {formatPhoneNumber(voter.phone)}</p>}
+                                    {voter.note && <p className="text-[10px] text-stone-600 italic truncate">&ldquo;{voter.note}&rdquo;</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="pt-2 flex items-center justify-center gap-2">
                             <button
@@ -3201,7 +3676,7 @@ export default function AdminDashboard() {
                     Time Preferences
                   </h3>
                 </div>
-                {renderBars(timeTally)}
+                {renderBars(timeTally, 'times')}
               </div>
 
               {/* Member Notes & Ideas */}
@@ -3414,7 +3889,7 @@ export default function AdminDashboard() {
                     Gathering Demand
                   </h3>
                 </div>
-                {renderBars(showAllDemand ? gathTally : gathTally.slice(0, 5))}
+                {renderBars(showAllDemand ? gathTally : gathTally.slice(0, 5), 'gatherings')}
                 {gathTally.length > 5 && (
                   <button
                     type="button"
@@ -3442,13 +3917,13 @@ export default function AdminDashboard() {
                   <span className="text-xs font-semibold text-[#6A6253] block mb-2">
                     Weekday vs. Weekend
                   </span>
-                  {renderBars(dayTally)}
+                  {renderBars(dayTally, 'days')}
                 </div>
                 <div className="pt-2 border-t border-[#EBE3D5]">
                   <span className="text-xs font-semibold text-[#6A6253] block mb-2">
                     Beverage Preferences
                   </span>
-                  {renderBars(drinkTally)}
+                  {renderBars(drinkTally, 'drinks')}
                 </div>
               </div>
             </div>
@@ -3463,9 +3938,9 @@ export default function AdminDashboard() {
                 </h3>
                 <p className="text-xs text-[#6A6253] mt-0.5">
                   Showing <strong>{filteredResponses.length}</strong> of <strong>{responses.length}</strong> contacts
-                  {(searchQuery || filterAttendance !== 'all' || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all' || presetFilter !== 'all') && (
+                  {(searchQuery || filterAttendance !== 'all' || filterGathering !== 'all' || filterTime !== 'all' || filterDate !== 'all' || presetFilter !== 'all' || rosterCycleFilter !== 'current' || rosterEventFilter !== 'all') && (
                     <span className="text-[#C8643F] font-semibold ml-1">
-                      (Filtered{filterAttendance === 'attending' ? ` · Attending ${selectedEvent ? splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName : 'Gathering'}` : filterAttendance === 'survey_only' ? ' · Survey Only' : presetFilter === 'confirmed' ? ' · Confirmed Only' : presetFilter === 'sms' ? ' · SMS Verified' : presetFilter === 'notes' ? ' · With Notes' : ''})
+                      (Filtered{rosterCycleFilter === 'past' ? ' · Past Cycle' : rosterCycleFilter === 'all' ? ' · All Cycles' : ''}{rosterEventFilter !== 'all' ? ` · Event: ${(() => { const e = events.find(ev => ev.id === rosterEventFilter); return e ? splitEventTitle(e.title, e.brandPrefix).eventName : 'Event'; })()}` : ''}{filterAttendance === 'attending' ? ` · Attending ${selectedEvent ? splitEventTitle(selectedEvent.title, selectedEvent.brandPrefix).eventName : 'Gathering'}` : filterAttendance === 'survey_only' ? ' · Survey Only' : presetFilter === 'confirmed' ? ' · Confirmed Only' : presetFilter === 'sms' ? ' · SMS Verified' : presetFilter === 'notes' ? ' · With Notes' : ''})
                     </span>
                   )}
                 </p>
@@ -3475,7 +3950,7 @@ export default function AdminDashboard() {
             {/* A. Command & Filter Bar */}
             <div className="bg-[#FAF7F2] border border-[#EADBCC] rounded-2xl p-3 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               {/* Left: High-end search input with magnifying glass */}
-              <div className="relative flex-1 min-w-[220px] max-w-md">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -3540,6 +4015,46 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              {/* Dynamic Cycle & Event Filter Selectors */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <label htmlFor="roster-cycle-filter" className="text-[11px] font-mono text-stone-500 uppercase tracking-wider hidden sm:inline">
+                    Cycle:
+                  </label>
+                  <select
+                    id="roster-cycle-filter"
+                    value={rosterCycleFilter}
+                    onChange={(e) => setRosterCycleFilter(e.target.value as any)}
+                    className="bg-white border border-[#EADBCC] rounded-xl px-2.5 py-1.5 text-xs text-[#2B271F] font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-2xs"
+                    title="Filter roster by cycle"
+                  >
+                    <option value="current">Current Cycle (Oct 2026)</option>
+                    <option value="past">Past Cycle (Sep 2026)</option>
+                    <option value="all">All Cycles</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <label htmlFor="roster-event-filter" className="text-[11px] font-mono text-stone-500 uppercase tracking-wider hidden sm:inline">
+                    Event:
+                  </label>
+                  <select
+                    id="roster-event-filter"
+                    value={rosterEventFilter}
+                    onChange={(e) => setRosterEventFilter(e.target.value)}
+                    className="bg-white border border-[#EADBCC] rounded-xl px-2.5 py-1.5 text-xs text-[#2B271F] font-semibold focus:outline-none focus:border-[#C8643F] cursor-pointer shadow-2xs max-w-[160px] truncate"
+                    title="Filter roster by active gathering"
+                  >
+                    <option value="all">All Gatherings</option>
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Right: Clean outline Filters ▾ popover button and Export CSV action */}
               <div className="flex items-center gap-2 self-end lg:self-auto relative">
                 <div className="relative">
@@ -3575,12 +4090,49 @@ export default function AdminDashboard() {
                                 setFilterGathering('all');
                                 setFilterTime('all');
                                 setFilterDate('all');
+                                setRosterCycleFilter('current');
+                                setRosterEventFilter('all');
                               }}
                               className="text-[11px] font-medium text-[#C8643F] hover:underline cursor-pointer"
                             >
                               Reset
                             </button>
                           )}
+                        </div>
+
+                        {/* Cycle Filter */}
+                        <div>
+                          <label className="block text-[11px] font-mono uppercase tracking-wider text-stone-500 mb-1">
+                            Cycle / Month
+                          </label>
+                          <select
+                            value={rosterCycleFilter}
+                            onChange={(e) => setRosterCycleFilter(e.target.value as any)}
+                            className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-lg px-2.5 py-1.5 text-xs text-[#2B271F] font-medium focus:outline-none focus:border-[#C8643F] cursor-pointer"
+                          >
+                            <option value="current">Current Cycle (Oct 2026)</option>
+                            <option value="past">Past Cycle (Sep 2026)</option>
+                            <option value="all">All Cycles</option>
+                          </select>
+                        </div>
+
+                        {/* Event Filter */}
+                        <div>
+                          <label className="block text-[11px] font-mono uppercase tracking-wider text-stone-500 mb-1">
+                            Filter by Gathering
+                          </label>
+                          <select
+                            value={rosterEventFilter}
+                            onChange={(e) => setRosterEventFilter(e.target.value)}
+                            className="w-full bg-[#FAF7F2] border border-[#EADBCC] rounded-lg px-2.5 py-1.5 text-xs text-[#2B271F] font-medium focus:outline-none focus:border-[#C8643F] cursor-pointer truncate"
+                          >
+                            <option value="all">All Gatherings</option>
+                            {events.map((ev) => (
+                              <option key={ev.id} value={ev.id}>
+                                {splitEventTitle(ev.title, ev.brandPrefix).eventName}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Event Attendance Filter */}
@@ -3858,12 +4410,21 @@ export default function AdminDashboard() {
                                   </span>
                                 ))}
                                 {remainingGaths > 0 && (
-                                  <span
-                                    className="inline-block bg-[#EADBCC]/60 border border-[#D8CEBC] text-[#6A6253] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
-                                    title={allGaths.slice(2).join(', ')}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveBadgePopover({
+                                        title: 'All Preferred Gatherings',
+                                        memberName: r.name || 'Member',
+                                        badgeType: 'gatherings',
+                                        items: allGaths,
+                                      })
+                                    }
+                                    className="inline-block bg-[#EADBCC]/80 hover:bg-[#EADBCC] border border-[#D8CEBC] text-[#6A6253] hover:text-[#2B271F] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-pointer shrink-0 transition-colors shadow-2xs"
+                                    title="Click to view all preferred gatherings"
                                   >
                                     +{remainingGaths} more
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                             </td>
@@ -3881,12 +4442,21 @@ export default function AdminDashboard() {
                                   </span>
                                 ))}
                                 {remainingDates > 0 && (
-                                  <span
-                                    className="inline-block bg-[#D4E8D6]/70 border border-[#BACFB2] text-[#3D6B42] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
-                                    title={allDates.slice(2).join(', ')}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveBadgePopover({
+                                        title: 'All Preferred Dates',
+                                        memberName: r.name || 'Member',
+                                        badgeType: 'dates',
+                                        items: allDates,
+                                      })
+                                    }
+                                    className="inline-block bg-[#D4E8D6]/80 hover:bg-[#D4E8D6] border border-[#BACFB2] text-[#3D6B42] hover:text-emerald-900 text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-pointer shrink-0 transition-colors shadow-2xs"
+                                    title="Click to view all preferred dates"
                                   >
                                     +{remainingDates} more
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                             </td>
@@ -3904,13 +4474,22 @@ export default function AdminDashboard() {
                                   </span>
                                 ))}
                                 {remainingTimes > 0 && (
-                                  <span
+                                  <button
                                     key="more-times"
-                                    className="inline-block bg-[#D3E0EE]/70 border border-[#C8D6E5] text-[#2B4C6F] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-default shrink-0"
-                                    title={allTimes.slice(2).join(', ')}
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveBadgePopover({
+                                        title: 'All Preferred Times',
+                                        memberName: r.name || 'Member',
+                                        badgeType: 'times',
+                                        items: allTimes,
+                                      })
+                                    }
+                                    className="inline-block bg-[#D3E0EE]/80 hover:bg-[#D3E0EE] border border-[#C8D6E5] text-[#2B4C6F] hover:text-[#18314A] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md cursor-pointer shrink-0 transition-colors shadow-2xs"
+                                    title="Click to view all preferred times"
                                   >
                                     +{remainingTimes} more
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                             </td>
@@ -4636,6 +5215,69 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* CLICKABLE BADGE LIST POPOVER / MODAL */}
+      {activeBadgePopover && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs animate-fade-in"
+          onClick={() => setActiveBadgePopover(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-white border border-[#EADBCC] rounded-2xl p-5 sm:p-6 shadow-2xl max-w-sm sm:max-w-md w-full space-y-3.5 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between pb-3 border-b border-[#EADBCC]">
+              <div>
+                <h4 className="text-sm font-bold text-[#2B271F] font-serif-fraunces">
+                  {activeBadgePopover.title}
+                </h4>
+                <p className="text-xs text-stone-500 font-medium mt-0.5">
+                  Member: <strong className="text-stone-700">{activeBadgePopover.memberName}</strong> · {activeBadgePopover.items.length} items
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveBadgePopover(null)}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                aria-label="Close popover"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto pt-1 pr-1">
+              {activeBadgePopover.items.map((item, i) => (
+                <span
+                  key={i}
+                  className={`inline-block text-xs font-medium px-2.5 py-1 rounded-lg border ${
+                    activeBadgePopover.badgeType === 'gatherings'
+                      ? 'bg-[#F4EEE2] border-[#D8CEBC] text-[#2B271F]'
+                      : activeBadgePopover.badgeType === 'dates'
+                      ? 'bg-[#EDF5EE] border-[#BACFB2] text-[#3D6B42]'
+                      : 'bg-[#F0F4F8] border-[#C8D6E5] text-[#2B4C6F]'
+                  }`}
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-[#EADBCC] flex items-center justify-between text-xs text-stone-400 font-mono">
+              <span>Press Esc or click outside to dismiss</span>
+              <button
+                type="button"
+                onClick={() => setActiveBadgePopover(null)}
+                className="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#EADBCC] border border-[#D8CEBC] text-xs font-semibold text-[#2B271F] rounded-lg transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer className="mt-16" />
     </div>
   );

@@ -36,17 +36,34 @@ export async function POST(request: Request) {
     // Fetch responses using adminDb if available, fallback to client db
     let responses: any[] = [];
     if (adminDb) {
-      const snap = await adminDb.collection('responses').get();
-      responses = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      try {
+        const snap = await adminDb.collection('responses').get();
+        responses = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      } catch (adminErr) {
+        console.warn('adminDb responses fetch failed, attempting client db fallback:', adminErr);
+        try {
+          const snapshot = await getDocs(collection(db, 'responses'));
+          responses = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+        } catch (clientErr) {
+          console.warn('Client db fallback also failed:', clientErr);
+        }
+      }
     } else {
-      const snapshot = await getDocs(collection(db, 'responses'));
-      responses = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      try {
+        const snapshot = await getDocs(collection(db, 'responses'));
+        responses = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      } catch (clientErr) {
+        console.warn('Client db fetch failed:', clientErr);
+      }
     }
 
     // Filter by city if specified and not 'all'
