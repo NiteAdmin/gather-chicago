@@ -95,6 +95,13 @@ export async function POST(req: Request) {
     const rawGroupA = Array.isArray(groupARecipients) ? groupARecipients : [];
     const rawGroupB = Array.isArray(groupBRecipients) ? groupBRecipients : [];
 
+    if (rawGroupA.length === 0 && rawGroupB.length === 0) {
+      return NextResponse.json(
+        { error: "At least one recipient must be specified." },
+        { status: 400 }
+      );
+    }
+
     // 3. Strict Pre-Batch Validation, Sanitization & Deduplication
     const failures: Array<{ email: string; reason: string }> = [];
     const seenEmails = new Set<string>();

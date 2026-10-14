@@ -506,7 +506,21 @@ export default function AdminDashboard() {
 
   // Announce Winning Date Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
-  const [modalStep, setModalStep] = useState<'configure' | 'review'>('configure');
+  const [modalStep, setModalStep] = useState<'configure' | 'review' | 'receipt'>('configure');
+  const [dispatchReceipt, setDispatchReceipt] = useState<{
+    totalSent: number;
+    groupACount: number;
+    groupBCount: number;
+    groupARecipients: { name?: string; email: string }[];
+    groupBRecipients: { name?: string; email: string }[];
+    isDryRun: boolean;
+    adminConfirmations?: { email: string; status: string; id?: string }[];
+    failures?: { email: string; reason: string }[];
+    winningDate: string;
+    eventTitle?: string | null;
+    isTargeted: boolean;
+    testEmail?: string;
+  } | null>(null);
   const [winningDate, setWinningDate] = useState('');
   const [eventTimeWindow, setEventTimeWindow] = useState('10:00 AM – 12:00 PM CDT');
   const [venueName, setVenueName] = useState('');
@@ -597,6 +611,29 @@ export default function AdminDashboard() {
 
   // Accordion state for expandable analytics bars
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({});
+
+  // Multi-Member Selection State for Contact Roster
+  const [selectedContactEmails, setSelectedContactEmails] = useState<Set<string>>(new Set());
+  const [isTargetedDispatch, setIsTargetedDispatch] = useState(false);
+
+  const toggleSelectContact = (email: string) => {
+    const lower = email.trim().toLowerCase();
+    if (!lower) return;
+    setSelectedContactEmails((prev) => {
+      const next = new Set(prev);
+      if (next.has(lower)) {
+        next.delete(lower);
+      } else {
+        next.add(lower);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedContactEmails(new Set());
+    setIsTargetedDispatch(false);
+  };
 
   const toggleAccordion = (key: string) => {
     setExpandedAccordions((prev) => ({
@@ -1151,6 +1188,7 @@ export default function AdminDashboard() {
 
   const handleOpenAdminModalForDate = (dateStr: string, dayNum: number) => {
     if (selectedMonth < CURRENT_CYCLE_MONTH) return;
+    setIsTargetedDispatch(false);
     const [y, m] = dateStr.split('-').map(Number);
     const d = new Date(y, m - 1, dayNum);
     const formatted = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -1168,6 +1206,7 @@ export default function AdminDashboard() {
     setConfirmInput('');
     setToastMessage(null);
     setExpandedGroup(null);
+    setDispatchReceipt(null);
     setShowAdminModal(true);
   };
 
@@ -1591,6 +1630,54 @@ export default function AdminDashboard() {
     return true;
   });
 
+  // Derived multi-member selection metrics across filtered visible contacts
+  const visibleEmails = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        filteredResponses
+          .map((r) => (r.email || '').trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+  }, [filteredResponses]);
+
+  const visibleSelectedCount = React.useMemo(() => {
+    return visibleEmails.filter((email) => selectedContactEmails.has(email)).length;
+  }, [visibleEmails, selectedContactEmails]);
+
+  const isAllVisibleSelected = visibleEmails.length > 0 && visibleSelectedCount === visibleEmails.length;
+  const isPartiallySelected = visibleSelectedCount > 0 && !isAllVisibleSelected;
+
+  const toggleSelectAll = () => {
+    if (visibleEmails.length === 0) return;
+    setSelectedContactEmails((prev) => {
+      const next = new Set(prev);
+      if (isAllVisibleSelected) {
+        visibleEmails.forEach((email) => next.delete(email));
+      } else {
+        visibleEmails.forEach((email) => next.add(email));
+      }
+      return next;
+    });
+  };
+
+  const selectedOptedInPhones = React.useMemo(() => {
+    if (selectedContactEmails.size === 0) return [];
+    const optedIn = responses.filter((r) => {
+      const email = (r.email || '').trim().toLowerCase();
+      if (!email || !selectedContactEmails.has(email)) return false;
+      const cleanPhone = (r.phoneNumber || '').replace(/\D/g, '');
+      return Boolean(r.smsOptIn) && cleanPhone.length >= 10;
+    });
+    return Array.from(
+      new Set(
+        optedIn
+          .map((r) => r.phoneNumber?.replace(/[^\d+]/g, ''))
+          .filter((p): p is string => Boolean(p && p.length >= 10))
+      )
+    );
+  }, [responses, selectedContactEmails]);
+
   // Confirmed attendees breakdown for the selected event cockpit
   const selectedEventAttendees = React.useMemo(() => {
     if (!selectedEvent) return [];
@@ -1714,10 +1801,15 @@ export default function AdminDashboard() {
   const selectedDateStr = winningDate || (topDateOption || monthDates[0] || DATES[0]);
   const cleanSelectedDate = (selectedDateStr || '').trim().toLowerCase();
 
+  // Effective audience pool: If in targeted announcement mode with selections, scope to selectedContactEmails!
+  const audiencePool = isTargetedDispatch && selectedContactEmails.size > 0
+    ? responses.filter((r) => r.email && selectedContactEmails.has(r.email.trim().toLowerCase()))
+    : responses;
+
   // Group A (Available): Contacts who voted for the selected date or selected "Any date"
   const seenGroupAEmails = new Set<string>();
   const groupA: SurveyResponse[] = [];
-  for (const r of responses) {
+  for (const r of audiencePool) {
     const rDates = Array.isArray(r.dates) ? r.dates : [];
     const customDate = (r.customDate || '').trim().toLowerCase();
     const hasWinningDate = rDates.some((d) => (d || '').trim().toLowerCase() === cleanSelectedDate);
@@ -1741,7 +1833,7 @@ export default function AdminDashboard() {
   const groupAIds = new Set(groupA.map((a) => a.id).filter(Boolean));
   const seenGroupBEmails = new Set<string>();
   const groupB: SurveyResponse[] = [];
-  for (const r of responses) {
+  for (const r of audiencePool) {
     const emailLower = (r.email || '').trim().toLowerCase();
     if (emailLower && seenGroupAEmails.has(emailLower)) continue;
     if (r.id && groupAIds.has(r.id)) continue;
@@ -1756,7 +1848,8 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleOpenAdminModal = (targetEvent?: CommunityEvent | React.MouseEvent) => {
+  const handleOpenAdminModal = (targetEvent?: CommunityEvent | React.MouseEvent, targeted: boolean = false) => {
+    setIsTargetedDispatch(targeted);
     const ev = targetEvent && 'id' in targetEvent ? targetEvent : (selectedEvent || undefined);
     const defaultDate = ev?.displayDate || topDateOption || monthDates[0] || DATES[0];
     setWinningDate(defaultDate);
@@ -1775,7 +1868,38 @@ export default function AdminDashboard() {
     setConfirmInput('');
     setToastMessage(null);
     setExpandedGroup(null);
+    setDispatchReceipt(null);
     setShowAdminModal(true);
+  };
+
+  const handleOpenTargetedAnnouncement = () => {
+    setIsTargetedDispatch(true);
+    handleOpenAdminModal(undefined, true);
+  };
+
+  const handleDismissReceipt = () => {
+    if (isTargetedDispatch) {
+      clearSelection();
+      setIsTargetedDispatch(false);
+    }
+    setDispatchReceipt(null);
+    setModalStep('configure');
+    setConfirmInput('');
+    setToastMessage(null);
+    setShowAdminModal(false);
+  };
+
+  const handleCloseAdminModal = () => {
+    if (modalStep === 'receipt') {
+      handleDismissReceipt();
+      return;
+    }
+    setShowAdminModal(false);
+    setIsTargetedDispatch(false);
+    setModalStep('configure');
+    setConfirmInput('');
+    setToastMessage(null);
+    setDispatchReceipt(null);
   };
 
   const handleDispatchAnnouncements = async (e: React.FormEvent) => {
@@ -1807,7 +1931,7 @@ export default function AdminDashboard() {
           isDryRun,
           testEmail: testEmail.trim() || undefined,
           forceResend: Boolean(forceResend),
-          totalSurveysFound: responses.length,
+          totalSurveysFound: isTargetedDispatch ? selectedContactEmails.size : responses.length,
           groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
           groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
           eventId:
@@ -1848,11 +1972,34 @@ export default function AdminDashboard() {
         });
       }
 
-      await loadBroadcasts(selectedCity);
+      setDispatchReceipt({
+        totalSent: data.totalSent ?? 0,
+        groupACount: data.groupACount ?? (data.isDryRun ? 1 : groupA.length),
+        groupBCount: data.groupBCount ?? (data.isDryRun ? 1 : groupB.length),
+        groupARecipients: groupA.map((r) => ({ name: r.name, email: r.email })),
+        groupBRecipients: groupB.map((r) => ({ name: r.name, email: r.email })),
+        isDryRun: Boolean(data.isDryRun),
+        adminConfirmations: data.adminConfirmations || [],
+        failures: data.failures || [],
+        winningDate: selectedDateStr,
+        eventTitle:
+          activeModalEventTitle ||
+          selectedEvent?.title ||
+          events.find(
+            (ev) =>
+              ev.id ===
+              (activeModalEventId ||
+                selectedEvent?.id ||
+                events.find((e) => e.displayDate === winningDate || e.date === winningDate)?.id)
+          )?.title ||
+          null,
+        isTargeted: isTargetedDispatch,
+        testEmail: testEmail.trim() || 'admin@actuallylets.com',
+      });
 
-      setTimeout(() => {
-        setShowAdminModal(false);
-      }, 2500);
+      setModalStep('receipt');
+
+      await loadBroadcasts(selectedCity);
     } catch (err: any) {
       console.error('Dispatch error:', err);
       setToastMessage({
@@ -4232,6 +4379,21 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-left">
                   <thead className="sticky top-0 z-10 bg-[#FAF7F2]">
                     <tr className="border-b border-[#EADBCC]">
+                      <th className="py-3.5 px-3 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] w-10 text-center">
+                        <input
+                          type="checkbox"
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate = isPartiallySelected;
+                            }
+                          }}
+                          checked={isAllVisibleSelected}
+                          onChange={toggleSelectAll}
+                          disabled={visibleEmails.length === 0}
+                          aria-label="Select all visible contacts"
+                          className="w-4 h-4 rounded text-emerald-700 accent-emerald-700 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed align-middle"
+                        />
+                      </th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Attendee</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap">Status &amp; Guests</th>
                       <th className="py-3.5 px-4 text-xs font-mono uppercase tracking-wider text-stone-500 bg-[#FAF7F2] whitespace-nowrap text-center">Door Check-In</th>
@@ -4247,13 +4409,14 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-[#EADBCC]">
                     {filteredResponses.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-12 px-4 text-xs text-stone-500 italic">
+                        <td colSpan={11} className="text-center py-12 px-4 text-xs text-stone-500 italic">
                           No contacts match your current filter criteria.
                         </td>
                       </tr>
                     ) : (
                       filteredResponses.map((r, idx) => {
                         const isAttending = selectedEvent ? isContactAttendingEvent(r, selectedEvent, users) : false;
+                        const isSelected = Boolean(r.email && selectedContactEmails.has(r.email.trim().toLowerCase()));
                         const rawGatherings = Array.isArray(r.gatherings) ? r.gatherings : [];
                         const allGaths = [
                           ...rawGatherings,
@@ -4289,7 +4452,18 @@ export default function AdminDashboard() {
                         }
 
                         return (
-                          <tr key={r.id || idx} className="hover:bg-[#FAF7F2]/60 transition-colors">
+                          <tr key={r.id || idx} className={`transition-colors ${isSelected ? 'bg-[#EDF5EE]/60 hover:bg-[#EDF5EE]' : 'hover:bg-[#FAF7F2]/60'}`}>
+                            {/* Checkbox Column */}
+                            <td className="py-3.5 px-3 border-b border-[#EADBCC] w-10 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => r.email && toggleSelectContact(r.email)}
+                                disabled={!r.email}
+                                aria-label={`Select ${r.name || r.email || 'contact'}`}
+                                className="w-4 h-4 rounded text-emerald-700 accent-emerald-700 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed align-middle"
+                              />
+                            </td>
                             {/* Attendee Monogram Avatar & Email Stack */}
                             <td className="py-3.5 px-4 border-b border-[#EADBCC] min-w-[220px]">
                               <div className="flex items-center">
@@ -4629,7 +4803,7 @@ export default function AdminDashboard() {
 
       {/* SECTION 3: ANNOUNCEMENT & SEGMENTATION MODAL REFACTOR */}
       {showAdminModal && (
-        <div className="fixed inset-0 bg-[#2B271F]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowAdminModal(false)}>
+        <div className="fixed inset-0 bg-[#2B271F]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={handleCloseAdminModal}>
           <div className="bg-[#FAF7F2] border border-[#EBE3D5] rounded-3xl p-7 max-w-2xl w-full shadow-2xl relative my-8" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="flex justify-between items-start pb-4 mb-5 border-b border-[#EBE3D5]">
@@ -4639,16 +4813,24 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold font-serif-fraunces text-[#2B271F]">
-                    {activeModalEventTitle ? `Announce Gathering · ${activeModalEventTitle}` : 'Announce Winning Date'}
+                    {modalStep === 'receipt'
+                      ? 'Dispatch Receipt'
+                      : isTargetedDispatch
+                        ? (activeModalEventTitle ? `Targeted Announcement · ${activeModalEventTitle}` : 'Targeted Announcement')
+                        : (activeModalEventTitle ? `Announce Gathering · ${activeModalEventTitle}` : 'Announce Winning Date')}
                   </h3>
                   <p className="text-xs text-[#6A6253] mt-0.5">
-                    {formatCityName(selectedCity)} Chapter · Configure details and preview audience segmentation before dispatching.
+                    {modalStep === 'receipt'
+                      ? `${formatCityName(selectedCity)} Chapter · Delivery confirmation and recipient audit summary.`
+                      : isTargetedDispatch
+                        ? `${formatCityName(selectedCity)} Chapter · Scoped to ${selectedContactEmails.size} selected member${selectedContactEmails.size === 1 ? '' : 's'}. Configure details and preview audience segmentation before dispatching.`
+                        : `${formatCityName(selectedCity)} Chapter · Configure details and preview audience segmentation before dispatching.`}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAdminModal(false)}
+                onClick={handleCloseAdminModal}
                 className="text-[#8C827A] hover:text-[#2B271F] p-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -4659,34 +4841,188 @@ export default function AdminDashboard() {
             <div className="flex gap-2 p-1 bg-[#EDE4D3]/50 border border-[#D8CEBC] rounded-xl mb-6">
               <button
                 type="button"
+                disabled={modalStep === 'receipt'}
                 onClick={() => {
-                  setToastMessage(null);
-                  setModalStep('configure');
+                  if (modalStep !== 'receipt') {
+                    setToastMessage(null);
+                    setModalStep('configure');
+                  }
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${modalStep === 'configure' ? 'bg-white text-[#2B271F] shadow-xs' : 'text-[#6A6253] hover:text-[#2B271F]'}`}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  modalStep === 'configure'
+                    ? 'bg-white text-[#2B271F] shadow-xs'
+                    : 'text-[#6A6253] hover:text-[#2B271F]'
+                } ${modalStep === 'receipt' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 1. Configure Details
               </button>
               <button
                 type="button"
+                disabled={modalStep === 'receipt'}
                 onClick={() => {
-                  setToastMessage(null);
-                  setModalStep('review');
+                  if (modalStep !== 'receipt') {
+                    setToastMessage(null);
+                    setModalStep('review');
+                  }
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${modalStep === 'review' ? 'bg-white text-[#2B271F] shadow-xs' : 'text-[#6A6253] hover:text-[#2B271F]'}`}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  modalStep === 'review'
+                    ? 'bg-white text-[#2B271F] shadow-xs'
+                    : 'text-[#6A6253] hover:text-[#2B271F]'
+                } ${modalStep === 'receipt' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 2. Review &amp; Segmentation Preview
               </button>
+              {modalStep === 'receipt' && (
+                <div className="flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-[#3D6B42] text-white shadow-xs text-center flex items-center justify-center gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>3. Delivery Receipt</span>
+                </div>
+              )}
             </div>
 
-            {toastMessage && (
+            {toastMessage && modalStep !== 'receipt' && (
               <div className={`p-3.5 rounded-xl text-xs font-semibold mb-5 flex items-start gap-2 ${toastMessage.type === 'success' ? 'bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42]' : 'bg-[#FDF2F0] border border-[#F5C2BA] text-[#A63A24]'}`}>
                 {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
                 <span>{toastMessage.text}</span>
               </div>
             )}
 
-            {modalStep === 'configure' ? (
+            {modalStep === 'receipt' && dispatchReceipt ? (
+              <div className="space-y-5">
+                {/* 1. Status Banner */}
+                <div className="p-4 rounded-2xl bg-[#EDF5EE] border border-[#BACFB2] text-[#3D6B42] flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#3D6B42] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    <Check className="w-5 h-5 stroke-[2.5]" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold">
+                      {dispatchReceipt.isDryRun
+                        ? '✓ Test Preview Dispatched Successfully'
+                        : '✓ Announcement Dispatched Successfully'}
+                    </h4>
+                    <p className="text-xs text-[#4C5A40] leading-relaxed">
+                      {dispatchReceipt.isDryRun
+                        ? `Sample preview emails and dual admin confirmation receipts were sent to ${dispatchReceipt.testEmail} and administrators.`
+                        : dispatchReceipt.isTargeted
+                          ? `Delivered to ${dispatchReceipt.totalSent} selected recipient${dispatchReceipt.totalSent === 1 ? '' : 's'} (${dispatchReceipt.groupACount} Group A, ${dispatchReceipt.groupBCount} Group B). Dual confirmation receipts sent to admins.`
+                          : `Broadcast delivered to ${dispatchReceipt.totalSent} attendee${dispatchReceipt.totalSent === 1 ? '' : 's'} (${dispatchReceipt.groupACount} Group A, ${dispatchReceipt.groupBCount} Group B). Dual confirmation receipts sent to admins.`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Delivery Tally Matrix */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-white border border-[#D8CEBC] rounded-2xl text-center shadow-2xs">
+                    <span className="text-[10px] uppercase font-bold text-[#6A6253] tracking-wider block">
+                      Total Delivered
+                    </span>
+                    <span className="text-2xl font-bold font-serif-fraunces text-[#2B271F] mt-1 block">
+                      {dispatchReceipt.totalSent}
+                    </span>
+                    <span className="text-[11px] text-[#6A6253]">
+                      {dispatchReceipt.isDryRun ? 'test samples' : 'recipients'}
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-[#FAF8F5] border border-[#BACFB2] rounded-2xl text-center shadow-2xs">
+                    <span className="text-[10px] uppercase font-bold text-[#3D6B42] tracking-wider block">
+                      Group A (Available)
+                    </span>
+                    <span className="text-2xl font-bold font-serif-fraunces text-[#3D6B42] mt-1 block">
+                      {dispatchReceipt.groupACount}
+                    </span>
+                    <span className="text-[11px] text-[#6A6253]">voted for date</span>
+                  </div>
+
+                  <div className="p-3 bg-[#FAF8F5] border border-[#E5D7B7] rounded-2xl text-center shadow-2xs">
+                    <span className="text-[10px] uppercase font-bold text-[#8C6D23] tracking-wider block">
+                      Group B (Alternate)
+                    </span>
+                    <span className="text-2xl font-bold font-serif-fraunces text-[#8C6D23] mt-1 block">
+                      {dispatchReceipt.groupBCount}
+                    </span>
+                    <span className="text-[11px] text-[#6A6253]">other dates</span>
+                  </div>
+                </div>
+
+                {/* 3. Scrollable Recipient Roster */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#6A6253]">
+                      Delivered Recipients ({dispatchReceipt.groupARecipients.length + dispatchReceipt.groupBRecipients.length})
+                    </span>
+                    {dispatchReceipt.isTargeted && (
+                      <span className="text-[11px] font-semibold text-[#3D6B42] bg-[#EDF5EE] px-2 py-0.5 rounded-full border border-[#BACFB2]">
+                        Targeted Selection
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="border border-[#D8CEBC] rounded-2xl bg-white overflow-hidden shadow-2xs">
+                    <div className="max-h-60 overflow-y-auto divide-y divide-[#EDE4D3]/70">
+                      {dispatchReceipt.groupARecipients.map((r, i) => (
+                        <div key={`receipt-ga-${i}`} className="p-2.5 px-3.5 flex items-center justify-between text-xs hover:bg-[#FAF8F5] transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="font-semibold text-[#2B271F] truncate">{r.name || 'Member'}</span>
+                            <span className="font-mono text-[11px] text-[#6A6253] truncate">{r.email}</span>
+                          </div>
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EDF5EE] text-[#3D6B42] border border-[#BACFB2]">
+                            Group A · Available
+                          </span>
+                        </div>
+                      ))}
+                      {dispatchReceipt.groupBRecipients.map((r, i) => (
+                        <div key={`receipt-gb-${i}`} className="p-2.5 px-3.5 flex items-center justify-between text-xs hover:bg-[#FAF8F5] transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="font-semibold text-[#2B271F] truncate">{r.name || 'Member'}</span>
+                            <span className="font-mono text-[11px] text-[#6A6253] truncate">{r.email}</span>
+                          </div>
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF4E8] text-[#8C6D23] border border-[#E5D7B7]">
+                            Group B · Alternate
+                          </span>
+                        </div>
+                      ))}
+                      {dispatchReceipt.groupARecipients.length === 0 && dispatchReceipt.groupBRecipients.length === 0 && (
+                        <div className="p-4 text-center text-xs text-[#6A6253]">
+                          No attendee records to display.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Dual Admin Confirmation Verification */}
+                <div className="p-3 bg-[#FAF8F5] border border-[#D8CEBC] rounded-xl text-xs text-[#6A6253] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-[#3D6B42]" />
+                    <span>Admin confirmation receipts: <strong>admin@actuallylets.com</strong> &amp; <strong>ademola@actuallylets.com</strong></span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#3D6B42] bg-[#EDF5EE] px-2 py-0.5 rounded-md border border-[#BACFB2]">
+                    Confirmed
+                  </span>
+                </div>
+
+                {/* 5. Explicit Done / Close Buttons */}
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDismissReceipt}
+                    className="py-2.5 px-5 rounded-xl border border-[#D8CEBC] text-xs font-semibold text-[#6A6253] hover:bg-white transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDismissReceipt}
+                    className="py-2.5 px-6 rounded-xl bg-[#2B271F] hover:bg-[#3E382D] text-white text-xs font-bold transition-colors cursor-pointer shadow-md flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Done</span>
+                  </button>
+                </div>
+              </div>
+            ) : modalStep === 'configure' ? (
               <div className="space-y-4">
                 {/* 1. Select Winning Date */}
                 <div>
@@ -4821,7 +5157,7 @@ export default function AdminDashboard() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowAdminModal(false)}
+                    onClick={handleCloseAdminModal}
                     className="flex-1 py-3 px-4 rounded-xl border border-[#D8CEBC] text-xs font-semibold text-[#6A6253] hover:bg-white transition-colors cursor-pointer"
                   >
                     Cancel
@@ -4880,7 +5216,9 @@ export default function AdminDashboard() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#2B271F]">
                     <SlidersHorizontal className="w-3.5 h-3.5 text-[#8C827A]" />
-                    <span>Audience Segmentation ({responses.length} Total Contacts)</span>
+                    <span>
+                      Audience Segmentation ({isTargetedDispatch ? `${selectedContactEmails.size} Selected Contacts` : `${responses.length} Total Contacts`})
+                    </span>
                   </div>
 
                   {/* Group A */}
@@ -4980,10 +5318,20 @@ export default function AdminDashboard() {
                   ) : (
                     <p className="mt-2 text-xs text-[#A63A24] flex items-center gap-1.5 font-medium">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Live Mode Active: Will dispatch announcement to all {groupA.length + groupB.length} contacts.</span>
+                      <span>Live Mode Active: Will dispatch announcement to all {groupA.length + groupB.length} {isTargetedDispatch ? 'selected ' : ''}contacts.</span>
                     </p>
                   )}
                 </div>
+
+                {/* Targeted Dispatch Safety Banner */}
+                {isTargetedDispatch && (
+                  <div className="p-3.5 bg-[#EDF5EE] border border-[#BACFB2] rounded-2xl flex items-start gap-2.5 text-xs text-[#3D6B42] font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-[#3D6B42] shrink-0 mt-0.5" />
+                    <span>
+                      Targeted Dispatch: This announcement will only be delivered to {selectedContactEmails.size} selected member{selectedContactEmails.size === 1 ? '' : 's'}.
+                    </span>
+                  </div>
+                )}
 
                 {/* Safety Confirmation Text Lock */}
                 <div className="p-4 bg-[#FFF7F4] border border-[#F5C2BA] rounded-2xl space-y-2">
@@ -4992,7 +5340,7 @@ export default function AdminDashboard() {
                     <span>Safety Confirmation Lock</span>
                   </div>
                   <p className="text-xs text-[#2B271F]">
-                    To unlock {isDryRun ? 'test dispatch' : 'live announcement dispatch'}, type <strong>CONFIRM</strong> into the box below:
+                    To unlock {isDryRun ? 'test dispatch' : isTargetedDispatch ? `targeted dispatch to ${selectedContactEmails.size} selected members` : 'live announcement dispatch'}, type <strong>CONFIRM</strong> into the box below:
                   </p>
                   <input
                     type="text"
@@ -5274,6 +5622,61 @@ export default function AdminDashboard() {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING BATCH ACTION BAR */}
+      {selectedContactEmails.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-2rem)] sm:w-auto max-w-lg bg-[#2B271F] text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-700/80 flex items-center justify-between gap-4 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+            <span className="text-xs font-semibold whitespace-nowrap text-stone-200">
+              <strong className="text-white font-bold">{selectedContactEmails.size}</strong> {selectedContactEmails.size === 1 ? 'member' : 'members'} selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleOpenTargetedAnnouncement}
+              className="inline-flex items-center gap-1.5 bg-[#4C5A40] hover:bg-[#3D4933] text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              <span>Send Targeted Announcement</span>
+            </button>
+
+            {selectedOptedInPhones.length > 0 ? (
+              <a
+                href={`sms:${selectedOptedInPhones.join(',')}?body=${encodeURIComponent(
+                  smsMessage.trim() || `Update from Actually Let's ${formatCityName(selectedCity)}:`
+                )}`}
+                className="inline-flex items-center gap-1.5 bg-stone-800 text-stone-100 hover:bg-stone-700 text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+                title={`Draft native SMS for ${selectedOptedInPhones.length} opted-in recipient${selectedOptedInPhones.length === 1 ? '' : 's'}`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Draft SMS ({selectedOptedInPhones.length} opted-in)</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center gap-1.5 bg-stone-800 text-stone-100 opacity-50 cursor-not-allowed text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm"
+                title="None of the selected members have opted into SMS"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Draft SMS (0 opted-in)</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-stone-400 hover:text-white text-xs font-medium px-2 py-1 transition-colors cursor-pointer"
+              title="Clear selection"
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}
